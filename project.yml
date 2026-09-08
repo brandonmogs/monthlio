@@ -30,6 +30,7 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         ITSAppUsesNonExemptEncryption: false
+        NSFaceIDUsageDescription: Monthlio uses Face ID to keep your expenses private.
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
     settings:

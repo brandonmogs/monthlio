@@ -6,6 +6,9 @@ struct RootTabView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Query private var expenses: [Expense]
     @Query private var settingsRows: [AppSettings]
+    @Query private var rates: [ExchangeRate]
+    @Environment(AppLockService.self) private var lock
+    @State private var currencyStore = CurrencyStore()
     @State private var selectedTab = Tab.initial
 
     enum Tab: String, CaseIterable {
@@ -25,6 +28,28 @@ struct RootTabView: View {
     }
 
     var body: some View {
+        tabs
+            .environment(currencyStore)
+            .overlay {
+                if lock.isLocked {
+                    LockScreenView()
+                        .transition(.opacity)
+                } else if lock.isEnabled, scenePhase != .active {
+                    Rectangle().fill(.ultraThinMaterial).ignoresSafeArea()
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: lock.isLocked)
+            .task(id: syncFingerprint) { await sync() }
+            .onChange(of: currencyFingerprint, initial: true) {
+                currencyStore.update(settings: settingsRows.first, rates: rates)
+            }
+            .onChange(of: scenePhase) { _, phase in
+                lock.handleScenePhase(phase)
+                if phase == .active { Task { await sync() } }
+            }
+    }
+
+    private var tabs: some View {
         TabView(selection: $selectedTab) {
             DashboardView()
                 .tabItem { Label("Dashboard", systemImage: "chart.pie.fill") }
@@ -42,26 +67,27 @@ struct RootTabView: View {
                 .tabItem { Label("Upcoming", systemImage: "calendar") }
                 .tag(Tab.upcoming)
         }
-        .task(id: syncFingerprint) { await sync() }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await sync() } }
-        }
+    }
+
+    private var currencyFingerprint: String {
+        let base = settingsRows.first?.resolvedBaseCurrencyCode ?? ""
+        return base + "#" + rates.map { "\($0.code)=\($0.rateToBase)" }.sorted().joined(separator: ",")
     }
 
     /// Changes whenever anything that affects snapshots or reminders changes.
     /// Reading these properties in the body also subscribes to their updates.
     private var syncFingerprint: String {
         let expensePart = expenses.map {
-            "\($0.id.uuidString)|\($0.amount)|\($0.cadenceRaw)|\($0.dueDay ?? 0)|\($0.isActive)|\($0.name)"
+            "\($0.id.uuidString)|\($0.amount)|\($0.currencyCode)|\($0.cadenceRaw)|\($0.dueDay ?? 0)|\($0.isActive)|\($0.name)"
         }
         .joined(separator: ";")
         let notifications = settingsRows.first?.notificationsEnabled ?? false
-        return "\(notifications)#\(expensePart)"
+        return "\(notifications)#\(currencyFingerprint)#\(expensePart)"
     }
 
     /// Records this month's total and refreshes local reminders.
     private func sync() async {
-        let total = ExpenseCalculator.monthlyTotal(expenses)
+        let total = ExpenseCalculator.monthlyTotal(expenses, converter: currencyStore.converter)
         SnapshotService.record(total: total, in: modelContext)
 
         let enabled = settingsRows.first?.notificationsEnabled ?? false
@@ -72,4 +98,6 @@ struct RootTabView: View {
 #Preview {
     RootTabView()
         .modelContainer(PreviewContainer.shared)
+        .environment(CurrencyStore())
+        .environment(AppLockService(isEnabled: false))
 }

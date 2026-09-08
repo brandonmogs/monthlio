@@ -64,7 +64,7 @@ final class ExpenseFormViewModel {
 
         if let existing {
             existing.name = trimmedName
-            existing.amount = amount
+            existing.updateAmount(amount)
             existing.category = category
             existing.cadence = cadence
             existing.dueDay = hasDueDay ? dueDay : nil

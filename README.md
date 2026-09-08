@@ -26,17 +26,19 @@ months of history on first launch. Launch arguments (DEBUG only):
 
 - `-MonthlioSkipSeed` — start empty to see the first-run state
 - `-MonthlioTab upcoming` — open on a tab (`dashboard`, `expenses`, `subscriptions`, `upcoming`)
+- `-MonthlioLocked` — start with the Face ID / passcode lock engaged
 
 ## Layout
 
 ```
 Monthlio/
   App/          entry point + tab root
-  Models/       Expense, AppSettings, CategoryBudget, MonthSnapshot, enums
+  Models/       Expense, AppSettings, CategoryBudget, MonthSnapshot, ExchangeRate, enums
   ViewModels/   dashboard selection, form state, list search/sort
   Views/        Dashboard/, Expenses/, Subscriptions/, Upcoming/, Settings/, Shared/
-  Services/     ExpenseCalculator, SnapshotService, BudgetEvaluator,
-                UpcomingChargeCalculator, NotificationScheduler, CSVExporter
+  Services/     ExpenseCalculator, CurrencyConverter/Store, AppLockService,
+                SnapshotService, BudgetEvaluator, UpcomingChargeCalculator,
+                NotificationScheduler, CSVExporter
   Utilities/    currency + decimal helpers, preview container
-MonthlioTests/  35 tests over the calculators and exporter
+MonthlioTests/  50 tests over the calculators, converter, lock and exporter
 ```

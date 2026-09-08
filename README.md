@@ -21,19 +21,22 @@ xcodebuild test -scheme Monthlio -destination 'platform=iOS Simulator,name=iPhon
 
 Or open `Monthlio.xcodeproj` after generating and press Run.
 
-DEBUG builds seed a realistic set of expenses on first launch. To see the
-empty state, add `-MonthlioSkipSeed` to the scheme's launch arguments (or
-delete the seeded rows).
+DEBUG builds seed a realistic set of expenses, income, budgets and eight
+months of history on first launch. Launch arguments (DEBUG only):
+
+- `-MonthlioSkipSeed` — start empty to see the first-run state
+- `-MonthlioTab upcoming` — open on a tab (`dashboard`, `expenses`, `subscriptions`, `upcoming`)
 
 ## Layout
 
 ```
 Monthlio/
   App/          entry point + tab root
-  Models/       Expense (SwiftData), ExpenseCategory, Cadence
-  ViewModels/   dashboard selection, form state, list grouping
-  Views/        Dashboard/, Expenses/, Shared/
-  Services/     ExpenseCalculator (all the math), Haptics, SampleData
+  Models/       Expense, AppSettings, CategoryBudget, MonthSnapshot, enums
+  ViewModels/   dashboard selection, form state, list search/sort
+  Views/        Dashboard/, Expenses/, Subscriptions/, Upcoming/, Settings/, Shared/
+  Services/     ExpenseCalculator, SnapshotService, BudgetEvaluator,
+                UpcomingChargeCalculator, NotificationScheduler, CSVExporter
   Utilities/    currency + decimal helpers, preview container
-MonthlioTests/  cadence normalization + total/breakdown tests
+MonthlioTests/  35 tests over the calculators and exporter
 ```

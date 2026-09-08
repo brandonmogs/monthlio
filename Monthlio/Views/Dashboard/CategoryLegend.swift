@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// Tappable legend rows: color swatch, symbol, name, amount, and share.
+/// Tappable legend rows with optional budget progress per category.
 struct CategoryLegend: View {
     let slices: [CategorySlice]
+    var budgets: [ExpenseCategory: Decimal] = [:]
     let selectedCategory: ExpenseCategory?
     let onSelect: (ExpenseCategory) -> Void
 
@@ -12,7 +13,11 @@ struct CategoryLegend: View {
                 Button {
                     onSelect(slice.category)
                 } label: {
-                    CategoryLegendRow(slice: slice, isDimmed: isDimmed(slice))
+                    CategoryLegendRow(
+                        slice: slice,
+                        progress: BudgetEvaluator.progress(spent: slice.amount, cap: budgets[slice.category]),
+                        isDimmed: isDimmed(slice)
+                    )
                 }
                 .buttonStyle(.plain)
 
@@ -32,48 +37,15 @@ struct CategoryLegend: View {
     }
 }
 
-struct CategoryLegendRow: View {
-    let slice: CategorySlice
-    let isDimmed: Bool
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: slice.category.symbol)
-                .font(.subheadline)
-                .foregroundStyle(.white)
-                .frame(width: 32, height: 32)
-                .background(slice.category.color, in: RoundedRectangle(cornerRadius: 8))
-
-            Text(slice.category.title)
-                .font(.body)
-
-            Spacer(minLength: 8)
-
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(slice.amount.rounded().currencyString)
-                    .font(.body.weight(.semibold))
-                    .monospacedDigit()
-                Text(slice.percentage.formatted(.percent.precision(.fractionLength(0))))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(.vertical, 10)
-        .opacity(isDimmed ? 0.4 : 1)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
-    }
-}
-
 #Preview {
     CategoryLegend(
         slices: [
             CategorySlice(category: .housing, amount: 1500, percentage: 0.6, count: 1),
             CategorySlice(category: .food, amount: 520, percentage: 0.2, count: 1),
-            CategorySlice(category: .subscriptions, amount: 500, percentage: 0.2, count: 3),
+            CategorySlice(category: .subscriptions, amount: 42, percentage: 0.2, count: 3),
         ],
-        selectedCategory: .food,
+        budgets: [.food: 600, .subscriptions: 30],
+        selectedCategory: nil,
         onSelect: { _ in }
     )
     .padding()

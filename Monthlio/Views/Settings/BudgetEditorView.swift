@@ -5,10 +5,12 @@ import SwiftUI
 struct BudgetEditorView: View {
     @Query private var budgets: [CategoryBudget]
     @Query private var expenses: [Expense]
+    @Environment(CurrencyStore.self) private var currencyStore
 
     var body: some View {
         let spending = Dictionary(
-            uniqueKeysWithValues: ExpenseCalculator.categoryBreakdown(expenses).map { ($0.category, $0.amount) }
+            uniqueKeysWithValues: ExpenseCalculator.categoryBreakdown(expenses, converter: currencyStore.converter)
+                .map { ($0.category, $0.amount) }
         )
 
         List {
@@ -87,4 +89,5 @@ private struct BudgetRow: View {
         BudgetEditorView()
     }
     .modelContainer(PreviewContainer.shared)
+        .environment(CurrencyStore())
 }

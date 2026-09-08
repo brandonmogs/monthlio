@@ -5,6 +5,7 @@ import SwiftUI
 struct UpcomingView: View {
     @Query(sort: \Expense.createdAt) private var expenses: [Expense]
     @Query private var settingsRows: [AppSettings]
+    @Environment(CurrencyStore.self) private var currencyStore
 
     @State private var editingExpense: Expense?
     @State private var showingSettings = false
@@ -68,7 +69,7 @@ struct UpcomingView: View {
                     Text("Next 30 days")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(UpcomingChargeCalculator.total(of: charges).rounded().currencyString)
+                    Text(UpcomingChargeCalculator.total(of: charges, converter: currencyStore.converter).rounded().currencyString)
                         .font(.title2.weight(.bold))
                         .monospacedDigit()
                 }
@@ -132,7 +133,7 @@ private struct UpcomingChargeRow: View {
 
             Spacer()
 
-            Text(charge.expense.amount.currencyString)
+            Text(charge.expense.amount.currencyString(in: charge.expense.currencyCode))
                 .font(.body.weight(.semibold))
                 .monospacedDigit()
         }
@@ -144,4 +145,5 @@ private struct UpcomingChargeRow: View {
 #Preview {
     UpcomingView()
         .modelContainer(PreviewContainer.shared)
+        .environment(CurrencyStore())
 }

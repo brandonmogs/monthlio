@@ -68,6 +68,6 @@ final class UpcomingChargeCalculatorTests: XCTestCase {
 
         XCTAssertEqual(charges.map(\.expense.name), ["Gym", "Netflix", "Rent"])
         XCTAssertEqual(charges.map(\.date), [date(2026, 9, 12), date(2026, 9, 12), date(2026, 10, 1)])
-        XCTAssertEqual(UpcomingChargeCalculator.total(of: charges), 1560)
+        XCTAssertEqual(UpcomingChargeCalculator.total(of: charges, converter: CurrencyConverter(baseCode: "USD")), 1560)
     }
 }

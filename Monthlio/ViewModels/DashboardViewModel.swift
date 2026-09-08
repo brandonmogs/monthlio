@@ -18,19 +18,19 @@ final class DashboardViewModel {
     /// Raw angle-domain value from `chartAngleSelection`; reset after handling.
     var selectedAngle: Double?
 
-    func summary(for expenses: [Expense]) -> DashboardSummary {
+    func summary(for expenses: [Expense], converter: CurrencyConverter) -> DashboardSummary {
         DashboardSummary(
-            total: ExpenseCalculator.monthlyTotal(expenses),
-            slices: ExpenseCalculator.categoryBreakdown(expenses),
+            total: ExpenseCalculator.monthlyTotal(expenses, converter: converter),
+            slices: ExpenseCalculator.categoryBreakdown(expenses, converter: converter),
             activeCount: expenses.filter(\.isActive).count
         )
     }
 
     /// Expenses shown below the legend: the selected category, or everything.
-    func visibleExpenses(from expenses: [Expense]) -> [Expense] {
+    func visibleExpenses(from expenses: [Expense], converter: CurrencyConverter) -> [Expense] {
         expenses
             .filter { $0.isActive && (selectedCategory == nil || $0.category == selectedCategory) }
-            .sorted { $0.monthlyEquivalent > $1.monthlyEquivalent }
+            .sorted { converter.monthlyCostInBase(of: $0) > converter.monthlyCostInBase(of: $1) }
     }
 
     func toggle(_ category: ExpenseCategory) {

@@ -61,8 +61,9 @@ enum UpcomingChargeCalculator {
         expenses.filter { $0.isActive && $0.dueDay != nil && !supports($0.cadence) }
     }
 
-    static func total(of charges: [UpcomingCharge]) -> Decimal {
-        charges.reduce(Decimal.zero) { $0 + $1.expense.amount }
+    /// Sum of raw charge amounts converted to the base currency.
+    static func total(of charges: [UpcomingCharge], converter: CurrencyConverter) -> Decimal {
+        charges.reduce(Decimal.zero) { $0 + converter.toBase($1.expense.amount, from: $1.expense.currencyCode) }
     }
 
     private static func date(inMonthOf reference: Date, day: Int, calendar: Calendar) -> Date? {

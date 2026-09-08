@@ -5,6 +5,7 @@ import SwiftUI
 struct ExpenseFormView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(CurrencyStore.self) private var currencyStore
 
     @State private var viewModel: ExpenseFormViewModel
     @State private var showingDeleteConfirmation = false
@@ -65,11 +66,17 @@ struct ExpenseFormView: View {
             TextField(
                 "Amount",
                 value: $viewModel.amount,
-                format: .currency(code: CurrencyFormat.code),
-                prompt: Text(Decimal.zero.currencyString)
+                format: .currency(code: viewModel.currencyCode),
+                prompt: Text(Decimal.zero.currencyString(in: viewModel.currencyCode))
             )
             .keyboardType(.decimalPad)
             .focused($focusedField, equals: .amount)
+
+            Picker("Currency", selection: $viewModel.currencyCode) {
+                ForEach(CurrencyCatalog.codes(including: [viewModel.currencyCode, currencyStore.baseCode]), id: \.self) { code in
+                    Text(CurrencyCatalog.label(for: code)).tag(code)
+                }
+            }
 
             Picker("Category", selection: $viewModel.category) {
                 ForEach(ExpenseCategory.allCases) { category in
@@ -101,8 +108,8 @@ struct ExpenseFormView: View {
                 }
             }
         } footer: {
-            if let monthly = viewModel.monthlyPreview, viewModel.cadence != .monthly {
-                Text("≈ \(monthly.currencyString) per month")
+            if let preview = monthlyPreviewText {
+                Text(preview)
             }
         }
     }
@@ -132,6 +139,18 @@ struct ExpenseFormView: View {
         }
     }
 
+    /// "≈ $9.99 per month" in base currency, or a nudge to add a rate.
+    private var monthlyPreviewText: String? {
+        guard let monthly = viewModel.monthlyPreview else { return nil }
+        let code = viewModel.currencyCode
+        let isForeign = code != currencyStore.baseCode
+        guard viewModel.cadence != .monthly || isForeign else { return nil }
+        guard !isForeign || currencyStore.converter.hasRate(for: code) else {
+            return "≈ \(monthly.currencyString(in: code)) per month. Add a \(code) exchange rate in Settings to include it in totals accurately."
+        }
+        return "≈ \(currencyStore.converter.toBase(monthly, from: code).rounded().currencyString) per month"
+    }
+
     private func save() {
         if viewModel.save(in: modelContext) {
             dismiss()
@@ -144,9 +163,11 @@ struct ExpenseFormView: View {
 #Preview("New") {
     ExpenseFormView()
         .modelContainer(PreviewContainer.empty)
+        .environment(CurrencyStore())
 }
 
 #Preview("Edit") {
     ExpenseFormView(expense: SampleData.starterExpenses()[2])
         .modelContainer(PreviewContainer.shared)
+        .environment(CurrencyStore())
 }

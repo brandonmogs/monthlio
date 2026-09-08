@@ -43,6 +43,11 @@ enum SampleData {
             context.insert(CategoryBudget(category: .transport, cap: 200))
         }
 
+        let rateCount = (try? context.fetchCount(FetchDescriptor<ExchangeRate>())) ?? 0
+        if rateCount == 0, CurrencyFormat.baseCode != "EUR" {
+            context.insert(ExchangeRate(code: "EUR", rateToBase: Decimal(string: "1.08")!))
+        }
+
         let snapshotCount = (try? context.fetchCount(FetchDescriptor<MonthSnapshot>())) ?? 0
         if snapshotCount == 0 {
             let calendar = Calendar.current
@@ -70,6 +75,7 @@ enum SampleData {
             Expense(name: "Student loan", amount: 310, category: .debt, cadence: .monthly, dueDay: 28),
             Expense(name: "Gym", amount: 45, category: .health, cadence: .monthly, dueDay: 5),
             Expense(name: "Concert tickets", amount: 180, category: .entertainment, cadence: .oneTime),
+            Expense(name: "VPN", amount: 59.88, currencyCode: "EUR", category: .subscriptions, cadence: .yearly, dueDay: 14),
             Expense(name: "HBO Max", amount: 15.99, category: .subscriptions, cadence: .monthly, dueDay: 9, isActive: false, notes: "Cancelled in March"),
         ]
     }

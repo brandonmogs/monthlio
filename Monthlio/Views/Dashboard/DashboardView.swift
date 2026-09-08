@@ -74,9 +74,11 @@ struct DashboardView: View {
 #Preview("With data") {
     DashboardView()
         .modelContainer(PreviewContainer.shared)
+        .environment(CurrencyStore())
 }
 
 #Preview("Empty") {
     DashboardView()
         .modelContainer(PreviewContainer.empty)
+        .environment(CurrencyStore())
 }

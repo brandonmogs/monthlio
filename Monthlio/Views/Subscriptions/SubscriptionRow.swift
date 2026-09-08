@@ -4,6 +4,7 @@ import SwiftUI
 /// Tap the details to edit; flip the switch to cancel or reactivate.
 struct SubscriptionRow: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(CurrencyStore.self) private var currencyStore
     @Bindable var expense: Expense
     let onEdit: () -> Void
 
@@ -63,15 +64,17 @@ struct SubscriptionRow: View {
     }
 
     private var costLine: String {
-        let raw = expense.amount.currencyString + expense.cadence.shortSuffix
-        guard expense.cadence != .monthly else { return raw }
-        return raw + " · ≈ " + expense.monthlyEquivalent.rounded().currencyString + "/mo"
+        let raw = expense.amount.currencyString(in: expense.currencyCode) + expense.cadence.shortSuffix
+        guard expense.cadence != .monthly || expense.currencyCode != currencyStore.baseCode else { return raw }
+        return raw + " · ≈ " + currencyStore.converter.monthlyCostInBase(of: expense).rounded().currencyString + "/mo"
     }
 
     private func increaseLine(from previous: Decimal) -> String {
-        let diff = (expense.amount - previous).rounded().currencyString
-        guard let date = expense.amountChangedAt else { return "Up \(diff) from \(previous.currencyString)" }
-        return "Up \(diff) from \(previous.currencyString) · \(date.formatted(.relative(presentation: .named)))"
+        let code = expense.currencyCode
+        let diff = (expense.amount - previous).rounded().currencyString(in: code)
+        let was = previous.currencyString(in: code)
+        guard let date = expense.amountChangedAt else { return "Up \(diff) from \(was)" }
+        return "Up \(diff) from \(was) · \(date.formatted(.relative(presentation: .named)))"
     }
 
     private var cancelledBinding: Binding<Bool> {

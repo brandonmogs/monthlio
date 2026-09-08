@@ -4,17 +4,17 @@ import UniformTypeIdentifiers
 
 /// Renders expenses as RFC 4180-style CSV.
 enum CSVExporter {
-    static let header = "Name,Amount,Currency,Cadence,Monthly Equivalent,Category,Due Day,Active,Notes,Created"
+    static let header = "Name,Amount,Currency,Cadence,Monthly Equivalent,Base Currency,Category,Due Day,Active,Notes,Created"
 
-    static func csv(from expenses: [Expense]) -> String {
-        let currency = CurrencyFormat.code
+    static func csv(from expenses: [Expense], converter: CurrencyConverter) -> String {
         let rows = expenses.map { expense in
             [
                 expense.name,
                 plain(expense.amount),
-                currency,
+                expense.currencyCode,
                 expense.cadence.rawValue,
-                plain(expense.monthlyEquivalent.rounded()),
+                plain(converter.monthlyCostInBase(of: expense).rounded()),
+                converter.baseCode,
                 expense.category.rawValue,
                 expense.dueDay.map(String.init) ?? "",
                 expense.isActive ? "true" : "false",

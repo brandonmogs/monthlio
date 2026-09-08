@@ -39,18 +39,18 @@ final class ExpenseListViewModel {
         searchText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    func sections(from expenses: [Expense]) -> [ExpenseListSection] {
+    func sections(from expenses: [Expense], converter: CurrencyConverter) -> [ExpenseListSection] {
         let matching = filtered(expenses)
         switch sort {
         case .category:
-            return groupedByCategory(matching)
+            return groupedByCategory(matching, converter: converter)
         case .monthlyCost, .name, .newest:
             guard !matching.isEmpty else { return [] }
             return [ExpenseListSection(
                 id: "flat",
                 category: nil,
-                expenses: sorted(matching),
-                monthlyTotal: ExpenseCalculator.monthlyTotal(matching)
+                expenses: sorted(matching, converter: converter),
+                monthlyTotal: ExpenseCalculator.monthlyTotal(matching, converter: converter)
             )]
         }
     }
@@ -65,10 +65,10 @@ final class ExpenseListViewModel {
         }
     }
 
-    private func sorted(_ expenses: [Expense]) -> [Expense] {
+    private func sorted(_ expenses: [Expense], converter: CurrencyConverter) -> [Expense] {
         switch sort {
         case .category, .monthlyCost:
-            expenses.sorted { $0.monthlyEquivalent > $1.monthlyEquivalent }
+            expenses.sorted { converter.monthlyCostInBase(of: $0) > converter.monthlyCostInBase(of: $1) }
         case .name:
             expenses.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         case .newest:
@@ -77,14 +77,14 @@ final class ExpenseListViewModel {
     }
 
     /// Sections sort by their active monthly total descending; rows by monthly cost.
-    private func groupedByCategory(_ expenses: [Expense]) -> [ExpenseListSection] {
+    private func groupedByCategory(_ expenses: [Expense], converter: CurrencyConverter) -> [ExpenseListSection] {
         Dictionary(grouping: expenses, by: \.category)
             .map { category, items in
                 ExpenseListSection(
                     id: category.rawValue,
                     category: category,
-                    expenses: sorted(items),
-                    monthlyTotal: ExpenseCalculator.monthlyTotal(items)
+                    expenses: sorted(items, converter: converter),
+                    monthlyTotal: ExpenseCalculator.monthlyTotal(items, converter: converter)
                 )
             }
             .sorted { lhs, rhs in

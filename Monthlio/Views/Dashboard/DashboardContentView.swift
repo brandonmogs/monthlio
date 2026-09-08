@@ -11,9 +11,10 @@ struct DashboardContentView: View {
     let onEdit: (Expense) -> Void
     let onDelete: (Expense) -> Void
     let onOpenSettings: () -> Void
+    @Environment(CurrencyStore.self) private var currencyStore
 
     var body: some View {
-        let summary = viewModel.summary(for: expenses)
+        let summary = viewModel.summary(for: expenses, converter: currencyStore.converter)
         let delta = SnapshotService.delta(currentTotal: summary.total, snapshots: snapshots)
         let history = SnapshotService.history(from: snapshots, months: 12)
 
@@ -50,7 +51,7 @@ struct DashboardContentView: View {
                 }
 
                 DashboardExpenseList(
-                    expenses: viewModel.visibleExpenses(from: expenses),
+                    expenses: viewModel.visibleExpenses(from: expenses, converter: currencyStore.converter),
                     selectedCategory: viewModel.selectedCategory,
                     onEdit: onEdit,
                     onDelete: onDelete

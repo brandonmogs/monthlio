@@ -1,24 +1,38 @@
 import Foundation
 
-/// Locale-aware currency helpers. All amounts are displayed in the user's
-/// current locale currency; a base-currency setting is a Phase 3 concern.
+/// Currency formatting. `baseCode` is the app's base currency and is kept in
+/// sync with settings by `CurrencyStore`; totals and charts use it. Native
+/// amounts format with their own code via `currencyString(in:)`.
 enum CurrencyFormat {
-    static var code: String {
+    static var localeCode: String {
         Locale.current.currency?.identifier ?? "USD"
     }
 
-    static func string(_ value: Decimal) -> String {
+    /// Base currency for totals. Defaults to the device locale until settings load.
+    static var baseCode: String = localeCode
+
+    /// Alias kept for call sites that only care about "the base currency".
+    static var code: String { baseCode }
+
+    static func string(_ value: Decimal, code: String = baseCode) -> String {
         value.formatted(.currency(code: code))
     }
 
     /// Whole-unit formatting for large headline numbers, e.g. "$2,340".
-    static func wholeString(_ value: Decimal) -> String {
+    static func wholeString(_ value: Decimal, code: String = baseCode) -> String {
         value.formatted(.currency(code: code).precision(.fractionLength(0)))
+    }
+
+    static func name(for code: String) -> String {
+        Locale.current.localizedString(forCurrencyCode: code) ?? code
     }
 }
 
 extension Decimal {
+    /// Formatted in the base currency.
     var currencyString: String { CurrencyFormat.string(self) }
+
+    func currencyString(in code: String) -> String { CurrencyFormat.string(self, code: code) }
 }
 
 enum OrdinalFormat {

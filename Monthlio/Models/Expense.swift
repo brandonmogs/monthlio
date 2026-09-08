@@ -11,6 +11,9 @@ final class Expense {
     @Attribute(.unique) var id: UUID
     var name: String
     var amount: Decimal
+    /// ISO 4217 code the amount is billed in. Empty only for rows created
+    /// before multi-currency; `Expense.backfillCurrencyCodes` fills those.
+    var currencyCode: String = ""
     var categoryRaw: String
     var cadenceRaw: String
     /// Day of month (1–31) the charge hits, if known.
@@ -27,6 +30,7 @@ final class Expense {
         id: UUID = UUID(),
         name: String,
         amount: Decimal,
+        currencyCode: String = CurrencyFormat.baseCode,
         category: ExpenseCategory,
         cadence: Cadence = .monthly,
         dueDay: Int? = nil,
@@ -37,6 +41,7 @@ final class Expense {
         self.id = id
         self.name = name
         self.amount = amount
+        self.currencyCode = currencyCode
         self.categoryRaw = category.rawValue
         self.cadenceRaw = cadence.rawValue
         self.dueDay = dueDay
@@ -71,3 +76,13 @@ final class Expense {
 }
 
 extension Expense: ExpenseCosting {}
+
+extension Expense {
+    /// One-time migration: rows saved before multi-currency get the base code.
+    static func backfillCurrencyCodes(in context: ModelContext, base: String) {
+        let descriptor = FetchDescriptor<Expense>(predicate: #Predicate { $0.currencyCode == "" })
+        guard let rows = try? context.fetch(descriptor), !rows.isEmpty else { return }
+        for row in rows { row.currencyCode = base }
+        try? context.save()
+    }
+}

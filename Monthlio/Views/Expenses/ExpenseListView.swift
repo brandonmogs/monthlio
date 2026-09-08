@@ -5,6 +5,7 @@ import SwiftUI
 struct ExpenseListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Expense.createdAt) private var expenses: [Expense]
+    @Environment(CurrencyStore.self) private var currencyStore
 
     @State private var viewModel = ExpenseListViewModel()
     @State private var showingAddSheet = false
@@ -48,7 +49,7 @@ struct ExpenseListView: View {
     }
 
     private var expenseList: some View {
-        let sections = viewModel.sections(from: expenses)
+        let sections = viewModel.sections(from: expenses, converter: currencyStore.converter)
 
         return List {
             if sections.isEmpty {
@@ -83,7 +84,7 @@ struct ExpenseListView: View {
             if !viewModel.isSearching {
                 Section {
                     LabeledContent("Monthly total") {
-                        Text(ExpenseCalculator.monthlyTotal(expenses).rounded().currencyString)
+                        Text(ExpenseCalculator.monthlyTotal(expenses, converter: currencyStore.converter).rounded().currencyString)
                             .font(.body.weight(.semibold))
                             .monospacedDigit()
                     }
@@ -123,4 +124,5 @@ private struct CategorySectionHeader: View {
 #Preview {
     ExpenseListView()
         .modelContainer(PreviewContainer.shared)
+        .environment(CurrencyStore())
 }

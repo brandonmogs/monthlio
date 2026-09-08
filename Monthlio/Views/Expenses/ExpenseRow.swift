@@ -3,6 +3,7 @@ import SwiftUI
 /// Shared row: name, optional category/due info, raw amount + cadence, and
 /// the monthly equivalent when the cadence isn't already monthly.
 struct ExpenseRow: View {
+    @Environment(CurrencyStore.self) private var currencyStore
     let expense: Expense
     var showsCategory = true
 
@@ -37,11 +38,11 @@ struct ExpenseRow: View {
             Spacer(minLength: 8)
 
             VStack(alignment: .trailing, spacing: 2) {
-                Text(expense.amount.currencyString + expense.cadence.shortSuffix)
+                Text(expense.amount.currencyString(in: expense.currencyCode) + expense.cadence.shortSuffix)
                     .font(.body.weight(.semibold))
                     .monospacedDigit()
-                if expense.cadence != .monthly {
-                    Text("≈ " + expense.monthlyEquivalent.rounded().currencyString + "/mo")
+                if expense.cadence != .monthly || expense.currencyCode != currencyStore.baseCode {
+                    Text("≈ " + currencyStore.converter.monthlyCostInBase(of: expense).rounded().currencyString + "/mo")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
@@ -70,4 +71,5 @@ struct ExpenseRow: View {
             ExpenseRow(expense: expense)
         }
     }
+    .environment(CurrencyStore())
 }

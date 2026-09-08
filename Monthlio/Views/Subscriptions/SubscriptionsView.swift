@@ -5,12 +5,14 @@ import SwiftUI
 /// price-increase flags.
 struct SubscriptionsView: View {
     @Query(sort: \Expense.createdAt) private var expenses: [Expense]
+    @Environment(CurrencyStore.self) private var currencyStore
     @State private var editingExpense: Expense?
 
     var body: some View {
+        let converter = currencyStore.converter
         let subscriptions = expenses
             .filter { $0.cadence.isRecurring }
-            .sorted { $0.monthlyEquivalent > $1.monthlyEquivalent }
+            .sorted { converter.monthlyCostInBase(of: $0) > converter.monthlyCostInBase(of: $1) }
         let active = subscriptions.filter(\.isActive)
         let cancelled = subscriptions.filter { !$0.isActive }
         let increases = active.filter(\.hadPriceIncrease).count
@@ -56,7 +58,7 @@ struct SubscriptionsView: View {
                     Text("Recurring per month")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(ExpenseCalculator.monthlyTotal(active).rounded().currencyString)
+                    Text(ExpenseCalculator.monthlyTotal(active, converter: currencyStore.converter).rounded().currencyString)
                         .font(.title2.weight(.bold))
                         .monospacedDigit()
                 }
@@ -80,4 +82,5 @@ struct SubscriptionsView: View {
 #Preview {
     SubscriptionsView()
         .modelContainer(PreviewContainer.shared)
+        .environment(CurrencyStore())
 }

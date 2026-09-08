@@ -1,10 +1,12 @@
 import SwiftData
 import SwiftUI
 
-/// Income, budgets, reminders and export.
+/// Income, budgets, currency, security, reminders and export.
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(CurrencyStore.self) private var currencyStore
+    @Environment(AppLockService.self) private var lock
     @Query private var settingsRows: [AppSettings]
     @Query(sort: \Expense.createdAt) private var expenses: [Expense]
 
@@ -17,7 +19,23 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 incomeSection
-                budgetsSection
+                Section("Budgets & currency") {
+                    NavigationLink {
+                        BudgetEditorView()
+                    } label: {
+                        Label("Category budgets", systemImage: "gauge.with.dots.needle.33percent")
+                    }
+                    NavigationLink {
+                        CurrencySettingsView()
+                    } label: {
+                        LabeledContent {
+                            Text(currencyStore.baseCode)
+                        } label: {
+                            Label("Base currency & rates", systemImage: "coloncurrencysign.circle")
+                        }
+                    }
+                }
+                securitySection
                 remindersSection
                 dataSection
             }
@@ -41,7 +59,7 @@ struct SettingsView: View {
             TextField(
                 "Monthly take-home",
                 value: $income,
-                format: .currency(code: CurrencyFormat.code),
+                format: .currency(code: currencyStore.baseCode),
                 prompt: Text("Monthly take-home")
             )
             .keyboardType(.decimalPad)
@@ -52,17 +70,20 @@ struct SettingsView: View {
         } header: {
             Text("Income")
         } footer: {
-            Text("After-tax income per month. Used to show what's left after expenses.")
+            Text("After-tax income per month in \(currencyStore.baseCode). Used to show what's left after expenses.")
         }
     }
 
-    private var budgetsSection: some View {
-        Section("Budgets") {
-            NavigationLink {
-                BudgetEditorView()
-            } label: {
-                Label("Category budgets", systemImage: "gauge.with.dots.needle.33percent")
-            }
+    private var securitySection: some View {
+        Section {
+            Toggle("Require \(lock.biometryName) to open", isOn: lockBinding)
+                .disabled(!lock.canAuthenticate)
+        } header: {
+            Text("Security")
+        } footer: {
+            Text(lock.canAuthenticate
+                ? "Monthlio locks whenever you leave the app."
+                : "Set up Face ID, Touch ID or a device passcode first.")
         }
     }
 
@@ -84,7 +105,10 @@ struct SettingsView: View {
     private var dataSection: some View {
         Section("Data") {
             ShareLink(
-                item: CSVExport(csv: CSVExporter.csv(from: expenses), fileName: "monthlio-expenses.csv"),
+                item: CSVExport(
+                    csv: CSVExporter.csv(from: expenses, converter: currencyStore.converter),
+                    fileName: "monthlio-expenses.csv"
+                ),
                 preview: SharePreview("Monthlio expenses", image: Image(systemName: "tablecells"))
             ) {
                 Label("Export CSV", systemImage: "square.and.arrow.up")
@@ -93,12 +117,28 @@ struct SettingsView: View {
         }
     }
 
+    private var lockBinding: Binding<Bool> {
+        Binding(
+            get: { lock.isEnabled },
+            set: { enabled in Task { await setLock(enabled) } }
+        )
+    }
+
+    private func setLock(_ enabled: Bool) async {
+        let current = AppSettings.current(in: modelContext)
+        if enabled {
+            guard await lock.verify(reason: "Confirm to require \(lock.biometryName) when opening Monthlio") else { return }
+        }
+        current.requireAuthentication = enabled
+        lock.isEnabled = enabled
+        try? modelContext.save()
+        Haptics.selection()
+    }
+
     private var notificationsBinding: Binding<Bool> {
         Binding(
             get: { settings?.notificationsEnabled ?? false },
-            set: { enabled in
-                Task { await setNotifications(enabled) }
-            }
+            set: { enabled in Task { await setNotifications(enabled) } }
         )
     }
 
@@ -120,4 +160,6 @@ struct SettingsView: View {
 #Preview {
     SettingsView()
         .modelContainer(PreviewContainer.shared)
+        .environment(CurrencyStore())
+        .environment(AppLockService(isEnabled: false))
 }

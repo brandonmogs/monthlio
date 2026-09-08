@@ -7,6 +7,7 @@ import SwiftData
 final class ExpenseFormViewModel {
     var name: String
     var amount: Decimal?
+    var currencyCode: String
     var category: ExpenseCategory
     var cadence: Cadence
     var hasDueDay: Bool
@@ -21,6 +22,7 @@ final class ExpenseFormViewModel {
         existing = expense
         name = expense?.name ?? ""
         amount = expense?.amount
+        currencyCode = expense?.currencyCode ?? CurrencyFormat.baseCode
         category = expense?.category ?? .subscriptions
         cadence = expense?.cadence ?? .monthly
         hasDueDay = expense?.dueDay != nil
@@ -65,6 +67,7 @@ final class ExpenseFormViewModel {
         if let existing {
             existing.name = trimmedName
             existing.updateAmount(amount)
+            existing.currencyCode = currencyCode
             existing.category = category
             existing.cadence = cadence
             existing.dueDay = hasDueDay ? dueDay : nil
@@ -74,6 +77,7 @@ final class ExpenseFormViewModel {
             let expense = Expense(
                 name: trimmedName,
                 amount: amount,
+                currencyCode: currencyCode,
                 category: category,
                 cadence: cadence,
                 dueDay: hasDueDay ? dueDay : nil,

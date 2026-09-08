@@ -93,4 +93,5 @@ struct EmptyStateView: View {
             .navigationTitle("Monthlio")
     }
     .modelContainer(PreviewContainer.empty)
+        .environment(CurrencyStore())
 }

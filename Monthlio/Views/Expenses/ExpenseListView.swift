@@ -1,11 +1,12 @@
 import SwiftData
 import SwiftUI
 
-/// All expenses grouped by category. Swipe to delete, tap to edit.
+/// All expenses, searchable and sortable. Swipe to delete, tap to edit.
 struct ExpenseListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Expense.createdAt) private var expenses: [Expense]
 
+    @State private var viewModel = ExpenseListViewModel()
     @State private var showingAddSheet = false
     @State private var editingExpense: Expense?
 
@@ -20,6 +21,7 @@ struct ExpenseListView: View {
             }
             .navigationTitle("Expenses")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) { sortMenu }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         showingAddSheet = true
@@ -28,24 +30,39 @@ struct ExpenseListView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showingAddSheet) {
-                ExpenseFormView()
+            .sheet(isPresented: $showingAddSheet) { ExpenseFormView() }
+            .sheet(item: $editingExpense) { ExpenseFormView(expense: $0) }
+        }
+    }
+
+    private var sortMenu: some View {
+        Menu {
+            Picker("Sort by", selection: $viewModel.sort) {
+                ForEach(ExpenseSort.allCases) { sort in
+                    Text(sort.title).tag(sort)
+                }
             }
-            .sheet(item: $editingExpense) { expense in
-                ExpenseFormView(expense: expense)
-            }
+        } label: {
+            Label("Sort", systemImage: "arrow.up.arrow.down")
         }
     }
 
     private var expenseList: some View {
-        List {
-            ForEach(ExpenseListViewModel.sections(from: expenses)) { section in
+        let sections = viewModel.sections(from: expenses)
+
+        return List {
+            if sections.isEmpty {
+                ContentUnavailableView.search(text: viewModel.searchText)
+                    .listRowBackground(Color.clear)
+            }
+
+            ForEach(sections) { section in
                 Section {
                     ForEach(section.expenses) { expense in
                         Button {
                             editingExpense = expense
                         } label: {
-                            ExpenseRow(expense: expense, showsCategory: false)
+                            ExpenseRow(expense: expense, showsCategory: section.category == nil)
                         }
                         .buttonStyle(.plain)
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
@@ -57,19 +74,25 @@ struct ExpenseListView: View {
                         }
                     }
                 } header: {
-                    CategorySectionHeader(section: section)
+                    if let category = section.category {
+                        CategorySectionHeader(category: category, monthlyTotal: section.monthlyTotal)
+                    }
                 }
             }
 
-            Section {
-                LabeledContent("Monthly total") {
-                    Text(ExpenseCalculator.monthlyTotal(expenses).rounded().currencyString)
-                        .font(.body.weight(.semibold))
-                        .monospacedDigit()
+            if !viewModel.isSearching {
+                Section {
+                    LabeledContent("Monthly total") {
+                        Text(ExpenseCalculator.monthlyTotal(expenses).rounded().currencyString)
+                            .font(.body.weight(.semibold))
+                            .monospacedDigit()
+                    }
                 }
             }
         }
         .listStyle(.insetGrouped)
+        .searchable(text: $viewModel.searchText, prompt: "Search by name, category or notes")
+        .animation(.default, value: viewModel.sort)
     }
 
     private func delete(_ expense: Expense) {
@@ -82,15 +105,16 @@ struct ExpenseListView: View {
 }
 
 private struct CategorySectionHeader: View {
-    let section: CategorySection
+    let category: ExpenseCategory
+    let monthlyTotal: Decimal
 
     var body: some View {
         HStack {
-            Image(systemName: section.category.symbol)
-                .foregroundStyle(section.category.color)
-            Text(section.category.title)
+            Image(systemName: category.symbol)
+                .foregroundStyle(category.color)
+            Text(category.title)
             Spacer()
-            Text(section.monthlyTotal.rounded().currencyString + "/mo")
+            Text(monthlyTotal.rounded().currencyString + "/mo")
                 .monospacedDigit()
         }
     }

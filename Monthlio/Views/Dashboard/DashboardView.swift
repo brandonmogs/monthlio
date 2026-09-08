@@ -1,12 +1,18 @@
 import SwiftData
 import SwiftUI
 
+/// Dashboard container: owns queries, sheets and toolbar. Layout lives in
+/// `DashboardContentView`.
 struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Expense.createdAt) private var expenses: [Expense]
+    @Query private var settingsRows: [AppSettings]
+    @Query private var budgets: [CategoryBudget]
+    @Query private var snapshots: [MonthSnapshot]
 
     @State private var viewModel = DashboardViewModel()
     @State private var showingAddSheet = false
+    @State private var showingSettings = false
     @State private var editingExpense: Expense?
 
     var body: some View {
@@ -15,11 +21,27 @@ struct DashboardView: View {
                 if expenses.isEmpty {
                     EmptyStateView()
                 } else {
-                    dashboardContent
+                    DashboardContentView(
+                        expenses: expenses,
+                        income: settingsRows.first?.monthlyIncome ?? 0,
+                        budgets: budgets.byCategory,
+                        snapshots: snapshots,
+                        viewModel: viewModel,
+                        onEdit: { editingExpense = $0 },
+                        onDelete: delete,
+                        onOpenSettings: { showingSettings = true }
+                    )
                 }
             }
             .navigationTitle("Monthlio")
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Label("Settings", systemImage: "gearshape")
+                    }
+                }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
                         showingAddSheet = true
@@ -31,58 +53,13 @@ struct DashboardView: View {
             .sheet(isPresented: $showingAddSheet) {
                 ExpenseFormView()
             }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+            }
             .sheet(item: $editingExpense) { expense in
                 ExpenseFormView(expense: expense)
             }
         }
-    }
-
-    private var dashboardContent: some View {
-        let summary = viewModel.summary(for: expenses)
-        @Bindable var viewModel = viewModel
-
-        return ScrollView {
-            VStack(spacing: 24) {
-                MonthlyTotalHeader(
-                    total: summary.total,
-                    activeCount: summary.activeCount,
-                    selectedSlice: selectedSlice(in: summary)
-                )
-
-                CategoryDonutChart(
-                    slices: summary.slices,
-                    selectedCategory: viewModel.selectedCategory,
-                    selectedAngle: $viewModel.selectedAngle
-                )
-                .frame(height: 240)
-                .onChange(of: viewModel.selectedAngle) { _, newValue in
-                    viewModel.handleAngleSelection(newValue, slices: summary.slices)
-                }
-
-                CategoryLegend(
-                    slices: summary.slices,
-                    selectedCategory: viewModel.selectedCategory,
-                    onSelect: viewModel.toggle
-                )
-
-                DashboardExpenseList(
-                    expenses: viewModel.visibleExpenses(from: expenses),
-                    selectedCategory: viewModel.selectedCategory,
-                    onEdit: { editingExpense = $0 },
-                    onDelete: delete
-                )
-            }
-            .padding()
-        }
-        .background(Color(.systemGroupedBackground))
-        .onChange(of: summary.slices) { _, slices in
-            viewModel.reconcileSelection(with: slices)
-        }
-    }
-
-    private func selectedSlice(in summary: DashboardSummary) -> CategorySlice? {
-        guard let selected = viewModel.selectedCategory else { return nil }
-        return summary.slices.first { $0.category == selected }
     }
 
     private func delete(_ expense: Expense) {

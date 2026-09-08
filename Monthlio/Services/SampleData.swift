@@ -26,7 +26,34 @@ enum SampleData {
         for expense in debugSeed() {
             context.insert(expense)
         }
+        seedSupportingData(in: context)
         try? context.save()
+    }
+
+    /// Income, a couple of budgets (one deliberately over), and eight months
+    /// of history so the dashboard has something to chart.
+    static func seedSupportingData(in context: ModelContext, now: Date = .now) {
+        let settings = AppSettings.current(in: context)
+        if settings.monthlyIncome == 0 { settings.monthlyIncome = 5200 }
+
+        let budgetCount = (try? context.fetchCount(FetchDescriptor<CategoryBudget>())) ?? 0
+        if budgetCount == 0 {
+            context.insert(CategoryBudget(category: .food, cap: 550))
+            context.insert(CategoryBudget(category: .subscriptions, cap: 30))
+            context.insert(CategoryBudget(category: .transport, cap: 200))
+        }
+
+        let snapshotCount = (try? context.fetchCount(FetchDescriptor<MonthSnapshot>())) ?? 0
+        if snapshotCount == 0 {
+            let calendar = Calendar.current
+            let totals: [Decimal] = [3120, 3180, 3180, 3260, 3240, 3390, 3390, 3410]
+            for (offset, total) in totals.enumerated() {
+                let monthsAgo = totals.count - offset
+                guard let date = calendar.date(byAdding: .month, value: -monthsAgo, to: now) else { continue }
+                let parts = calendar.dateComponents([.year, .month], from: date)
+                context.insert(MonthSnapshot(year: parts.year ?? 0, month: parts.month ?? 0, total: total, updatedAt: date))
+            }
+        }
     }
 
     static func debugSeed() -> [Expense] {

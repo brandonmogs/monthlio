@@ -5,9 +5,16 @@ import SwiftUI
 struct MonthlioApp: App {
     private let container: ModelContainer
 
+    static let schema = Schema([
+        Expense.self,
+        AppSettings.self,
+        CategoryBudget.self,
+        MonthSnapshot.self,
+    ])
+
     init() {
         do {
-            container = try ModelContainer(for: Expense.self)
+            container = try ModelContainer(for: MonthlioApp.schema)
         } catch {
             fatalError("Failed to create ModelContainer: \(error)")
         }

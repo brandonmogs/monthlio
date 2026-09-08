@@ -5,16 +5,20 @@ import SwiftData
 @MainActor
 enum PreviewContainer {
     static let shared: ModelContainer = {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try! ModelContainer(for: Expense.self, configurations: config)
+        let container = makeContainer()
         for expense in SampleData.starterExpenses() {
             container.mainContext.insert(expense)
         }
+        #if DEBUG
+        SampleData.seedSupportingData(in: container.mainContext)
+        #endif
         return container
     }()
 
-    static let empty: ModelContainer = {
+    static let empty: ModelContainer = makeContainer()
+
+    private static func makeContainer() -> ModelContainer {
         let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        return try! ModelContainer(for: Expense.self, configurations: config)
-    }()
+        return try! ModelContainer(for: MonthlioApp.schema, configurations: config)
+    }
 }

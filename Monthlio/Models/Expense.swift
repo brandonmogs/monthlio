@@ -19,6 +19,9 @@ final class Expense {
     var isActive: Bool
     var notes: String?
     var createdAt: Date
+    /// Amount before the most recent edit, for price-increase tracking.
+    var previousAmount: Decimal?
+    var amountChangedAt: Date?
 
     init(
         id: UUID = UUID(),
@@ -50,6 +53,20 @@ final class Expense {
     var cadence: Cadence {
         get { Cadence(rawValue: cadenceRaw) ?? .monthly }
         set { cadenceRaw = newValue.rawValue }
+    }
+
+    /// True when the last amount edit raised the price.
+    var hadPriceIncrease: Bool {
+        guard let previousAmount else { return false }
+        return previousAmount < amount
+    }
+
+    /// Records an amount change so subscriptions can flag price increases.
+    func updateAmount(_ newAmount: Decimal, at date: Date = .now) {
+        guard newAmount != amount else { return }
+        previousAmount = amount
+        amountChangedAt = date
+        amount = newAmount
     }
 }
 

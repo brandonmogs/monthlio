@@ -39,7 +39,8 @@ enum Cadence: String, CaseIterable, Codable, Identifiable {
 
     /// Monthly multiplier expressed as an exact fraction so we can multiply
     /// before dividing and avoid accumulating Decimal rounding error.
-    /// One-time expenses count in full for the month they were entered.
+    /// One-time expenses count in full, but only in the month of their
+    /// `chargeDate`; `ExpenseCalculator.counts(_:inMonthOf:)` enforces that.
     var monthlyFraction: (numerator: Decimal, denominator: Decimal) {
         switch self {
         case .monthly: (1, 1)

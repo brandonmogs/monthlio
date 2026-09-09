@@ -19,8 +19,11 @@ final class Expense {
     var currencyCode: String = ""
     var categoryRaw: String = ExpenseCategory.other.rawValue
     var cadenceRaw: String = Cadence.monthly.rawValue
-    /// Day of month (1–31) the charge hits, if known.
+    /// Day of month (1–31) the charge hits, if known. Unused for one-time.
     var dueDay: Int?
+    /// When a one-time expense hits. Nil (rows from before this field) means
+    /// `createdAt`. Ignored for recurring cadences.
+    var chargeDate: Date?
     /// Paused or cancelled expenses stay in history but drop out of totals.
     var isActive: Bool = true
     var notes: String?
@@ -37,6 +40,7 @@ final class Expense {
         category: ExpenseCategory,
         cadence: Cadence = .monthly,
         dueDay: Int? = nil,
+        chargeDate: Date? = nil,
         isActive: Bool = true,
         notes: String? = nil,
         createdAt: Date = .now
@@ -48,6 +52,7 @@ final class Expense {
         self.categoryRaw = category.rawValue
         self.cadenceRaw = cadence.rawValue
         self.dueDay = dueDay
+        self.chargeDate = chargeDate
         self.isActive = isActive
         self.notes = notes
         self.createdAt = createdAt

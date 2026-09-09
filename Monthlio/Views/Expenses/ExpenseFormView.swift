@@ -98,17 +98,23 @@ struct ExpenseFormView: View {
                 }
             }
 
-            Toggle("Due on a specific day", isOn: $viewModel.hasDueDay.animation())
+            if viewModel.cadence == .oneTime {
+                DatePicker("Charge date", selection: $viewModel.chargeDate, displayedComponents: .date)
+            } else {
+                Toggle("Due on a specific day", isOn: $viewModel.hasDueDay.animation())
 
-            if viewModel.hasDueDay {
-                Picker("Day of month", selection: $viewModel.dueDay) {
-                    ForEach(1...31, id: \.self) { day in
-                        Text(OrdinalFormat.string(day)).tag(day)
+                if viewModel.hasDueDay {
+                    Picker("Day of month", selection: $viewModel.dueDay) {
+                        ForEach(1...31, id: \.self) { day in
+                            Text(OrdinalFormat.string(day)).tag(day)
+                        }
                     }
                 }
             }
         } footer: {
-            if let preview = monthlyPreviewText {
+            if viewModel.cadence == .oneTime {
+                Text("Counts toward the month it's charged in, then drops out of your monthly total.")
+            } else if let preview = monthlyPreviewText {
                 Text(preview)
             }
         }

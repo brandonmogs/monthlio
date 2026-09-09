@@ -12,6 +12,7 @@ final class ExpenseFormViewModel {
     var cadence: Cadence
     var hasDueDay: Bool
     var dueDay: Int
+    var chargeDate: Date
     var notes: String
     var isActive: Bool
 
@@ -27,6 +28,7 @@ final class ExpenseFormViewModel {
         cadence = expense?.cadence ?? .monthly
         hasDueDay = expense?.dueDay != nil
         dueDay = expense?.dueDay ?? 1
+        chargeDate = expense?.oneTimeDate ?? .now
         notes = expense?.notes ?? ""
         isActive = expense?.isActive ?? true
     }
@@ -70,7 +72,8 @@ final class ExpenseFormViewModel {
             existing.currencyCode = currencyCode
             existing.category = category
             existing.cadence = cadence
-            existing.dueDay = hasDueDay ? dueDay : nil
+            existing.dueDay = cadence == .oneTime ? nil : (hasDueDay ? dueDay : nil)
+            existing.chargeDate = cadence == .oneTime ? chargeDate : nil
             existing.notes = trimmedNotes.isEmpty ? nil : trimmedNotes
             existing.isActive = isActive
         } else {
@@ -80,7 +83,8 @@ final class ExpenseFormViewModel {
                 currencyCode: currencyCode,
                 category: category,
                 cadence: cadence,
-                dueDay: hasDueDay ? dueDay : nil,
+                dueDay: cadence == .oneTime ? nil : (hasDueDay ? dueDay : nil),
+                chargeDate: cadence == .oneTime ? chargeDate : nil,
                 isActive: isActive,
                 notes: trimmedNotes.isEmpty ? nil : trimmedNotes
             )

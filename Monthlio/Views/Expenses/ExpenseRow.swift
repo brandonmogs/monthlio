@@ -41,7 +41,13 @@ struct ExpenseRow: View {
                 Text(expense.amount.currencyString(in: expense.currencyCode) + expense.cadence.shortSuffix)
                     .font(.body.weight(.semibold))
                     .monospacedDigit()
-                if expense.cadence != .monthly || expense.currencyCode != currencyStore.baseCode {
+                if expense.cadence == .oneTime {
+                    if !expense.counts(inMonthOf: .now) {
+                        Text("Not this month")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } else if expense.cadence != .monthly || expense.currencyCode != currencyStore.baseCode {
                     Text("≈ " + currencyStore.converter.monthlyCostInBase(of: expense).rounded().currencyString + "/mo")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -56,7 +62,9 @@ struct ExpenseRow: View {
     private var detail: String {
         var parts: [String] = []
         if showsCategory { parts.append(expense.category.title) }
-        if let dueDay = expense.dueDay {
+        if let oneTimeDate = expense.oneTimeDate {
+            parts.append(oneTimeDate.formatted(.dateTime.month(.abbreviated).day().year()))
+        } else if let dueDay = expense.dueDay {
             parts.append("Due on the \(OrdinalFormat.string(dueDay))")
         } else if expense.cadence != .monthly {
             parts.append(expense.cadence.title)

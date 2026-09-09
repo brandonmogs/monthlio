@@ -22,14 +22,14 @@ final class DashboardViewModel {
         DashboardSummary(
             total: ExpenseCalculator.monthlyTotal(expenses, converter: converter),
             slices: ExpenseCalculator.categoryBreakdown(expenses, converter: converter),
-            activeCount: expenses.filter(\.isActive).count
+            activeCount: ExpenseCalculator.counted(expenses).count
         )
     }
 
-    /// Expenses shown below the legend: the selected category, or everything.
+    /// Expenses shown below the legend: this month's, filtered to the selected category.
     func visibleExpenses(from expenses: [Expense], converter: CurrencyConverter) -> [Expense] {
-        expenses
-            .filter { $0.isActive && (selectedCategory == nil || $0.category == selectedCategory) }
+        ExpenseCalculator.counted(expenses)
+            .filter { selectedCategory == nil || $0.category == selectedCategory }
             .sorted { converter.monthlyCostInBase(of: $0) > converter.monthlyCostInBase(of: $1) }
     }
 

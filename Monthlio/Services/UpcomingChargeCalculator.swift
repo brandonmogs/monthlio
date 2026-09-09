@@ -8,11 +8,11 @@ struct UpcomingCharge: Identifiable {
     var id: String { "\(expense.id.uuidString)-\(date.timeIntervalSince1970)" }
 }
 
-/// Projects expenses with a `dueDay` onto real calendar dates.
+/// Projects expenses onto real calendar dates.
 ///
-/// Only monthly and one-time cadences are placed: a day-of-month alone can't
-/// say which month a quarterly or yearly charge lands in, and weekly charges
-/// need a weekday. Those are listed separately by the view.
+/// Monthly charges use `dueDay`; one-time charges use their `chargeDate`.
+/// Quarterly and yearly need a month and weekly needs a weekday, which a
+/// day-of-month can't express, so those are listed separately by the view.
 enum UpcomingChargeCalculator {
     static let windowDays = 30
 
@@ -20,10 +20,11 @@ enum UpcomingChargeCalculator {
         cadence == .monthly || cadence == .oneTime
     }
 
-    /// Dates a charge with `dueDay` hits in the `days`-day window starting at
-    /// `start` (inclusive). Day 31 clamps to the last day of shorter months.
+    /// Dates a monthly charge with `dueDay` hits in the `days`-day window
+    /// starting at `start` (inclusive). Day 31 clamps to the last day of
+    /// shorter months. Non-monthly cadences produce nothing here.
     static func occurrences(dueDay: Int, cadence: Cadence, from start: Date, days: Int = windowDays, calendar: Calendar = .current) -> [Date] {
-        guard supports(cadence), (1...31).contains(dueDay) else { return [] }
+        guard cadence == .monthly, (1...31).contains(dueDay) else { return [] }
         let startDay = calendar.startOfDay(for: start)
         guard let end = calendar.date(byAdding: .day, value: days, to: startDay) else { return [] }
 
@@ -34,7 +35,6 @@ enum UpcomingChargeCalculator {
             if let date = date(inMonthOf: monthCursor, day: dueDay, calendar: calendar),
                date >= startDay, date < end {
                 results.append(date)
-                if cadence == .oneTime { break }
             }
             guard let next = calendar.date(byAdding: .month, value: 1, to: monthCursor) else { break }
             monthCursor = next
@@ -42,13 +42,28 @@ enum UpcomingChargeCalculator {
         return results
     }
 
+    /// The single date a one-time charge hits, if it falls in the window.
+    static func oneTimeOccurrence(chargeDate: Date, from start: Date, days: Int = windowDays, calendar: Calendar = .current) -> [Date] {
+        let startDay = calendar.startOfDay(for: start)
+        let chargeDay = calendar.startOfDay(for: chargeDate)
+        guard let end = calendar.date(byAdding: .day, value: days, to: startDay) else { return [] }
+        return chargeDay >= startDay && chargeDay < end ? [chargeDay] : []
+    }
+
     /// All charges in the window across active expenses, sorted by date then amount.
     static func charges(for expenses: [Expense], from start: Date = .now, days: Int = windowDays, calendar: Calendar = .current) -> [UpcomingCharge] {
         expenses
-            .filter { $0.isActive && $0.dueDay != nil }
+            .filter(\.isActive)
             .flatMap { expense -> [UpcomingCharge] in
-                occurrences(dueDay: expense.dueDay ?? 0, cadence: expense.cadence, from: start, days: days, calendar: calendar)
-                    .map { UpcomingCharge(expense: expense, date: $0) }
+                let dates: [Date]
+                if let oneTimeDate = expense.oneTimeDate {
+                    dates = oneTimeOccurrence(chargeDate: oneTimeDate, from: start, days: days, calendar: calendar)
+                } else if let dueDay = expense.dueDay {
+                    dates = occurrences(dueDay: dueDay, cadence: expense.cadence, from: start, days: days, calendar: calendar)
+                } else {
+                    dates = []
+                }
+                return dates.map { UpcomingCharge(expense: expense, date: $0) }
             }
             .sorted { lhs, rhs in
                 if lhs.date != rhs.date { return lhs.date < rhs.date }

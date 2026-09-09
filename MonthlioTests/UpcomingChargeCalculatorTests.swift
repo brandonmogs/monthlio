@@ -39,13 +39,25 @@ final class UpcomingChargeCalculatorTests: XCTestCase {
         XCTAssertEqual(dates, [date(2026, 9, 1)])
     }
 
-    func testOneTimeAppearsAtMostOnce() {
-        let dates = UpcomingChargeCalculator.occurrences(dueDay: 10, cadence: .oneTime, from: date(2026, 9, 1), days: 90, calendar: calendar)
-        XCTAssertEqual(dates, [date(2026, 9, 10)])
+    func testOneTimeAppearsOnceOnItsChargeDate() {
+        let inWindow = UpcomingChargeCalculator.oneTimeOccurrence(chargeDate: date(2026, 9, 10), from: date(2026, 9, 1), days: 90, calendar: calendar)
+        XCTAssertEqual(inWindow, [date(2026, 9, 10)])
+        let past = UpcomingChargeCalculator.oneTimeOccurrence(chargeDate: date(2026, 8, 10), from: date(2026, 9, 1), calendar: calendar)
+        XCTAssertTrue(past.isEmpty)
+        let farFuture = UpcomingChargeCalculator.oneTimeOccurrence(chargeDate: date(2026, 12, 10), from: date(2026, 9, 1), calendar: calendar)
+        XCTAssertTrue(farFuture.isEmpty)
+    }
+
+    func testOneTimeDoesNotRecurMonthly() {
+        let ticket = Expense(name: "Concert", amount: 180, category: .entertainment, cadence: .oneTime, chargeDate: date(2026, 9, 10))
+        let september = UpcomingChargeCalculator.charges(for: [ticket], from: date(2026, 9, 1), calendar: calendar)
+        XCTAssertEqual(september.map(\.date), [date(2026, 9, 10)])
+        let october = UpcomingChargeCalculator.charges(for: [ticket], from: date(2026, 10, 1), calendar: calendar)
+        XCTAssertTrue(october.isEmpty)
     }
 
     func testUnsupportedCadencesProduceNothing() {
-        for cadence in [Cadence.weekly, .biweekly, .quarterly, .yearly] {
+        for cadence in [Cadence.weekly, .biweekly, .quarterly, .yearly, .oneTime] {
             let dates = UpcomingChargeCalculator.occurrences(dueDay: 10, cadence: cadence, from: date(2026, 9, 1), calendar: calendar)
             XCTAssertTrue(dates.isEmpty, "\(cadence) should not be placed on the timeline")
         }

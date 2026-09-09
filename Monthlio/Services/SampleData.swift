@@ -74,7 +74,7 @@ enum SampleData {
             Expense(name: "Car insurance", amount: 420, category: .insurance, cadence: .quarterly, dueDay: 15),
             Expense(name: "Student loan", amount: 310, category: .debt, cadence: .monthly, dueDay: 28),
             Expense(name: "Gym", amount: 45, category: .health, cadence: .monthly, dueDay: 5),
-            Expense(name: "Concert tickets", amount: 180, category: .entertainment, cadence: .oneTime),
+            Expense(name: "Concert tickets", amount: 180, category: .entertainment, cadence: .oneTime, chargeDate: .now),
             Expense(name: "VPN", amount: 59.88, currencyCode: "EUR", category: .subscriptions, cadence: .yearly, dueDay: 14),
             Expense(name: "HBO Max", amount: 15.99, category: .subscriptions, cadence: .monthly, dueDay: 9, isActive: false, notes: "Cancelled in March"),
         ]

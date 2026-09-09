@@ -33,15 +33,41 @@ final class AppSettings {
         baseCurrencyCode.isEmpty ? CurrencyFormat.localeCode : baseCurrencyCode
     }
 
-    /// Returns the existing settings row, creating one if the store is empty.
-    static func current(in context: ModelContext) -> AppSettings {
+    /// The oldest settings row, or nil if none exists yet. Never inserts.
+    static func existing(in context: ModelContext) -> AppSettings? {
         var descriptor = FetchDescriptor<AppSettings>(sortBy: [SortDescriptor(\.createdAt)])
         descriptor.fetchLimit = 1
-        if let existing = try? context.fetch(descriptor).first {
+        return try? context.fetch(descriptor).first
+    }
+
+    /// The oldest settings row, creating one if the store has none.
+    /// Only call from a write path so a fresh device doesn't race sync.
+    static func current(in context: ModelContext) -> AppSettings {
+        if let existing = existing(in: context) {
             return existing
         }
         let settings = AppSettings()
         context.insert(settings)
         return settings
+    }
+
+    /// Collapses duplicate rows (two devices each created one before their
+    /// first sync) into the oldest. Non-default values from newer rows win
+    /// where the oldest is still at its default. Returns the survivor.
+    @discardableResult
+    static func deduplicate(in context: ModelContext) -> AppSettings? {
+        let descriptor = FetchDescriptor<AppSettings>(sortBy: [SortDescriptor(\.createdAt)])
+        guard let rows = try? context.fetch(descriptor), let primary = rows.first else { return nil }
+        guard rows.count > 1 else { return primary }
+
+        for other in rows.dropFirst() {
+            if primary.monthlyIncome == 0 { primary.monthlyIncome = other.monthlyIncome }
+            if primary.baseCurrencyCode.isEmpty { primary.baseCurrencyCode = other.baseCurrencyCode }
+            primary.notificationsEnabled = primary.notificationsEnabled || other.notificationsEnabled
+            primary.requireAuthentication = primary.requireAuthentication || other.requireAuthentication
+            context.delete(other)
+        }
+        try? context.save()
+        return primary
     }
 }

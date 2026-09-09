@@ -5,7 +5,7 @@ struct RootTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @Query private var expenses: [Expense]
-    @Query private var settingsRows: [AppSettings]
+    @Query(sort: \AppSettings.createdAt) private var settingsRows: [AppSettings]
     @Query private var rates: [ExchangeRate]
     @Environment(AppLockService.self) private var lock
     @State private var currencyStore = CurrencyStore()
@@ -33,6 +33,13 @@ struct RootTabView: View {
             .environment(currencyStore)
             .onChange(of: shieldMode, initial: true) { _, mode in
                 shield.update(to: mode, lock: lock)
+            }
+            .onChange(of: settingsRows.count) { _, count in
+                if count > 1 { AppSettings.deduplicate(in: modelContext) }
+            }
+            .onChange(of: settingsRows.first?.requireAuthentication) { _, enabled in
+                // A change synced from another device, or a merge above.
+                if let enabled, enabled != lock.isEnabled { lock.isEnabled = enabled }
             }
             .task(id: syncFingerprint) { await sync() }
             .onChange(of: currencyFingerprint, initial: true) {

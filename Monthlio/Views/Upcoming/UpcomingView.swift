@@ -4,7 +4,7 @@ import SwiftUI
 /// 30-day timeline of charges with a due day.
 struct UpcomingView: View {
     @Query(sort: \Expense.createdAt) private var expenses: [Expense]
-    @Query private var settingsRows: [AppSettings]
+    @Query(sort: \AppSettings.createdAt) private var settingsRows: [AppSettings]
     @Environment(CurrencyStore.self) private var currencyStore
 
     @State private var editingExpense: Expense?

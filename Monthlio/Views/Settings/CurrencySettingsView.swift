@@ -6,7 +6,7 @@ import SwiftUI
 struct CurrencySettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(CurrencyStore.self) private var currencyStore
-    @Query private var settingsRows: [AppSettings]
+    @Query(sort: \AppSettings.createdAt) private var settingsRows: [AppSettings]
     @Query(sort: \ExchangeRate.code) private var rates: [ExchangeRate]
     @Query private var expenses: [Expense]
 

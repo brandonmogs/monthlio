@@ -24,11 +24,14 @@ struct MonthlioApp: App {
         SampleData.seedIfNeeded(in: container.mainContext)
         #endif
 
-        let settings = AppSettings.current(in: container.mainContext)
-        CurrencyFormat.baseCode = settings.resolvedBaseCurrencyCode
-        Expense.backfillCurrencyCodes(in: container.mainContext, base: settings.resolvedBaseCurrencyCode)
+        // Read-only: creating the row here would race the first CloudKit
+        // import on a new device and leave two settings rows.
+        let settings = AppSettings.existing(in: container.mainContext)
+        let baseCode = settings?.resolvedBaseCurrencyCode ?? CurrencyFormat.localeCode
+        CurrencyFormat.baseCode = baseCode
+        Expense.backfillCurrencyCodes(in: container.mainContext, base: baseCode)
 
-        var lockEnabled = settings.requireAuthentication
+        var lockEnabled = settings?.requireAuthentication ?? false
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-MonthlioLocked") { lockEnabled = true }
         #endif

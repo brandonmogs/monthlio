@@ -6,7 +6,7 @@ import SwiftUI
 struct DashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Expense.createdAt) private var expenses: [Expense]
-    @Query private var settingsRows: [AppSettings]
+    @Query(sort: \AppSettings.createdAt) private var settingsRows: [AppSettings]
     @Query private var budgets: [CategoryBudget]
     @Query private var snapshots: [MonthSnapshot]
 

@@ -7,7 +7,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(CurrencyStore.self) private var currencyStore
     @Environment(AppLockService.self) private var lock
-    @Query private var settingsRows: [AppSettings]
+    @Query(sort: \AppSettings.createdAt) private var settingsRows: [AppSettings]
     @Query(sort: \Expense.createdAt) private var expenses: [Expense]
 
     @State private var income: Decimal?

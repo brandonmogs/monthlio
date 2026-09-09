@@ -115,6 +115,10 @@ private struct RateRow: View {
     }
 
     private func commit(_ newValue: Decimal?) {
+        if let newValue, !MoneyLimits.isValidRate(newValue) {
+            value = rate?.rateToBase
+            return
+        }
         if let newValue, newValue > 0 {
             if let rate {
                 rate.rateToBase = newValue

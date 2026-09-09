@@ -71,6 +71,10 @@ private struct BudgetRow: View {
     }
 
     private func commit(_ value: Decimal?) {
+        guard MoneyLimits.isValidOrZero(value) else {
+            cap = budget?.cap
+            return
+        }
         if let value, value > 0 {
             if let budget {
                 budget.cap = value

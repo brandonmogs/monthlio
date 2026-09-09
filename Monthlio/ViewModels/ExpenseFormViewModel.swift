@@ -37,17 +37,19 @@ final class ExpenseFormViewModel {
     var title: String { isEditing ? "Edit Expense" : "New Expense" }
 
     var trimmedName: String {
-        name.trimmingCharacters(in: .whitespacesAndNewlines)
+        MoneyLimits.clampedName(name)
     }
 
     var amountIsValid: Bool {
-        guard let amount else { return false }
-        return amount > 0
+        MoneyLimits.isValidAmount(amount)
     }
 
     /// Only shown once the user has typed something that fails validation.
     var amountError: String? {
-        guard let amount, amount <= 0 else { return nil }
+        guard let amount, !MoneyLimits.isValidAmount(amount) else { return nil }
+        if amount.isNaN || !amount.isFinite || amount > MoneyLimits.maxAmount {
+            return "That amount is too large."
+        }
         return "Amount must be greater than zero."
     }
 
@@ -64,7 +66,7 @@ final class ExpenseFormViewModel {
     @discardableResult
     func save(in context: ModelContext) -> Bool {
         guard canSave, let amount else { return false }
-        let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedNotes = MoneyLimits.clampedNotes(notes)
 
         if let existing {
             existing.name = trimmedName

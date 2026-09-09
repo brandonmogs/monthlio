@@ -65,7 +65,11 @@ struct SettingsView: View {
             )
             .keyboardType(.decimalPad)
             .onChange(of: income) { _, newValue in
-                settings?.monthlyIncome = max(newValue ?? 0, 0)
+                guard MoneyLimits.isValidOrZero(newValue) else {
+                    income = settings?.monthlyIncome
+                    return
+                }
+                settings?.monthlyIncome = newValue ?? 0
                 try? modelContext.save()
             }
         } header: {

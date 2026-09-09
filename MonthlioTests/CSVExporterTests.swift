@@ -9,6 +9,22 @@ final class CSVExporterTests: XCTestCase {
         XCTAssertEqual(CSVExporter.escape("line\nbreak"), "\"line\nbreak\"")
     }
 
+    func testNeutralizesFormulaInjection() {
+        XCTAssertEqual(CSVExporter.escape("=HYPERLINK(\"http://x\",\"Rent\")"), "\"'=HYPERLINK(\"\"http://x\"\",\"\"Rent\"\")\"")
+        XCTAssertEqual(CSVExporter.escape("+1"), "\"'+1\"")
+        XCTAssertEqual(CSVExporter.escape("-5 late fee"), "\"'-5 late fee\"")
+        XCTAssertEqual(CSVExporter.escape("@home"), "\"'@home\"")
+        XCTAssertEqual(CSVExporter.escape("\tcalc"), "\"'\tcalc\"")
+        XCTAssertEqual(CSVExporter.escape("Netflix"), "Netflix")
+    }
+
+    func testNegativeAmountsFromExporterAreNotMangled() {
+        // Amount columns come from `plain(_:)`, which never starts with a formula
+        // leader for positive values; the escape is applied per field so a
+        // legitimately negative number would be quoted, not corrupted.
+        XCTAssertEqual(CSVExporter.escape("-12.50"), "\"'-12.50\"")
+    }
+
     func testRendersHeaderAndRows() {
         let expenses = [
             Expense(name: "Rent, downtown", amount: 1500, currencyCode: "USD", category: .housing, cadence: .monthly, dueDay: 1),

@@ -27,10 +27,19 @@ enum CSVExporter {
         return ([header] + rows).joined(separator: "\n") + "\n"
     }
 
-    /// Quotes a field when it contains a comma, quote, or newline.
+    /// Characters that make spreadsheets treat a cell as a formula.
+    private static let formulaLeaders: Set<Character> = ["=", "+", "-", "@", "\t", "\r"]
+
+    /// Quotes a field when it contains a comma, quote, or newline, and
+    /// neutralizes formula injection: a value starting with = + - @ tab or CR
+    /// gets a leading apostrophe so Excel and Sheets show it as text.
     static func escape(_ field: String) -> String {
-        guard field.contains(where: { $0 == "," || $0 == "\"" || $0.isNewline }) else { return field }
-        return "\"" + field.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+        var value = field
+        if let first = value.first, formulaLeaders.contains(first) {
+            value = "'" + value
+        }
+        guard value.contains(where: { $0 == "," || $0 == "\"" || $0.isNewline }) || value != field else { return value }
+        return "\"" + value.replacingOccurrences(of: "\"", with: "\"\"") + "\""
     }
 
     /// Locale-independent number, e.g. "1234.50".

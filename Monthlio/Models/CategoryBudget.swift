@@ -4,8 +4,8 @@ import SwiftData
 /// Optional monthly cap for one category. Absence means "no budget".
 @Model
 final class CategoryBudget {
-    @Attribute(.unique) var categoryRaw: String
-    var cap: Decimal
+    var categoryRaw: String = ExpenseCategory.other.rawValue
+    var cap: Decimal = 0
 
     init(category: ExpenseCategory, cap: Decimal) {
         self.categoryRaw = category.rawValue
@@ -19,8 +19,9 @@ final class CategoryBudget {
 }
 
 extension Array where Element == CategoryBudget {
-    /// Quick lookup keyed by category.
+    /// Quick lookup keyed by category. Duplicates (possible after a sync
+    /// merge) resolve to the larger cap.
     var byCategory: [ExpenseCategory: Decimal] {
-        Dictionary(uniqueKeysWithValues: map { ($0.category, $0.cap) })
+        Dictionary(map { ($0.category, $0.cap) }, uniquingKeysWith: { Swift.max($0, $1) })
     }
 }

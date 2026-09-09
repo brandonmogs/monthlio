@@ -39,9 +39,16 @@ enum SnapshotService {
         let currentStart = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
         guard let windowStart = calendar.date(byAdding: .month, value: -(months - 1), to: currentStart) else { return [] }
 
-        return snapshots
+        return deduplicated(snapshots)
             .filter { $0.monthStart >= windowStart && $0.monthStart <= currentStart }
             .sorted { $0.monthStart < $1.monthStart }
+    }
+
+    /// One row per month key, keeping the most recently updated. Sync can
+    /// briefly produce duplicates when two devices write the same month.
+    static func deduplicated(_ snapshots: [MonthSnapshot]) -> [MonthSnapshot] {
+        Dictionary(grouping: snapshots, by: \.key)
+            .compactMap { $0.value.max { $0.updatedAt < $1.updatedAt } }
     }
 
     /// Change between `currentTotal` and the previous month's snapshot, if any.
@@ -51,7 +58,7 @@ enum SnapshotService {
         guard let year = components.year, let month = components.month else { return nil }
         let key = MonthSnapshot.key(year: year, month: month)
 
-        guard let previous = snapshots.first(where: { $0.key == key }) else { return nil }
+        guard let previous = deduplicated(snapshots).first(where: { $0.key == key }) else { return nil }
         return MonthDelta(
             amount: currentTotal - previous.total,
             previousMonthLabel: previous.shortLabel

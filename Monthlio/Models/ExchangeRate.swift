@@ -5,9 +5,9 @@ import SwiftData
 /// base currency. Rates are user-entered; the app never fetches them.
 @Model
 final class ExchangeRate {
-    @Attribute(.unique) var code: String
-    var rateToBase: Decimal
-    var updatedAt: Date
+    var code: String = ""
+    var rateToBase: Decimal = 0
+    var updatedAt: Date = Date.now
 
     init(code: String, rateToBase: Decimal, updatedAt: Date = .now) {
         self.code = code

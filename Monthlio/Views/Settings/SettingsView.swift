@@ -37,6 +37,7 @@ struct SettingsView: View {
                 }
                 securitySection
                 remindersSection
+                syncSection
                 dataSection
             }
             .navigationTitle("Settings")
@@ -99,6 +100,25 @@ struct SettingsView: View {
             Text("Reminders")
         } footer: {
             Text("A local notification at 9 AM the day before each upcoming charge. Nothing leaves your device.")
+        }
+    }
+
+    private var syncSection: some View {
+        let signedIn = FileManager.default.ubiquityIdentityToken != nil
+        let syncing = MonthlioApp.isCloudSyncEnabled && signedIn
+        return Section {
+            LabeledContent {
+                Label(syncing ? "On" : "Off", systemImage: syncing ? "checkmark.icloud" : "xmark.icloud")
+                    .foregroundStyle(syncing ? .green : .secondary)
+            } label: {
+                Text("iCloud sync")
+            }
+        } header: {
+            Text("Sync")
+        } footer: {
+            Text(syncing
+                ? "Your expenses sync privately through your iCloud account to your other devices."
+                : (signedIn ? "iCloud is unavailable on this build." : "Sign in to iCloud in the Settings app to sync across devices."))
         }
     }
 

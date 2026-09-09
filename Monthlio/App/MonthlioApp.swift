@@ -14,12 +14,11 @@ struct MonthlioApp: App {
         ExchangeRate.self,
     ])
 
+    /// True when the store is CloudKit-backed. Settings shows sync status from this.
+    private(set) static var isCloudSyncEnabled = false
+
     init() {
-        do {
-            container = try ModelContainer(for: MonthlioApp.schema)
-        } catch {
-            fatalError("Failed to create ModelContainer: \(error)")
-        }
+        container = MonthlioApp.makeContainer()
 
         #if DEBUG
         SampleData.seedIfNeeded(in: container.mainContext)
@@ -34,6 +33,22 @@ struct MonthlioApp: App {
         if ProcessInfo.processInfo.arguments.contains("-MonthlioLocked") { lockEnabled = true }
         #endif
         _lock = State(initialValue: AppLockService(isEnabled: lockEnabled))
+    }
+
+    /// Prefers the iCloud-backed store; falls back to a local store if the
+    /// entitlement or account isn't available so the app always launches.
+    private static func makeContainer() -> ModelContainer {
+        let cloud = ModelConfiguration(schema: schema, cloudKitDatabase: .automatic)
+        if let container = try? ModelContainer(for: schema, configurations: cloud) {
+            isCloudSyncEnabled = true
+            return container
+        }
+        let local = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
+        do {
+            return try ModelContainer(for: schema, configurations: local)
+        } catch {
+            fatalError("Failed to create ModelContainer: \(error)")
+        }
     }
 
     var body: some Scene {

@@ -2,11 +2,13 @@ import Foundation
 import SwiftData
 
 /// Single-row settings store. Use `current(in:)` to fetch or create it.
+/// With CloudKit two devices can each create a row; `current` always picks
+/// the oldest so they converge on one.
 @Model
 final class AppSettings {
-    var monthlyIncome: Decimal
-    var notificationsEnabled: Bool
-    var createdAt: Date
+    var monthlyIncome: Decimal = 0
+    var notificationsEnabled: Bool = false
+    var createdAt: Date = Date.now
     /// Empty means "use the device locale's currency".
     var baseCurrencyCode: String = ""
     var requireAuthentication: Bool = false

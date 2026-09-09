@@ -5,12 +5,13 @@ import SwiftData
 /// month is updated continuously; past months are frozen history.
 @Model
 final class MonthSnapshot {
-    /// "yyyy-MM", unique per month.
-    @Attribute(.unique) var key: String
-    var year: Int
-    var month: Int
-    var total: Decimal
-    var updatedAt: Date
+    /// "yyyy-MM". Intended to be unique per month; `SnapshotService`
+    /// dedupes by keeping the most recently updated row.
+    var key: String = ""
+    var year: Int = 0
+    var month: Int = 0
+    var total: Decimal = 0
+    var updatedAt: Date = Date.now
 
     init(year: Int, month: Int, total: Decimal, updatedAt: Date = .now) {
         self.key = MonthSnapshot.key(year: year, month: month)

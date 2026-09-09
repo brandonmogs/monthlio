@@ -6,22 +6,25 @@ import SwiftData
 /// Enums are persisted as their raw `String` values (`categoryRaw`,
 /// `cadenceRaw`) because SwiftData predicates and migrations are far more
 /// reliable on primitive columns than on Codable enum payloads.
+///
+/// Every property has a default and nothing is `.unique` because the store
+/// is CloudKit-backed; CloudKit can't enforce uniqueness across devices.
 @Model
 final class Expense {
-    @Attribute(.unique) var id: UUID
-    var name: String
-    var amount: Decimal
+    var id: UUID = UUID()
+    var name: String = ""
+    var amount: Decimal = 0
     /// ISO 4217 code the amount is billed in. Empty only for rows created
     /// before multi-currency; `Expense.backfillCurrencyCodes` fills those.
     var currencyCode: String = ""
-    var categoryRaw: String
-    var cadenceRaw: String
+    var categoryRaw: String = ExpenseCategory.other.rawValue
+    var cadenceRaw: String = Cadence.monthly.rawValue
     /// Day of month (1–31) the charge hits, if known.
     var dueDay: Int?
     /// Paused or cancelled expenses stay in history but drop out of totals.
-    var isActive: Bool
+    var isActive: Bool = true
     var notes: String?
-    var createdAt: Date
+    var createdAt: Date = Date.now
     /// Amount before the most recent edit, for price-increase tracking.
     var previousAmount: Decimal?
     var amountChangedAt: Date?

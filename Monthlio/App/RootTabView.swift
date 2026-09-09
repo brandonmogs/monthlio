@@ -95,7 +95,8 @@ struct RootTabView: View {
         }
         .joined(separator: ";")
         let notifications = settingsRows.first?.notificationsEnabled ?? false
-        return "\(notifications)#\(currencyFingerprint)#\(expensePart)"
+        let discreet = settingsRows.first?.requireAuthentication ?? false
+        return "\(notifications)|\(discreet)#\(currencyFingerprint)#\(expensePart)"
     }
 
     /// Records this month's total and refreshes local reminders.
@@ -104,7 +105,8 @@ struct RootTabView: View {
         SnapshotService.record(total: total, in: modelContext)
 
         let enabled = settingsRows.first?.notificationsEnabled ?? false
-        await NotificationScheduler.shared.reschedule(for: expenses, enabled: enabled)
+        let discreet = settingsRows.first?.requireAuthentication ?? false
+        await NotificationScheduler.shared.reschedule(for: expenses, enabled: enabled, discreet: discreet)
     }
 }
 

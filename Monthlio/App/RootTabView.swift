@@ -9,6 +9,7 @@ struct RootTabView: View {
     @Query private var rates: [ExchangeRate]
     @Environment(AppLockService.self) private var lock
     @State private var currencyStore = CurrencyStore()
+    @State private var shield = PrivacyShield()
     @State private var selectedTab = Tab.initial
 
     enum Tab: String, CaseIterable {
@@ -30,15 +31,9 @@ struct RootTabView: View {
     var body: some View {
         tabs
             .environment(currencyStore)
-            .overlay {
-                if lock.isLocked {
-                    LockScreenView()
-                        .transition(.opacity)
-                } else if lock.isEnabled, scenePhase != .active {
-                    Rectangle().fill(.ultraThinMaterial).ignoresSafeArea()
-                }
+            .onChange(of: shieldMode, initial: true) { _, mode in
+                shield.update(to: mode, lock: lock)
             }
-            .animation(.easeInOut(duration: 0.2), value: lock.isLocked)
             .task(id: syncFingerprint) { await sync() }
             .onChange(of: currencyFingerprint, initial: true) {
                 currencyStore.update(settings: settingsRows.first, rates: rates)
@@ -72,6 +67,13 @@ struct RootTabView: View {
     private var currencyFingerprint: String {
         let base = settingsRows.first?.resolvedBaseCurrencyCode ?? ""
         return base + "#" + rates.map { "\($0.code)=\($0.rateToBase)" }.sorted().joined(separator: ",")
+    }
+
+    /// What the privacy shield window should show right now.
+    private var shieldMode: PrivacyShield.Mode {
+        if lock.isLocked { return .locked }
+        if lock.isEnabled, scenePhase != .active { return .blurred }
+        return .hidden
     }
 
     /// Changes whenever anything that affects snapshots or reminders changes.

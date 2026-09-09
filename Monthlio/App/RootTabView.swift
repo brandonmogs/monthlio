@@ -31,6 +31,10 @@ struct RootTabView: View {
     var body: some View {
         tabs
             .environment(currencyStore)
+            // The shield window covers the screen, but assistive tech and
+            // keyboard focus can still reach views underneath it.
+            .accessibilityHidden(lock.isLocked)
+            .disabled(lock.isLocked)
             .onChange(of: shieldMode, initial: true) { _, mode in
                 shield.update(to: mode, lock: lock)
             }

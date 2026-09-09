@@ -5,12 +5,16 @@ import XCTest
 private final class FakeAuthenticator: Authenticating {
     var biometryName = "Face ID"
     var canAuthenticate = true
-    var shouldSucceed = true
+    var outcome: AuthenticationOutcome = .success
+    var shouldSucceed: Bool {
+        get { outcome == .success }
+        set { outcome = newValue ? .success : .failed("Couldn't verify it's you. Try again.") }
+    }
     var attempts = 0
 
-    func authenticate(reason: String) async -> Bool {
+    func authenticate(reason: String) async -> AuthenticationOutcome {
         attempts += 1
-        return shouldSucceed
+        return outcome
     }
 }
 
@@ -58,6 +62,53 @@ final class AppLockServiceTests: XCTestCase {
         let lock = AppLockService(isEnabled: true, authenticator: FakeAuthenticator())
         lock.isEnabled = false
         XCTAssertFalse(lock.isLocked)
+    }
+
+    func testCancelledPromptLeavesNoErrorAndDoesNotRePrompt() async {
+        let auth = FakeAuthenticator()
+        auth.outcome = .cancelled
+        let lock = AppLockService(isEnabled: true, authenticator: auth)
+
+        // Launch: the first activation auto-prompts once.
+        lock.handleScenePhase(.active)
+        await Task.yield()
+        try? await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(auth.attempts, 1)
+        XCTAssertTrue(lock.isLocked)
+        XCTAssertNil(lock.lastError, "a cancel is not an error")
+
+        // The system prompt bounces the scene inactive → active. No re-prompt.
+        lock.handleScenePhase(.inactive)
+        lock.handleScenePhase(.active)
+        try? await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(auth.attempts, 1)
+
+        // The manual button still works.
+        auth.outcome = .success
+        await lock.unlock()
+        XCTAssertFalse(lock.isLocked)
+    }
+
+    func testBackgroundReArmsTheAutoPrompt() async {
+        let auth = FakeAuthenticator()
+        auth.outcome = .cancelled
+        let lock = AppLockService(isEnabled: true, authenticator: auth)
+        lock.handleScenePhase(.active)
+        try? await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(auth.attempts, 1)
+
+        lock.handleScenePhase(.background)
+        lock.handleScenePhase(.active)
+        try? await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(auth.attempts, 2)
+    }
+
+    func testPasscodeNotSetMessageSurfaces() async {
+        let auth = FakeAuthenticator()
+        auth.outcome = .failed("Set a device passcode in Settings to unlock Monthlio.")
+        let lock = AppLockService(isEnabled: true, authenticator: auth)
+        await lock.unlock()
+        XCTAssertEqual(lock.lastError, "Set a device passcode in Settings to unlock Monthlio.")
     }
 
     func testUnlockIsNoOpWhenNotLocked() async {

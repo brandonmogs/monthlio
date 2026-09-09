@@ -45,7 +45,7 @@ enum SampleData {
 
         let rateCount = (try? context.fetchCount(FetchDescriptor<ExchangeRate>())) ?? 0
         if rateCount == 0, CurrencyFormat.baseCode != "EUR" {
-            context.insert(ExchangeRate(code: "EUR", rateToBase: Decimal(string: "1.08")!))
+            context.insert(ExchangeRate(code: "EUR", rateToBase: Decimal(string: "1.08")!, baseCode: CurrencyFormat.baseCode))
         }
 
         let snapshotCount = (try? context.fetchCount(FetchDescriptor<MonthSnapshot>())) ?? 0

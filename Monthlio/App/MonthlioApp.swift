@@ -30,6 +30,7 @@ struct MonthlioApp: App {
         let baseCode = settings?.resolvedBaseCurrencyCode ?? CurrencyFormat.localeCode
         CurrencyFormat.baseCode = baseCode
         Expense.backfillCurrencyCodes(in: container.mainContext, base: baseCode)
+        ExchangeRate.backfillBaseCodes(in: container.mainContext, base: baseCode)
 
         var lockEnabled = settings?.requireAuthentication ?? false
         #if DEBUG

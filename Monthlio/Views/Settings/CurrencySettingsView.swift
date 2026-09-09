@@ -9,6 +9,7 @@ struct CurrencySettingsView: View {
     @Query(sort: \AppSettings.createdAt) private var settingsRows: [AppSettings]
     @Query(sort: \ExchangeRate.code) private var rates: [ExchangeRate]
     @Query private var expenses: [Expense]
+    @State private var pendingBaseWithoutPivot: String?
 
     var body: some View {
         let base = currencyStore.baseCode
@@ -22,7 +23,7 @@ struct CurrencySettingsView: View {
                     }
                 }
             } footer: {
-                Text("Totals, charts, budgets and income are shown in the base currency. Changing it re-expresses any rates you've entered.")
+                Text("Totals, charts, budgets and income are shown in the base currency. Rates you've entered are kept per base, so switching back restores them.")
             }
 
             Section {
@@ -31,7 +32,7 @@ struct CurrencySettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 ForEach(inUse, id: \.self) { code in
-                    RateRow(code: code, base: base, rate: rates.first { $0.code == code })
+                    RateRow(code: code, base: base, rate: rates.first { $0.code == code && $0.applies(to: base) })
                 }
             } header: {
                 Text("Exchange rates")
@@ -41,6 +42,14 @@ struct CurrencySettingsView: View {
         }
         .navigationTitle("Currency")
         .navigationBarTitleDisplayMode(.inline)
+        .alert("Rates needed for \(pendingBaseWithoutPivot ?? "")", isPresented: Binding(
+            get: { pendingBaseWithoutPivot != nil },
+            set: { if !$0 { pendingBaseWithoutPivot = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("There was no \(pendingBaseWithoutPivot ?? "") rate to convert your existing rates from. They're kept for \(base), and other currencies count 1:1 in \(pendingBaseWithoutPivot ?? "") until you enter rates below.")
+        }
     }
 
     private var baseBinding: Binding<String> {
@@ -50,17 +59,28 @@ struct CurrencySettingsView: View {
         )
     }
 
+    /// Switches base. Existing rows are never deleted: they stay tagged with
+    /// the old base. If the old converter knows the new base's rate, derived
+    /// rates for the new base are added (without overwriting ones the user
+    /// already entered for it); otherwise the user is told to enter them.
     private func changeBase(to newBase: String) {
-        guard newBase != currencyStore.baseCode else { return }
+        let oldBase = currencyStore.baseCode
+        guard newBase != oldBase else { return }
+        let hadPivot = currencyStore.converter.hasRate(for: newBase)
         let rebased = currencyStore.converter.rebased(to: newBase)
 
-        for rate in rates { modelContext.delete(rate) }
-        for (code, value) in rebased.rates {
-            modelContext.insert(ExchangeRate(code: code, rateToBase: value))
+        for (code, value) in rebased.rates where !rates.contains(where: { $0.code == code && $0.applies(to: newBase) }) {
+            modelContext.insert(ExchangeRate(code: code, rateToBase: value, baseCode: newBase))
         }
         AppSettings.current(in: modelContext).baseCurrencyCode = newBase
         try? modelContext.save()
         Haptics.selection()
+
+        let stillMissing = Set(expenses.map(\.currencyCode)).subtracting([newBase])
+            .contains { code in !rates.contains { $0.code == code && $0.applies(to: newBase) } && rebased.rates[code] == nil }
+        if !hadPivot, stillMissing {
+            pendingBaseWithoutPivot = newBase
+        }
     }
 }
 
@@ -100,7 +120,7 @@ private struct RateRow: View {
                 rate.rateToBase = newValue
                 rate.updatedAt = .now
             } else {
-                modelContext.insert(ExchangeRate(code: code, rateToBase: newValue))
+                modelContext.insert(ExchangeRate(code: code, rateToBase: newValue, baseCode: base))
             }
         } else if let rate {
             modelContext.delete(rate)

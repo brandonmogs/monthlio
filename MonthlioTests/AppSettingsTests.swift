@@ -8,8 +8,7 @@ final class AppSettingsTests: XCTestCase {
     private var container: ModelContainer?
 
     private func makeContext() throws -> ModelContext {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
-        let container = try ModelContainer(for: MonthlioApp.schema, configurations: config)
+        let container = try TestContainer.make()
         self.container = container
         return container.mainContext
     }

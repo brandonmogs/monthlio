@@ -8,7 +8,6 @@ struct SettingsView: View {
     @Environment(CurrencyStore.self) private var currencyStore
     @Environment(AppLockService.self) private var lock
     @Query(sort: \AppSettings.createdAt) private var settingsRows: [AppSettings]
-    @Query(sort: \Expense.createdAt) private var expenses: [Expense]
 
     @State private var income: Decimal?
     @State private var notificationsDenied = false
@@ -38,7 +37,7 @@ struct SettingsView: View {
                 securitySection
                 remindersSection
                 syncSection
-                dataSection
+                DataSection()
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -123,21 +122,6 @@ struct SettingsView: View {
             Text(syncing
                 ? String(localized: "Your expenses sync privately through your iCloud account to your other devices.")
                 : (signedIn ? String(localized: "iCloud is unavailable on this build.") : String(localized: "Sign in to iCloud in the Settings app to sync across devices.")))
-        }
-    }
-
-    private var dataSection: some View {
-        Section("Data") {
-            ShareLink(
-                item: CSVExport(
-                    csv: CSVExporter.csv(from: expenses, converter: currencyStore.converter),
-                    fileName: "monthlio-expenses.csv"
-                ),
-                preview: SharePreview("Monthlio expenses", image: Image(systemName: "tablecells"))
-            ) {
-                Label("Export CSV", systemImage: "square.and.arrow.up")
-            }
-            .disabled(expenses.isEmpty)
         }
     }
 

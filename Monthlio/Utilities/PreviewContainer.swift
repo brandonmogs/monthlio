@@ -18,7 +18,7 @@ enum PreviewContainer {
     static let empty: ModelContainer = makeContainer()
 
     private static func makeContainer() -> ModelContainer {
-        let config = ModelConfiguration(isStoredInMemoryOnly: true)
+        let config = ModelConfiguration(isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         return try! ModelContainer(for: MonthlioApp.schema, configurations: config)
     }
 }

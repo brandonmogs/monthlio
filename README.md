@@ -39,6 +39,14 @@ Or open `Monthlio.xcodeproj` after generating and press Run. The scheme
 uses `StoreKit/Monthlio.storekit`, so the Pro purchase works in the
 simulator without App Store Connect.
 
+**Testing purchases:** on iOS 26.3 and later simulator runtimes the
+StoreKit configuration only reaches the simulator when you run or test
+from the Xcode IDE (Cmd+R / Cmd+U). From `xcodebuild` the paywall shows
+"Try Again" instead of a price and the StoreKit integration test skips
+itself. To see the purchase flow, run the app from Xcode, open Settings,
+and tap the iCloud sync row. Apple tracks the command-line gap as
+FB22237318.
+
 DEBUG builds seed a realistic set of expenses, income, budgets and eight
 months of history on first launch. Launch arguments (DEBUG only):
 

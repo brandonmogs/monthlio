@@ -4,9 +4,13 @@ import XCTest
 @testable import Monthlio
 
 /// Exercises the real StoreKit 2 client against StoreKit/Monthlio.storekit.
-/// StoreKit testing needs the simulator's StoreKit test daemon, which only
-/// answers when the active developer directory is a full Xcode; elsewhere
-/// the test skips rather than fails.
+///
+/// On the iOS 26.3 and later simulator runtimes, StoreKit configurations
+/// only reach the simulator's storekitd when the run is launched from the
+/// Xcode IDE (Cmd+U); `xcodebuild test` from the command line gets
+/// SKInternalErrorDomain code 3 from SKTestSession and the products fall
+/// back to the App Store sandbox. In that case the test skips rather than
+/// fails. Apple Feedback FB22237318 tracks it.
 @MainActor
 final class StoreKitIntegrationTests: XCTestCase {
     func testLocalConfigurationSellsAndRefundsPro() async throws {
@@ -17,7 +21,7 @@ final class StoreKitIntegrationTests: XCTestCase {
 
         let client = StoreKitProClient()
         let product = try? await client.product(id: ProStore.productID)
-        try XCTSkipIf(product == nil, "StoreKit testing is unavailable here (select a full Xcode with xcode-select to enable it)")
+        try XCTSkipIf(product == nil, "StoreKit testing needs an Xcode IDE run on iOS 26.3+ simulators (command-line runs can't push the configuration); run this from Xcode with Cmd+U")
 
         XCTAssertEqual(product?.displayPrice, "$9.99")
         let outcome = try await client.purchase(id: ProStore.productID)

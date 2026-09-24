@@ -84,8 +84,9 @@ final class MonthlioUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Monthlio Pro"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["Restore Purchases"].waitForExistence(timeout: 5))
         // The price comes from the scheme's StoreKit configuration, which
-        // needs the simulator's StoreKit test daemon; without it the button
-        // offers a retry instead. Either proves the paywall wired up.
+        // only reaches the simulator when the run starts from the Xcode IDE
+        // on iOS 26.3+ runtimes; from xcodebuild the button offers a retry
+        // instead. Either proves the paywall is wired up.
         let priced = app.buttons["Unlock for $9.99"].waitForExistence(timeout: 15)
         XCTAssertTrue(priced || app.buttons["Try Again"].exists, "price button or retry expected")
         saveScreenshot(app, name: priced ? "paywall" : "paywall-no-storekit")

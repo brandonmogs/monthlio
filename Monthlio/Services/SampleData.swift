@@ -6,10 +6,10 @@ enum SampleData {
     /// Four one-tap starters shown in the empty state.
     static func starterExpenses() -> [Expense] {
         [
-            Expense(name: "Rent", amount: 1500, category: .housing, cadence: .monthly, dueDay: 1),
+            Expense(name: String(localized: "Rent"), amount: 1500, category: .housing, cadence: .monthly, dueDay: 1),
             Expense(name: "Netflix", amount: 15.49, category: .subscriptions, cadence: .monthly, dueDay: 12),
-            Expense(name: "Groceries", amount: 120, category: .food, cadence: .weekly),
-            Expense(name: "Car insurance", amount: 840, category: .insurance, cadence: .yearly, dueDay: 20),
+            Expense(name: String(localized: "Groceries"), amount: 120, category: .food, cadence: .weekly),
+            Expense(name: String(localized: "Car insurance"), amount: 840, category: .insurance, cadence: .yearly, dueDay: 20),
         ]
     }
 

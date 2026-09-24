@@ -50,11 +50,12 @@ final class NotificationScheduler {
             let content = UNMutableNotificationContent()
             let when = charge.date.formatted(.dateTime.weekday(.wide).month().day())
             if discreet {
-                content.title = "A charge is due tomorrow"
-                content.body = "Open Monthlio to see what hits on \(when)."
+                content.title = String(localized: "A charge is due tomorrow")
+                content.body = String(localized: "Open Monthlio to see what hits on \(when).")
             } else {
-                content.title = "\(charge.expense.name) due tomorrow"
-                content.body = "\(charge.expense.amount.currencyString(in: charge.expense.currencyCode)) hits on \(when)."
+                let amount = charge.expense.amount.currencyString(in: charge.expense.currencyCode)
+                content.title = String(localized: "\(charge.expense.name) due tomorrow")
+                content.body = String(localized: "\(amount) hits on \(when).")
             }
             content.sound = .default
 

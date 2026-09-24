@@ -68,7 +68,7 @@ struct SubscriptionsView: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     if increases > 0 {
-                        Label("\(increases) price increase\(increases == 1 ? "" : "s")", systemImage: "arrow.up.right")
+                        Label("^[\(increases) price increase](inflect: true)", systemImage: "arrow.up.right")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.orange)
                     }

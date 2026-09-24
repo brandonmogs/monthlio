@@ -115,7 +115,7 @@ private struct CategorySectionHeader: View {
                 .foregroundStyle(category.color)
             Text(category.title)
             Spacer()
-            Text(monthlyTotal.rounded().currencyString + "/mo")
+            Text("\(monthlyTotal.rounded().currencyString)/mo")
                 .monospacedDigit()
         }
     }

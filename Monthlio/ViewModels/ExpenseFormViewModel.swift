@@ -34,7 +34,7 @@ final class ExpenseFormViewModel {
     }
 
     var isEditing: Bool { existing != nil }
-    var title: String { isEditing ? "Edit Expense" : "New Expense" }
+    var title: String { isEditing ? String(localized: "Edit Expense") : String(localized: "New Expense") }
 
     var trimmedName: String {
         MoneyLimits.clampedName(name)
@@ -48,9 +48,9 @@ final class ExpenseFormViewModel {
     var amountError: String? {
         guard let amount, !MoneyLimits.isValidAmount(amount) else { return nil }
         if amount.isNaN || !amount.isFinite || amount > MoneyLimits.maxAmount {
-            return "That amount is too large."
+            return String(localized: "That amount is too large.")
         }
-        return "Amount must be greater than zero."
+        return String(localized: "Amount must be greater than zero.")
     }
 
     var canSave: Bool {

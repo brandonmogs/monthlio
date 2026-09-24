@@ -13,8 +13,14 @@ enum AuthenticationOutcome: Equatable {
 /// Abstracts LocalAuthentication so the lock state machine can be tested.
 protocol Authenticating {
     var biometryName: String { get }
+    /// SF Symbol matching `biometryName`. Defaults to Face ID's glyph.
+    var biometrySymbol: String { get }
     var canAuthenticate: Bool { get }
     func authenticate(reason: String) async -> AuthenticationOutcome
+}
+
+extension Authenticating {
+    var biometrySymbol: String { "faceid" }
 }
 
 /// Face ID / Touch ID with device passcode fallback.
@@ -26,7 +32,18 @@ struct DeviceAuthenticator: Authenticating {
         case .faceID: return "Face ID"
         case .touchID: return "Touch ID"
         case .opticID: return "Optic ID"
-        default: return "Passcode"
+        default: return String(localized: "Passcode")
+        }
+    }
+
+    var biometrySymbol: String {
+        let context = LAContext()
+        _ = context.canEvaluatePolicy(.deviceOwnerAuthentication, error: nil)
+        switch context.biometryType {
+        case .touchID: return "touchid"
+        case .opticID: return "opticid"
+        case .faceID: return "faceid"
+        default: return "lock.fill"
         }
     }
 
@@ -36,21 +53,25 @@ struct DeviceAuthenticator: Authenticating {
 
     func authenticate(reason: String) async -> AuthenticationOutcome {
         let context = LAContext()
-        context.localizedCancelTitle = "Cancel"
+        context.localizedCancelTitle = String(localized: "Cancel")
         do {
-            return try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) ? .success : .failed("Couldn't verify it's you. Try again.")
+            return try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) ? .success : .failed(Self.genericFailure)
         } catch let error as LAError {
             switch error.code {
             case .userCancel, .systemCancel, .appCancel, .userFallback:
                 return .cancelled
             case .passcodeNotSet:
-                return .failed("Set a device passcode in Settings to unlock Monthlio.")
+                return .failed(String(localized: "Set a device passcode in Settings to unlock Monthlio."))
             default:
-                return .failed("Couldn't verify it's you. Try again.")
+                return .failed(Self.genericFailure)
             }
         } catch {
-            return .failed("Couldn't verify it's you. Try again.")
+            return .failed(Self.genericFailure)
         }
+    }
+
+    private static var genericFailure: String {
+        String(localized: "Couldn't verify it's you. Try again.")
     }
 }
 
@@ -81,6 +102,7 @@ final class AppLockService {
     }
 
     var biometryName: String { authenticator.biometryName }
+    var biometrySymbol: String { authenticator.biometrySymbol }
     var canAuthenticate: Bool { authenticator.canAuthenticate }
 
     func handleScenePhase(_ phase: ScenePhase) {
@@ -109,7 +131,7 @@ final class AppLockService {
         isAuthenticating = true
         defer { isAuthenticating = false }
 
-        switch await authenticator.authenticate(reason: "Unlock Monthlio") {
+        switch await authenticator.authenticate(reason: String(localized: "Unlock Monthlio")) {
         case .success:
             isLocked = false
             lastError = nil

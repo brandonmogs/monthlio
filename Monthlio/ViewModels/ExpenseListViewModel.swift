@@ -11,10 +11,10 @@ enum ExpenseSort: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .category: "Category"
-        case .monthlyCost: "Monthly cost"
-        case .name: "Name"
-        case .newest: "Recently added"
+        case .category: String(localized: "Category")
+        case .monthlyCost: String(localized: "Monthly cost")
+        case .name: String(localized: "Name")
+        case .newest: String(localized: "Recently added")
         }
     }
 }

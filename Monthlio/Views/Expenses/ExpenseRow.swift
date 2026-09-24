@@ -48,7 +48,7 @@ struct ExpenseRow: View {
                             .foregroundStyle(.secondary)
                     }
                 } else if expense.cadence != .monthly || expense.currencyCode != currencyStore.baseCode {
-                    Text("≈ " + currencyStore.converter.monthlyCostInBase(of: expense).rounded().currencyString + "/mo")
+                    Text("≈ \(currencyStore.converter.monthlyCostInBase(of: expense).rounded().currencyString)/mo")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
@@ -65,7 +65,7 @@ struct ExpenseRow: View {
         if let oneTimeDate = expense.oneTimeDate {
             parts.append(oneTimeDate.formatted(.dateTime.month(.abbreviated).day().year()))
         } else if let dueDay = expense.dueDay {
-            parts.append("Due on the \(OrdinalFormat.string(dueDay))")
+            parts.append(String(localized: "Due on the \(OrdinalFormat.string(dueDay))"))
         } else if expense.cadence != .monthly {
             parts.append(expense.cadence.title)
         }

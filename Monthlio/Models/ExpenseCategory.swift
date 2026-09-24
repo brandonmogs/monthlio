@@ -28,22 +28,22 @@ enum ExpenseCategory: String, CaseIterable, Codable, Identifiable {
 
     var title: String {
         switch self {
-        case .housing: "Housing"
-        case .utilities: "Utilities"
-        case .phone: "Phone"
-        case .subscriptions: "Subscriptions"
-        case .food: "Food"
-        case .transport: "Transport"
-        case .insurance: "Insurance"
-        case .debt: "Debt"
-        case .loan: "Loan"
-        case .health: "Health"
-        case .school: "School"
-        case .kids: "Kids"
-        case .pets: "Pets"
-        case .entertainment: "Entertainment"
-        case .shopping: "Shopping"
-        case .other: "Other"
+        case .housing: String(localized: "Housing")
+        case .utilities: String(localized: "Utilities")
+        case .phone: String(localized: "Phone")
+        case .subscriptions: String(localized: "Subscriptions")
+        case .food: String(localized: "Food")
+        case .transport: String(localized: "Transport")
+        case .insurance: String(localized: "Insurance")
+        case .debt: String(localized: "Debt")
+        case .loan: String(localized: "Loan")
+        case .health: String(localized: "Health")
+        case .school: String(localized: "School")
+        case .kids: String(localized: "Kids")
+        case .pets: String(localized: "Pets")
+        case .entertainment: String(localized: "Entertainment")
+        case .shopping: String(localized: "Shopping")
+        case .other: String(localized: "Other")
         }
     }
 

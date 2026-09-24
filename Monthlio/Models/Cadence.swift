@@ -14,24 +14,24 @@ enum Cadence: String, CaseIterable, Codable, Identifiable {
 
     var title: String {
         switch self {
-        case .monthly: "Monthly"
-        case .weekly: "Weekly"
-        case .biweekly: "Every 2 weeks"
-        case .quarterly: "Quarterly"
-        case .yearly: "Yearly"
-        case .oneTime: "One-time"
+        case .monthly: String(localized: "Monthly")
+        case .weekly: String(localized: "Weekly")
+        case .biweekly: String(localized: "Every 2 weeks")
+        case .quarterly: String(localized: "Quarterly")
+        case .yearly: String(localized: "Yearly")
+        case .oneTime: String(localized: "One-time")
         }
     }
 
     /// Compact suffix for row display, e.g. "$12/wk".
     var shortSuffix: String {
         switch self {
-        case .monthly: "/mo"
-        case .weekly: "/wk"
-        case .biweekly: "/2wk"
-        case .quarterly: "/qtr"
-        case .yearly: "/yr"
-        case .oneTime: " once"
+        case .monthly: String(localized: "/mo")
+        case .weekly: String(localized: "/wk")
+        case .biweekly: String(localized: "/2wk")
+        case .quarterly: String(localized: "/qtr")
+        case .yearly: String(localized: "/yr")
+        case .oneTime: String(localized: " once")
         }
     }
 

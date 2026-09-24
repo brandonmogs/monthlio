@@ -21,7 +21,7 @@ struct MonthlyTotalHeader: View {
                 .minimumScaleFactor(0.6)
                 .lineLimit(1)
 
-            Text(subtitle)
+            subtitle
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
@@ -36,29 +36,29 @@ struct MonthlyTotalHeader: View {
     }
 
     private var headline: String {
-        selectedSlice?.category.title ?? "Per month"
+        selectedSlice?.category.title ?? String(localized: "Per month")
     }
 
     private var amount: Decimal {
         selectedSlice?.amount.rounded() ?? total.rounded()
     }
 
-    private var subtitle: String {
+    private var subtitle: Text {
         if let selectedSlice {
             let share = selectedSlice.percentage.formatted(.percent.precision(.fractionLength(0)))
-            return "\(share) of \(total.rounded().currencyString) · \(selectedSlice.count) expense\(selectedSlice.count == 1 ? "" : "s")"
+            return Text("\(share) of \(total.rounded().currencyString) · ^[\(selectedSlice.count) expense](inflect: true)")
         }
-        return "\(activeCount) active expense\(activeCount == 1 ? "" : "s")"
+        return Text("^[\(activeCount) active expense](inflect: true)")
     }
 
     private func deltaLabel(_ delta: MonthDelta) -> some View {
         let symbol = delta.isFlat ? "equal" : (delta.isIncrease ? "arrow.up.right" : "arrow.down.right")
         let color: Color = delta.isFlat ? .secondary : (delta.isIncrease ? .red : .green)
-        let text = delta.isFlat
-            ? "Same as \(delta.previousMonthLabel)"
-            : "\(delta.amount.magnitude.rounded().currencyString) vs \(delta.previousMonthLabel)"
+        let text: Text = delta.isFlat
+            ? Text("Same as \(delta.previousMonthLabel)")
+            : Text("\(delta.amount.magnitude.rounded().currencyString) vs \(delta.previousMonthLabel)")
 
-        return Label(text, systemImage: symbol)
+        return Label { text } icon: { Image(systemName: symbol) }
             .font(.caption.weight(.semibold))
             .foregroundStyle(color)
             .padding(.horizontal, 10)

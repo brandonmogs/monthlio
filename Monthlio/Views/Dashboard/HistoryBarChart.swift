@@ -16,7 +16,7 @@ struct HistoryBarChart: View {
                 Text("History")
                     .font(.headline)
                 Spacer()
-                Text("Last \(snapshots.count) months")
+                Text("Last ^[\(snapshots.count) month](inflect: true)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

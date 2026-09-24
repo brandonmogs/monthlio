@@ -87,8 +87,8 @@ struct SettingsView: View {
             Text("Security")
         } footer: {
             Text(lock.canAuthenticate
-                ? "Monthlio locks whenever you leave the app."
-                : "Set up Face ID, Touch ID or a device passcode first.")
+                ? String(localized: "Monthlio locks whenever you leave the app.")
+                : String(localized: "Set up Face ID, Touch ID or a device passcode first."))
         }
     }
 
@@ -112,7 +112,7 @@ struct SettingsView: View {
         let syncing = MonthlioApp.isCloudSyncEnabled && signedIn
         return Section {
             LabeledContent {
-                Label(syncing ? "On" : "Off", systemImage: syncing ? "checkmark.icloud" : "xmark.icloud")
+                Label(syncing ? String(localized: "On") : String(localized: "Off"), systemImage: syncing ? "checkmark.icloud" : "xmark.icloud")
                     .foregroundStyle(syncing ? .green : .secondary)
             } label: {
                 Text("iCloud sync")
@@ -121,8 +121,8 @@ struct SettingsView: View {
             Text("Sync")
         } footer: {
             Text(syncing
-                ? "Your expenses sync privately through your iCloud account to your other devices."
-                : (signedIn ? "iCloud is unavailable on this build." : "Sign in to iCloud in the Settings app to sync across devices."))
+                ? String(localized: "Your expenses sync privately through your iCloud account to your other devices.")
+                : (signedIn ? String(localized: "iCloud is unavailable on this build.") : String(localized: "Sign in to iCloud in the Settings app to sync across devices.")))
         }
     }
 
@@ -151,7 +151,7 @@ struct SettingsView: View {
     private func setLock(_ enabled: Bool) async {
         let current = AppSettings.current(in: modelContext)
         if enabled {
-            guard await lock.verify(reason: "Confirm to require \(lock.biometryName) when opening Monthlio") else { return }
+            guard await lock.verify(reason: String(localized: "Confirm to require \(lock.biometryName) when opening Monthlio")) else { return }
         }
         current.requireAuthentication = enabled
         lock.isEnabled = enabled

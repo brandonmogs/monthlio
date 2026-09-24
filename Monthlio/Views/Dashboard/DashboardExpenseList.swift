@@ -9,7 +9,7 @@ struct DashboardExpenseList: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(heading)
+            heading
                 .font(.headline)
                 .padding(.horizontal, 4)
 
@@ -47,10 +47,10 @@ struct DashboardExpenseList: View {
         .animation(.snappy, value: selectedCategory)
     }
 
-    private var heading: String {
+    private var heading: Text {
         if let selectedCategory {
-            return "\(selectedCategory.title) expenses"
+            return Text("\(selectedCategory.title) expenses")
         }
-        return "All expenses"
+        return Text("All expenses")
     }
 }

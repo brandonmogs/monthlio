@@ -26,12 +26,12 @@ struct SubscriptionRow: View {
                                 priceIncreaseBadge
                             }
                         }
-                        Text(costLine)
+                        costLine
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                         if expense.hadPriceIncrease, let previous = expense.previousAmount {
-                            Text(increaseLine(from: previous))
+                            increaseLine(from: previous)
                                 .font(.caption2)
                                 .foregroundStyle(.orange)
                         }
@@ -63,18 +63,18 @@ struct SubscriptionRow: View {
             .background(Color.orange.opacity(0.15), in: Capsule())
     }
 
-    private var costLine: String {
-        let raw = expense.amount.currencyString(in: expense.currencyCode) + expense.cadence.shortSuffix
+    private var costLine: Text {
+        let raw = Text(verbatim: expense.amount.currencyString(in: expense.currencyCode) + expense.cadence.shortSuffix)
         guard expense.cadence != .monthly || expense.currencyCode != currencyStore.baseCode else { return raw }
-        return raw + " · ≈ " + currencyStore.converter.monthlyCostInBase(of: expense).rounded().currencyString + "/mo"
+        return raw + Text(verbatim: " · ") + Text("≈ \(currencyStore.converter.monthlyCostInBase(of: expense).rounded().currencyString)/mo")
     }
 
-    private func increaseLine(from previous: Decimal) -> String {
+    private func increaseLine(from previous: Decimal) -> Text {
         let code = expense.currencyCode
         let diff = (expense.amount - previous).rounded().currencyString(in: code)
         let was = previous.currencyString(in: code)
-        guard let date = expense.amountChangedAt else { return "Up \(diff) from \(was)" }
-        return "Up \(diff) from \(was) · \(date.formatted(.relative(presentation: .named)))"
+        guard let date = expense.amountChangedAt else { return Text("Up \(diff) from \(was)") }
+        return Text("Up \(diff) from \(was) · \(date.formatted(.relative(presentation: .named)))")
     }
 
     private var cancelledBinding: Binding<Bool> {

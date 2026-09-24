@@ -52,18 +52,18 @@ struct CategoryLegendRow: View {
         VStack(alignment: .leading, spacing: 3) {
             ProgressView(value: progress.fraction)
                 .tint(progress.status.color)
-            Text(budgetCaption(progress))
+            budgetCaption(progress)
                 .font(.caption2)
                 .foregroundStyle(progress.status == .over ? progress.status.color : .secondary)
         }
     }
 
-    private func budgetCaption(_ progress: BudgetProgress) -> String {
+    private func budgetCaption(_ progress: BudgetProgress) -> Text {
         let cap = progress.cap.rounded().currencyString
         if progress.status == .over {
-            return "\(progress.remaining.magnitude.rounded().currencyString) over \(cap) budget"
+            return Text("\(progress.remaining.magnitude.rounded().currencyString) over \(cap) budget")
         }
-        return "\(progress.remaining.rounded().currencyString) left of \(cap)"
+        return Text("\(progress.remaining.rounded().currencyString) left of \(cap)")
     }
 }
 

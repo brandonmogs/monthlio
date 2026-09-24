@@ -152,9 +152,9 @@ struct ExpenseFormView: View {
         let isForeign = code != currencyStore.baseCode
         guard viewModel.cadence != .monthly || isForeign else { return nil }
         guard !isForeign || currencyStore.converter.hasRate(for: code) else {
-            return "≈ \(monthly.currencyString(in: code)) per month. Add a \(code) exchange rate in Settings to include it in totals accurately."
+            return String(localized: "≈ \(monthly.currencyString(in: code)) per month. Add a \(code) exchange rate in Settings to include it in totals accurately.")
         }
-        return "≈ \(currencyStore.converter.toBase(monthly, from: code).rounded().currencyString) per month"
+        return String(localized: "≈ \(currencyStore.converter.toBase(monthly, from: code).rounded().currencyString) per month")
     }
 
     private func save() {

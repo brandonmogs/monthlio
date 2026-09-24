@@ -74,7 +74,7 @@ struct UpcomingView: View {
                         .monospacedDigit()
                 }
                 Spacer()
-                Text("\(charges.count) charge\(charges.count == 1 ? "" : "s")")
+                Text("^[\(charges.count) charge](inflect: true)")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -107,8 +107,8 @@ struct UpcomingView: View {
 
     private func dayLabel(_ date: Date) -> String {
         let calendar = Calendar.current
-        if calendar.isDateInToday(date) { return "Today" }
-        if calendar.isDateInTomorrow(date) { return "Tomorrow" }
+        if calendar.isDateInToday(date) { return String(localized: "Today") }
+        if calendar.isDateInTomorrow(date) { return String(localized: "Tomorrow") }
         return date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())
     }
 }
@@ -126,7 +126,7 @@ private struct UpcomingChargeRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(charge.expense.name)
-                Text(charge.expense.cadence == .oneTime ? "One-time" : charge.expense.category.title)
+                Text(charge.expense.cadence == .oneTime ? String(localized: "One-time") : charge.expense.category.title)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

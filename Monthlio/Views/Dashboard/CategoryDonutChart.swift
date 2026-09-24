@@ -48,9 +48,9 @@ struct CategoryDonutChart: View {
                     .font(.title3.weight(.semibold))
                     .contentTransition(.numericText())
             } else {
-                Text("\(slices.count)")
+                Text(slices.count, format: .number)
                     .font(.title2.weight(.semibold))
-                Text(slices.count == 1 ? "category" : "categories")
+                (slices.count == 1 ? Text("category") : Text("categories"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

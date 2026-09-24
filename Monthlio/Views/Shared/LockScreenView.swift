@@ -27,7 +27,7 @@ struct LockScreenView: View {
             Button {
                 Task { await lock.unlock() }
             } label: {
-                Label("Unlock with \(lock.biometryName)", systemImage: "faceid")
+                Label("Unlock with \(lock.biometryName)", systemImage: lock.biometrySymbol)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)

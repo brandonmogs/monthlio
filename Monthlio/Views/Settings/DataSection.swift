@@ -35,6 +35,15 @@ struct DataSection: View {
                 Label("Back Up to File…", systemImage: "arrow.down.doc")
             }
             .accessibilityIdentifier("data-backup")
+            .alert(
+                Text(notice?.title ?? ""),
+                isPresented: Binding(get: { notice != nil }, set: { if !$0 { notice = nil } }),
+                presenting: notice
+            ) { _ in
+                Button("OK") { notice = nil }
+            } message: { notice in
+                notice.message
+            }
             .fileExporter(
                 isPresented: Binding(get: { backupFile != nil }, set: { if !$0 { backupFile = nil } }),
                 document: backupFile,
@@ -93,15 +102,6 @@ struct DataSection: View {
             Text("Data")
         } footer: {
             Text("Backups include expenses, budgets, exchange rates, history and income. Reminders and the app lock are device settings and aren't restored.")
-        }
-        .alert(
-            Text(notice?.title ?? ""),
-            isPresented: Binding(get: { notice != nil }, set: { if !$0 { notice = nil } }),
-            presenting: notice
-        ) { _ in
-            Button("OK") { notice = nil }
-        } message: { notice in
-            notice.message
         }
     }
 

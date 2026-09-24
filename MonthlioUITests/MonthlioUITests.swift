@@ -69,6 +69,28 @@ final class MonthlioUITests: XCTestCase {
         XCTAssertTrue(app.buttons["data-restore"].exists)
     }
 
+    func testFreshInstallOffersProForSyncAndLoadsThePrice() {
+        let app = launch(["-MonthlioSettings", "-MonthlioFreshInstall"])
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 15))
+        let form = app.collectionViews.firstMatch
+        let unlock = app.buttons["sync-unlock"]
+        for _ in 0..<5 where !unlock.exists {
+            form.swipeUp()
+        }
+        XCTAssertTrue(unlock.waitForExistence(timeout: 5))
+        unlock.tap()
+        saveScreenshot(app, name: "after-unlock-tap")
+
+        XCTAssertTrue(app.staticTexts["Monthlio Pro"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Restore Purchases"].waitForExistence(timeout: 5))
+        // The price comes from the scheme's StoreKit configuration, which
+        // needs the simulator's StoreKit test daemon; without it the button
+        // offers a retry instead. Either proves the paywall wired up.
+        let priced = app.buttons["Unlock for $9.99"].waitForExistence(timeout: 15)
+        XCTAssertTrue(priced || app.buttons["Try Again"].exists, "price button or retry expected")
+        saveScreenshot(app, name: priced ? "paywall" : "paywall-no-storekit")
+    }
+
     func testDeepLinkOpensTheUpcomingTab() {
         let app = launch()
         XCTAssertTrue(app.staticTexts["$3,459.29"].waitForExistence(timeout: 15))

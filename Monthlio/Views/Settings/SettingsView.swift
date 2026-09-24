@@ -7,10 +7,13 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(CurrencyStore.self) private var currencyStore
     @Environment(AppLockService.self) private var lock
+    @Environment(ProStore.self) private var pro
     @Query(sort: \AppSettings.createdAt) private var settingsRows: [AppSettings]
 
     @State private var income: Decimal?
     @State private var notificationsDenied = false
+    @State private var syncEnabled = SyncPreference.isEnabled()
+    @State private var showingPaywall = false
 
     private var settings: AppSettings? { settingsRows.first }
 
@@ -44,6 +47,12 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
+                }
+            }
+            .sheet(isPresented: $showingPaywall) {
+                PaywallView {
+                    syncEnabled = true
+                    SyncPreference.setEnabled(true)
                 }
             }
             .onAppear {
@@ -106,23 +115,68 @@ struct SettingsView: View {
         }
     }
 
+    /// iCloud sync is a Monthlio Pro feature. Installs from before Pro keep
+    /// it free; everyone else sees the unlock row until they buy. The
+    /// container's CloudKit option is fixed at launch, so changes apply on
+    /// the next launch and the footer says so.
     private var syncSection: some View {
         let signedIn = FileManager.default.ubiquityIdentityToken != nil
-        let syncing = MonthlioApp.isCloudSyncEnabled && signedIn
+        let canSync = SyncPreference.canSync(isPro: pro.isEntitled)
         return Section {
-            LabeledContent {
-                Label(syncing ? String(localized: "On") : String(localized: "Off"), systemImage: syncing ? "checkmark.icloud" : "xmark.icloud")
-                    .foregroundStyle(syncing ? .green : .secondary)
-            } label: {
-                Text("iCloud sync")
+            if canSync {
+                Toggle("iCloud sync", isOn: $syncEnabled)
+                    .onChange(of: syncEnabled) { _, enabled in
+                        SyncPreference.setEnabled(enabled)
+                        Haptics.selection()
+                    }
+            } else {
+                Button {
+                    showingPaywall = true
+                } label: {
+                    HStack {
+                        Label("iCloud sync", systemImage: "icloud")
+                        Spacer()
+                        Text("Pro")
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.accentColor.opacity(0.15), in: Capsule())
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .tint(.primary)
+                .accessibilityIdentifier("sync-unlock")
             }
         } header: {
             Text("Sync")
         } footer: {
-            Text(syncing
-                ? String(localized: "Your expenses sync privately through your iCloud account to your other devices.")
-                : (signedIn ? String(localized: "iCloud is unavailable on this build.") : String(localized: "Sign in to iCloud in the Settings app to sync across devices.")))
+            Text(syncFooter(canSync: canSync, signedIn: signedIn))
         }
+    }
+
+    private func syncFooter(canSync: Bool, signedIn: Bool) -> String {
+        guard canSync else {
+            return String(localized: "Monthlio Pro syncs your expenses privately through iCloud to your other devices. One-time purchase, no subscription.")
+        }
+        var lines: [String] = []
+        let applied = MonthlioApp.isCloudSyncEnabled
+        if !signedIn {
+            lines.append(String(localized: "Sign in to iCloud in the Settings app to sync across devices."))
+        } else if syncEnabled, applied {
+            lines.append(String(localized: "Your expenses sync privately through your iCloud account to your other devices."))
+        } else if syncEnabled {
+            lines.append(String(localized: "Sync starts the next time you open Monthlio."))
+        } else if applied {
+            lines.append(String(localized: "Sync stops the next time you open Monthlio. Your data stays on this device."))
+        } else {
+            lines.append(String(localized: "Your data stays on this device."))
+        }
+        if SyncPreference.isGrandfathered(), !pro.isEntitled {
+            lines.append(String(localized: "Sync is free on this device because you were here before Monthlio Pro."))
+        }
+        return lines.joined(separator: " ")
     }
 
     private var lockBinding: Binding<Bool> {
@@ -170,4 +224,5 @@ struct SettingsView: View {
         .modelContainer(PreviewContainer.shared)
         .environment(CurrencyStore())
         .environment(AppLockService(isEnabled: false))
+        .environment(ProStore(defaults: UserDefaults(suiteName: "preview")!))
 }

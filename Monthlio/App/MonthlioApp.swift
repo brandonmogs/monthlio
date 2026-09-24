@@ -5,6 +5,7 @@ import SwiftUI
 struct MonthlioApp: App {
     private let container: ModelContainer
     @State private var lock: AppLockService
+    @State private var pro: ProStore
 
     static let schema = Schema([
         Expense.self,
@@ -18,7 +19,21 @@ struct MonthlioApp: App {
     private(set) static var isCloudSyncEnabled = false
 
     init() {
-        container = MonthlioApp.makeContainer()
+        var storeExists = MonthlioApp.defaultStoreExists
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-MonthlioFreshInstall") {
+            // A throwaway preference store, and no "existing install"
+            // grandfathering, so UI tests see a brand-new install.
+            let suite = "monthlio.fresh-install"
+            let defaults = UserDefaults(suiteName: suite)!
+            defaults.removePersistentDomain(forName: suite)
+            SyncPreference.standard = defaults
+            storeExists = false
+        }
+        #endif
+        SyncPreference.migrateIfNeeded(storeExists: storeExists)
+        container = MonthlioApp.makeContainer(cloud: SyncPreference.isEnabled())
+        _pro = State(initialValue: ProStore())
 
         #if DEBUG
         SampleData.seedIfNeeded(in: container.mainContext)
@@ -39,9 +54,14 @@ struct MonthlioApp: App {
         _lock = State(initialValue: AppLockService(isEnabled: lockEnabled))
     }
 
-    /// Prefers the iCloud-backed store; falls back to a local store if the
-    /// entitlement or account isn't available so the app always launches.
-    private static func makeContainer() -> ModelContainer {
+    /// SwiftData's default store, which any earlier version will have created.
+    private static var defaultStoreExists: Bool {
+        FileManager.default.fileExists(atPath: URL.applicationSupportDirectory.appending(path: "default.store").path)
+    }
+
+    /// Opens the iCloud-backed store when sync is on, and a local store
+    /// otherwise or if CloudKit isn't available, so the app always launches.
+    private static func makeContainer(cloud wantsCloud: Bool) -> ModelContainer {
         #if DEBUG
         // UI tests pass -MonthlioInMemory so nothing on the device is touched.
         if ProcessInfo.processInfo.arguments.contains("-MonthlioInMemory") {
@@ -51,10 +71,12 @@ struct MonthlioApp: App {
             }
         }
         #endif
-        let cloud = ModelConfiguration(schema: schema, cloudKitDatabase: .automatic)
-        if let container = try? ModelContainer(for: schema, configurations: cloud) {
-            isCloudSyncEnabled = true
-            return container
+        if wantsCloud {
+            let cloud = ModelConfiguration(schema: schema, cloudKitDatabase: .automatic)
+            if let container = try? ModelContainer(for: schema, configurations: cloud) {
+                isCloudSyncEnabled = true
+                return container
+            }
         }
         let local = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
         do {
@@ -68,6 +90,8 @@ struct MonthlioApp: App {
         WindowGroup {
             RootTabView()
                 .environment(lock)
+                .environment(pro)
+                .task { await pro.start() }
         }
         .modelContainer(container)
     }

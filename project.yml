@@ -101,6 +101,8 @@ targets:
     platform: iOS
     sources:
       - path: MonthlioTests
+      - path: StoreKit/Monthlio.storekit
+        buildPhase: resources
     dependencies:
       - target: Monthlio
     settings:
@@ -133,8 +135,10 @@ schemes:
         MonthlioUITests: [test]
     run:
       config: Debug
+      storeKitConfiguration: StoreKit/Monthlio.storekit
     test:
       config: Debug
+      storeKitConfiguration: StoreKit/Monthlio.storekit
       targets:
         - MonthlioTests
         - MonthlioUITests

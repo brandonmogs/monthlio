@@ -126,4 +126,5 @@ struct RootTabView: View {
         .modelContainer(PreviewContainer.shared)
         .environment(CurrencyStore())
         .environment(AppLockService(isEnabled: false))
+        .environment(ProStore(defaults: UserDefaults(suiteName: "preview")!))
 }

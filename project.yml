@@ -109,6 +109,20 @@ targets:
         DEVELOPMENT_TEAM: Y5866VXSB9
         GENERATE_INFOPLIST_FILE: YES
 
+  MonthlioUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: MonthlioUITests
+    dependencies:
+      - target: Monthlio
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.monthlio.app.uitests
+        DEVELOPMENT_TEAM: Y5866VXSB9
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Monthlio
+
 schemes:
   Monthlio:
     build:
@@ -116,12 +130,14 @@ schemes:
         Monthlio: all
         MonthlioWidget: all
         MonthlioTests: [test]
+        MonthlioUITests: [test]
     run:
       config: Debug
     test:
       config: Debug
       targets:
         - MonthlioTests
+        - MonthlioUITests
     profile:
       config: Release
     archive:

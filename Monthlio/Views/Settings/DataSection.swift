@@ -34,6 +34,7 @@ struct DataSection: View {
             } label: {
                 Label("Back Up to File…", systemImage: "arrow.down.doc")
             }
+            .accessibilityIdentifier("data-backup")
             .fileExporter(
                 isPresented: Binding(get: { backupFile != nil }, set: { if !$0 { backupFile = nil } }),
                 document: backupFile,
@@ -50,6 +51,7 @@ struct DataSection: View {
             } label: {
                 Label("Restore from Backup…", systemImage: "arrow.up.doc")
             }
+            .accessibilityIdentifier("data-restore")
             .fileImporter(isPresented: $showingRestorePicker, allowedContentTypes: [.json]) { result in
                 handleRestorePick(result)
             }
@@ -71,6 +73,7 @@ struct DataSection: View {
             } label: {
                 Label("Import CSV…", systemImage: "tablecells.badge.ellipsis")
             }
+            .accessibilityIdentifier("data-import")
             .fileImporter(isPresented: $showingImportPicker, allowedContentTypes: [.commaSeparatedText, .plainText, .text]) { result in
                 handleImportPick(result)
             }

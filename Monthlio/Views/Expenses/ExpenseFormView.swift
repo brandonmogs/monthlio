@@ -59,6 +59,7 @@ struct ExpenseFormView: View {
     private var detailsSection: some View {
         Section {
             TextField("Name", text: $viewModel.name, prompt: Text("Netflix, Rent…"))
+                .accessibilityIdentifier("expense-name")
                 .focused($focusedField, equals: .name)
                 .submitLabel(.next)
                 .onSubmit { focusedField = .amount }
@@ -70,6 +71,7 @@ struct ExpenseFormView: View {
                 prompt: Text(Decimal.zero.currencyString(in: viewModel.currencyCode))
             )
             .keyboardType(.decimalPad)
+            .accessibilityIdentifier("expense-amount")
             .focused($focusedField, equals: .amount)
 
             Picker("Currency", selection: $viewModel.currencyCode) {

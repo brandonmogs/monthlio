@@ -42,6 +42,15 @@ struct MonthlioApp: App {
     /// Prefers the iCloud-backed store; falls back to a local store if the
     /// entitlement or account isn't available so the app always launches.
     private static func makeContainer() -> ModelContainer {
+        #if DEBUG
+        // UI tests pass -MonthlioInMemory so nothing on the device is touched.
+        if ProcessInfo.processInfo.arguments.contains("-MonthlioInMemory") {
+            let memory = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+            if let container = try? ModelContainer(for: schema, configurations: memory) {
+                return container
+            }
+        }
+        #endif
         let cloud = ModelConfiguration(schema: schema, cloudKitDatabase: .automatic)
         if let container = try? ModelContainer(for: schema, configurations: cloud) {
             isCloudSyncEnabled = true

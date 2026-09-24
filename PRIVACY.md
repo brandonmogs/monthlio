@@ -1,6 +1,6 @@
 # Monthlio Privacy Policy
 
-_Last updated: September 8, 2026_
+_Last updated: September 24, 2026_
 
 Monthlio is an expense tracker that runs entirely on your device.
 
@@ -8,10 +8,28 @@ Monthlio is an expense tracker that runs entirely on your device.
 advertising, and no servers of its own. We never see the expenses, income,
 budgets, or any other information you enter.
 
-**Where your data lives.** On your iPhone. If you are signed in to iCloud,
-Monthlio also stores a copy in your private iCloud database so it syncs to
-your other devices. That data is encrypted by Apple and is accessible only
-to you through your Apple Account. We cannot read it.
+**Where your data lives.** On your iPhone or iPad. If you turn on iCloud
+sync, Monthlio also stores a copy in your private iCloud database so it
+syncs to your other devices. That data is encrypted by Apple and is
+accessible only to you through your Apple Account. We cannot read it.
+iCloud sync is optional: new installs start local-only and turn it on
+in Settings after unlocking Monthlio Pro; installs from before Pro
+existed keep sync as it was. If you sign out of iCloud on a device while
+sync is on, iOS removes the synced copy from that device, so keep a
+backup (Settings → Data → Back Up to File) before changing accounts.
+
+**Widgets.** The Home Screen and Lock Screen widgets read a small summary
+that the app keeps on your device. Nothing leaves the device. When the
+app lock is on, widgets hide names and amounts.
+
+**Backups and exports.** Backup files, CSV exports and CSV imports are
+plain files that you choose where to save or open. They contain your
+data unencrypted; Monthlio does not transmit them anywhere itself.
+
+**Purchases.** Monthlio Pro is a one-time purchase processed by Apple
+through the App Store. Apple handles payment; Monthlio only learns
+whether the purchase exists on your Apple Account and stores that answer
+on the device.
 
 **Face ID.** If you turn on the app lock, Monthlio asks iOS to verify you
 with Face ID, Touch ID, or your passcode. Biometric data never leaves the
@@ -19,9 +37,6 @@ Secure Enclave and is never available to Monthlio.
 
 **Notifications.** Reminders are scheduled locally on your device. No
 notification content is sent to any server.
-
-**Export.** The CSV export feature creates a file that you choose where to
-send. Monthlio does not transmit it anywhere itself.
 
 **Third parties.** None. Monthlio contains no third-party SDKs.
 

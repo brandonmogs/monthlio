@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Merge keys from Swift-emitted .stringsdata files into a String Catalog.
 
+Usage: sync-string-catalog.py <DerivedData> <catalog.xcstrings> <project> [--prune]
+
 Xcode's IDE syncs catalogs during builds; xcodebuild only emits the
 .stringsdata sidecars. This adds any key missing from the catalog as a
 source-language entry (an empty object, which is how Xcode stores a key
@@ -8,6 +10,7 @@ whose English value is the key itself) and reports what changed.
 """
 import glob, json, sys, os
 derived, catalog, target = sys.argv[1], sys.argv[2], sys.argv[3]
+prune = '--prune' in sys.argv[4:]
 pattern = os.path.join(derived, '**', f'{target}.build', '**', '*.stringsdata')
 files = glob.glob(pattern, recursive=True)
 keys = {}
@@ -32,6 +35,9 @@ for k, comment in sorted(keys.items()):
         strings[k] = ({'comment': comment} if comment else {})
         added.append(k)
 stale = [k for k in strings if k not in keys]
+if prune:
+    for k in stale:
+        del strings[k]
 cat['strings'] = dict(sorted(strings.items()))
 json.dump(cat, open(catalog, 'w'), indent=2, ensure_ascii=False)
 open(catalog, 'a').write('\n')
@@ -39,6 +45,6 @@ print(f'{len(files)} stringsdata files, {len(keys)} keys, added {len(added)}, ca
 for k in added:
     print('  +', k)
 if stale:
-    print('not seen in this build (kept):')
+    print('removed from the catalog (not in this build):' if prune else 'not seen in this build (kept; pass --prune to remove):')
     for k in stale:
-        print('  ?', k)
+        print('  -' if prune else '  ?', k)

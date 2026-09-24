@@ -12,8 +12,17 @@ struct DashboardView: View {
 
     @State private var viewModel = DashboardViewModel()
     @State private var showingAddSheet = false
-    @State private var showingSettings = false
+    @State private var showingSettings = DashboardView.opensSettingsAtLaunch
     @State private var editingExpense: Expense?
+
+    /// DEBUG builds honour `-MonthlioSettings` so screenshots can open Settings.
+    private static var opensSettingsAtLaunch: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-MonthlioSettings")
+        #else
+        false
+        #endif
+    }
 
     var body: some View {
         NavigationStack {
@@ -41,6 +50,7 @@ struct DashboardView: View {
                     } label: {
                         Label("Settings", systemImage: "gearshape")
                     }
+                    .keyboardShortcut(",", modifiers: .command)
                 }
                 ToolbarItem(placement: .primaryAction) {
                     Button {
@@ -48,6 +58,7 @@ struct DashboardView: View {
                     } label: {
                         Label("Add Expense", systemImage: "plus")
                     }
+                    .keyboardShortcut("n", modifiers: .command)
                 }
             }
             .sheet(isPresented: $showingAddSheet) {

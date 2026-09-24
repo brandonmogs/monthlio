@@ -58,6 +58,7 @@ struct DashboardContentView: View {
                 )
             }
             .padding()
+            .readableWidth()
         }
         .background(Color(.systemGroupedBackground))
         .onChange(of: summary.slices) { _, slices in

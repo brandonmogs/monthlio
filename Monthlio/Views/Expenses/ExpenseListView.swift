@@ -29,6 +29,7 @@ struct ExpenseListView: View {
                     } label: {
                         Label("Add Expense", systemImage: "plus")
                     }
+                    .keyboardShortcut("n", modifiers: .command)
                 }
             }
             .sheet(isPresented: $showingAddSheet) { ExpenseFormView() }

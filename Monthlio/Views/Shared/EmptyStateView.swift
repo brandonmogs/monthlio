@@ -64,6 +64,7 @@ struct EmptyStateView: View {
                 }
                 .padding(.horizontal)
             }
+            .readableWidth()
         }
         .background(Color(.systemGroupedBackground))
         .sheet(isPresented: $showingAddSheet) {

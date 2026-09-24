@@ -42,6 +42,10 @@ targets:
           UIApplicationSupportsMultipleScenes: false
         UIBackgroundModes:
           - remote-notification
+        CFBundleURLTypes:
+          - CFBundleURLName: com.monthlio.app
+            CFBundleURLSchemes:
+              - monthlio
     entitlements:
       path: Monthlio/Monthlio.entitlements
       properties:
@@ -49,7 +53,11 @@ targets:
           - CloudKit
         com.apple.developer.icloud-container-identifiers:
           - iCloud.com.monthlio.app
+        com.apple.security.application-groups:
+          - group.com.monthlio.app
         aps-environment: development
+    dependencies:
+      - target: MonthlioWidget
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.monthlio.app
@@ -59,6 +67,34 @@ targets:
         ENABLE_PREVIEWS: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+
+  MonthlioWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: MonthlioWidget
+      - path: Monthlio/Widgets
+      - path: Monthlio/Models/ExpenseCategory.swift
+      - path: Monthlio/Resources/Localizable.xcstrings
+    info:
+      path: MonthlioWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Monthlio
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: MonthlioWidget/MonthlioWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.monthlio.app
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.monthlio.app.widget
+        DEVELOPMENT_TEAM: Y5866VXSB9
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SKIP_INSTALL: YES
+        GENERATE_INFOPLIST_FILE: NO
 
   MonthlioTests:
     type: bundle.unit-test
@@ -78,6 +114,7 @@ schemes:
     build:
       targets:
         Monthlio: all
+        MonthlioWidget: all
         MonthlioTests: [test]
     run:
       config: Debug

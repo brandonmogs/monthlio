@@ -1,0 +1,54 @@
+import Foundation
+import WidgetKit
+
+/// Builds the widget snapshot from live data and hands it to the extension.
+enum WidgetSnapshotWriter {
+    static func snapshot(expenses: [Expense], settings: AppSettings?, converter: CurrencyConverter, now: Date = .now, calendar: Calendar = .current) -> WidgetSnapshot {
+        let counted = ExpenseCalculator.counted(expenses, now: now, calendar: calendar)
+        let total = ExpenseCalculator.monthlyTotal(expenses, converter: converter, now: now, calendar: calendar)
+        let recurring = expenses
+            .filter { $0.isActive && $0.cadence.isRecurring }
+            .reduce(Decimal.zero) { $0 + converter.monthlyCostInBase(of: $1) }
+        let charges = UpcomingChargeCalculator
+            .charges(for: expenses, from: now, days: WidgetSnapshot.chargeWindowDays, calendar: calendar)
+            .map { charge in
+                WidgetSnapshot.Charge(
+                    id: charge.id,
+                    name: charge.expense.name,
+                    amount: "\(charge.expense.amount)",
+                    currencyCode: charge.expense.currencyCode,
+                    date: charge.date,
+                    category: charge.expense.categoryRaw
+                )
+            }
+        return WidgetSnapshot(
+            generatedAt: now,
+            baseCurrencyCode: converter.baseCode,
+            monthKey: WidgetSnapshot.monthKey(for: now, calendar: calendar),
+            monthlyTotal: "\(total.rounded())",
+            recurringMonthlyTotal: "\(recurring.rounded())",
+            activeCount: counted.count,
+            discreet: settings?.requireAuthentication ?? false,
+            charges: charges
+        )
+    }
+
+    /// Writes a fresh snapshot and reloads the widgets, unless nothing but
+    /// the timestamp changed.
+    static func update(expenses: [Expense], settings: AppSettings?, converter: CurrencyConverter) {
+        let next = snapshot(expenses: expenses, settings: settings, converter: converter)
+        if var current = WidgetSnapshotStore.load() {
+            current.generatedAt = next.generatedAt
+            // Refresh at least daily so the charge window keeps rolling forward.
+            let sameDay = Calendar.current.isDate(current.generatedAt, inSameDayAs: next.generatedAt)
+            if current == next, sameDay { return }
+        }
+        do {
+            try WidgetSnapshotStore.save(next)
+            WidgetCenter.shared.reloadAllTimelines()
+        } catch {
+            // No App Group container (e.g. a build without the entitlement); the
+            // widget shows its empty state and the app carries on.
+        }
+    }
+}

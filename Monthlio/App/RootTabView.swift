@@ -53,6 +53,15 @@ struct RootTabView: View {
                 lock.handleScenePhase(phase)
                 if phase == .active { Task { await sync() } }
             }
+            .onOpenURL { url in
+                openDeepLink(url)
+            }
+    }
+
+    /// Widgets open `monthlio://upcoming` or `monthlio://dashboard`.
+    private func openDeepLink(_ url: URL) {
+        guard url.scheme == "monthlio", let host = url.host(), let tab = Tab(rawValue: host) else { return }
+        selectedTab = tab
     }
 
     private var tabs: some View {
@@ -99,10 +108,12 @@ struct RootTabView: View {
         return "\(notifications)|\(discreet)#\(currencyFingerprint)#\(expensePart)"
     }
 
-    /// Records this month's total and refreshes local reminders.
+    /// Records this month's total, refreshes local reminders and hands the
+    /// widgets a fresh snapshot.
     private func sync() async {
         let total = ExpenseCalculator.monthlyTotal(expenses, converter: currencyStore.converter)
         SnapshotService.record(total: total, in: modelContext)
+        WidgetSnapshotWriter.update(expenses: expenses, settings: settingsRows.first, converter: currencyStore.converter)
 
         let enabled = settingsRows.first?.notificationsEnabled ?? false
         let discreet = settingsRows.first?.requireAuthentication ?? false

@@ -66,6 +66,7 @@ struct MonthlioApp: App {
         #if DEBUG
         // UI tests pass -MonthlioInMemory so nothing on the device is touched.
         if ProcessInfo.processInfo.arguments.contains("-MonthlioInMemory") {
+            SyncPreference.ignoresAppTransaction = true
             let memory = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
             if let container = try? ModelContainer(for: schema, configurations: memory) {
                 return container

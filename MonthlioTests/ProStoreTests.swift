@@ -219,13 +219,16 @@ final class ProStoreTests: XCTestCase {
         XCTAssertFalse(store.canSync, "a fresh install starts local-only")
 
         await store.start()
+        XCTAssertEqual(client.originalBuildRequests, 0, "launch never fetches the app transaction, which can prompt for an Apple Account")
+
+        await store.recordOriginalBuildIfNeeded()
 
         XCTAssertTrue(store.isGrandfathered)
         XCTAssertTrue(store.canSync)
         XCTAssertTrue(SyncPreference.isEnabled(defaults), "sync was always on before Pro, so it comes back on")
         XCTAssertEqual(client.originalBuildRequests, 1)
 
-        await store.start()
+        await store.recordOriginalBuildIfNeeded()
         XCTAssertEqual(client.originalBuildRequests, 1, "the App Store is asked once")
     }
 
@@ -233,7 +236,7 @@ final class ProStoreTests: XCTestCase {
         let client = FakeProClient()
         client.originalBuild = "4"
         let store = ProStore(client: client, defaults: defaults)
-        await store.start()
+        await store.recordOriginalBuildIfNeeded()
 
         XCTAssertFalse(store.isGrandfathered)
         XCTAssertFalse(store.canSync)
@@ -244,12 +247,12 @@ final class ProStoreTests: XCTestCase {
         let client = FakeProClient()
         client.originalBuildError = StubError()
         let store = ProStore(client: client, defaults: defaults)
-        await store.start()
+        await store.recordOriginalBuildIfNeeded()
         XCTAssertFalse(store.isGrandfathered)
 
         client.originalBuildError = nil
         client.originalBuild = "1.0"
-        await store.start()
+        await store.recordOriginalBuildIfNeeded()
 
         XCTAssertEqual(client.originalBuildRequests, 2)
         XCTAssertTrue(store.isGrandfathered, "a sandbox-style version string still counts as build 1")

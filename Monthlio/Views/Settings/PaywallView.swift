@@ -81,6 +81,12 @@ struct PaywallView: View {
                 }
             }
             .task {
+                await pro.recordOriginalBuildIfNeeded()
+                if pro.isGrandfathered {
+                    onUnlocked()
+                    dismiss()
+                    return
+                }
                 if pro.product == nil { await pro.loadProduct() }
             }
         }

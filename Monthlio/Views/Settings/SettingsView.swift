@@ -57,6 +57,12 @@ struct SettingsView: View {
                     SyncPreference.setEnabled(true)
                 }
             }
+            .task {
+                // Downloads from before Pro get sync back here, not at launch.
+                guard !pro.canSync else { return }
+                await pro.recordOriginalBuildIfNeeded()
+                if pro.isGrandfathered { syncEnabled = SyncPreference.isEnabled() }
+            }
             .onAppear {
                 let current = AppSettings.current(in: modelContext)
                 income = current.hasIncome ? current.monthlyIncome : nil

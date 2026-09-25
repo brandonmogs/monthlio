@@ -148,13 +148,14 @@ final class ProStore {
             }
         }
         await refreshEntitlement()
-        await recordOriginalBuildIfNeeded()
         await loadProduct()
     }
 
     /// Asks the App Store once which build this account first downloaded.
-    /// If it can't answer (offline, or a simulator without StoreKit testing)
-    /// the question is asked again on the next launch.
+    /// Not called at launch: fetching the app transaction can show an
+    /// Apple Account sign-in prompt, so it runs when the user reaches the
+    /// sync row or the paywall. If the App Store can't answer (offline, or
+    /// a simulator without StoreKit testing) it is asked again next time.
     func recordOriginalBuildIfNeeded() async {
         guard !SyncPreference.ignoresAppTransaction, !SyncPreference.hasRecordedOriginalBuild(defaults) else { return }
         guard let version = try? await client.originalAppBuild() else { return }

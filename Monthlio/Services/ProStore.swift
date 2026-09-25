@@ -22,6 +22,8 @@ protocol ProStoreClient {
     func purchase(id: String) async throws -> ProPurchaseResult
     func restore() async throws
     func hasEntitlement(for id: String) async -> Bool
+    /// True when a refund or revocation of `id` is on record.
+    func hasRevocation(for id: String) async -> Bool
     /// The build the account first downloaded, from the App Store's signed
     /// app transaction. Nil when it can't be verified.
     func originalAppBuild() async throws -> String?
@@ -73,6 +75,15 @@ final class StoreKitProClient: ProStoreClient {
         return false
     }
 
+    func hasRevocation(for id: String) async -> Bool {
+        for await result in Transaction.all {
+            if case .verified(let transaction) = result, transaction.productID == id, transaction.revocationDate != nil {
+                return true
+            }
+        }
+        return false
+    }
+
     func originalAppBuild() async throws -> String? {
         guard case .verified(let transaction) = try await AppTransaction.shared else { return nil }
         return transaction.originalAppVersion
@@ -100,8 +111,8 @@ final class StoreKitProClient: ProStoreClient {
 @MainActor
 @Observable
 final class ProStore {
-    static let productID = "com.monthlio.app.pro"
-    static let entitlementKey = "pro.entitled"
+    nonisolated static let productID = "com.monthlio.app.pro"
+    nonisolated static let entitlementKey = "pro.entitled"
 
     private(set) var product: ProProductInfo?
     private(set) var isEntitled: Bool
@@ -201,8 +212,18 @@ final class ProStore {
         }
     }
 
+    /// A cached entitlement survives an empty answer (signed-out App Store
+    /// account, StoreKit cache not yet restored); only a refund or
+    /// revocation on record takes it away.
     func refreshEntitlement() async {
-        setEntitled(await client.hasEntitlement(for: Self.productID))
+        if await client.hasEntitlement(for: Self.productID) {
+            setEntitled(true)
+            return
+        }
+        if isEntitled, !(await client.hasRevocation(for: Self.productID)) {
+            return
+        }
+        setEntitled(false)
     }
 
     private func setEntitled(_ entitled: Bool) {

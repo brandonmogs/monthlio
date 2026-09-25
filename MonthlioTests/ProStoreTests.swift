@@ -8,6 +8,7 @@ private final class FakeProClient: ProStoreClient {
     var purchaseError: Error?
     var restoreError: Error?
     var entitled = false
+    var revoked = false
     var originalBuild: String?
     var originalBuildError: Error?
     var purchases = 0
@@ -33,6 +34,8 @@ private final class FakeProClient: ProStoreClient {
     }
 
     func hasEntitlement(for id: String) async -> Bool { entitled }
+
+    func hasRevocation(for id: String) async -> Bool { revoked }
 
     func originalAppBuild() async throws -> String? {
         originalBuildRequests += 1
@@ -178,6 +181,7 @@ final class ProStoreTests: XCTestCase {
         SyncPreference.setEnabled(true, defaults)
 
         client.entitled = false
+        client.revoked = true
         client.transactionArrived()
         for _ in 0..<50 where store.isEntitled {
             try? await Task.sleep(for: .milliseconds(20))
@@ -186,6 +190,26 @@ final class ProStoreTests: XCTestCase {
         XCTAssertFalse(store.isEntitled)
         XCTAssertFalse(defaults.bool(forKey: ProStore.entitlementKey))
         XCTAssertFalse(SyncPreference.isEnabled(defaults), "sync can't stay on without the entitlement")
+    }
+
+    func testTransientlyMissingEntitlementKeepsProAndSync() async {
+        let client = FakeProClient()
+        let store = ProStore(client: client, defaults: defaults)
+        await store.start()
+        let purchased = await store.purchase()
+        XCTAssertTrue(purchased)
+        SyncPreference.setEnabled(true, defaults)
+
+        client.entitled = false
+        await store.refreshEntitlement()
+
+        XCTAssertTrue(store.isEntitled, "no refund on record, so the cached purchase stands")
+        XCTAssertTrue(SyncPreference.isEnabled(defaults))
+
+        let fresh = ProStore(client: client, defaults: UserDefaults(suiteName: suite + "-never")!)
+        defer { UserDefaults(suiteName: suite + "-never")!.removePersistentDomain(forName: suite + "-never") }
+        await fresh.refreshEntitlement()
+        XCTAssertFalse(fresh.isEntitled, "nothing cached and nothing entitled stays unentitled")
     }
 
     func testDownloadFromBeforeProKeepsSyncOnAnyDevice() async {
@@ -242,6 +266,7 @@ final class ProStoreTests: XCTestCase {
         XCTAssertTrue(SyncPreference.isEnabled(legacy))
 
         client.entitled = false
+        client.revoked = true
         await store.refreshEntitlement()
 
         XCTAssertFalse(store.isEntitled)

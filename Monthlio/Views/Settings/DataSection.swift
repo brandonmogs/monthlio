@@ -8,13 +8,14 @@ struct DataSection: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(CurrencyStore.self) private var currencyStore
     @Query(sort: \Expense.createdAt) private var expenses: [Expense]
+    /// Owned by the Form so the alert isn't tied to a list row.
+    @Binding var notice: DataNotice?
 
     @State private var backupFile: BackupFileDocument?
     @State private var showingRestorePicker = false
     @State private var showingImportPicker = false
     @State private var pendingRestore: BackupDocument?
     @State private var pendingImport: CSVImportPreview?
-    @State private var notice: DataNotice?
 
     var body: some View {
         Section {
@@ -35,15 +36,6 @@ struct DataSection: View {
                 Label("Back Up to File…", systemImage: "arrow.down.doc")
             }
             .accessibilityIdentifier("data-backup")
-            .alert(
-                Text(notice?.title ?? ""),
-                isPresented: Binding(get: { notice != nil }, set: { if !$0 { notice = nil } }),
-                presenting: notice
-            ) { _ in
-                Button("OK") { notice = nil }
-            } message: { notice in
-                notice.message
-            }
             .fileExporter(
                 isPresented: Binding(get: { backupFile != nil }, set: { if !$0 { backupFile = nil } }),
                 document: backupFile,
@@ -203,10 +195,25 @@ struct DataSection: View {
     }
 }
 
-private struct DataNotice: Identifiable {
+struct DataNotice: Identifiable {
     let id = UUID()
     let title: String
     let message: Text
+}
+
+extension View {
+    /// Presents a `DataNotice` as an alert; applied by the Settings form.
+    func dataNoticeAlert(_ notice: Binding<DataNotice?>) -> some View {
+        alert(
+            Text(notice.wrappedValue?.title ?? ""),
+            isPresented: Binding(get: { notice.wrappedValue != nil }, set: { if !$0 { notice.wrappedValue = nil } }),
+            presenting: notice.wrappedValue
+        ) { _ in
+            Button("OK") { notice.wrappedValue = nil }
+        } message: { current in
+            current.message
+        }
+    }
 }
 
 /// Wraps backup JSON for `fileExporter`, which saves through the Files picker.
@@ -230,7 +237,7 @@ struct BackupFileDocument: FileDocument {
 
 #Preview {
     Form {
-        DataSection()
+        DataSection(notice: .constant(nil))
     }
     .modelContainer(PreviewContainer.shared)
     .environment(CurrencyStore())

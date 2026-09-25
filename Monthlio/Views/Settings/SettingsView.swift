@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var notificationsDenied = false
     @State private var syncEnabled = SyncPreference.isEnabled()
     @State private var showingPaywall = false
+    @State private var dataNotice: DataNotice?
 
     private var settings: AppSettings? { settingsRows.first }
 
@@ -40,8 +41,9 @@ struct SettingsView: View {
                 securitySection
                 remindersSection
                 syncSection
-                DataSection()
+                DataSection(notice: $dataNotice)
             }
+            .dataNoticeAlert($dataNotice)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -167,9 +169,9 @@ struct SettingsView: View {
         } else if syncEnabled, applied {
             lines.append(String(localized: "Your expenses sync privately through your iCloud account to your other devices."))
         } else if syncEnabled {
-            lines.append(String(localized: "Sync starts the next time you open Monthlio."))
+            lines.append(String(localized: "Quit Monthlio from the app switcher and reopen it to start syncing."))
         } else if applied {
-            lines.append(String(localized: "Sync stops the next time you open Monthlio. Your data stays on this device."))
+            lines.append(String(localized: "Quit Monthlio from the app switcher and reopen it to stop syncing. Your data stays on this device."))
         } else {
             lines.append(String(localized: "Your data stays on this device."))
         }

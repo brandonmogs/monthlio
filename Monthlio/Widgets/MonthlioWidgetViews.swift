@@ -99,6 +99,7 @@ private struct ChargeRow: View {
                     .font(compact ? .caption : .subheadline)
                     .fontWeight(.medium)
                     .lineLimit(1)
+                    .privacySensitive()
                 content.whenText(charge)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -259,6 +260,7 @@ private struct RectangularWidgetView: View {
                     Image(systemName: "calendar")
                     content.nameText(next)
                         .lineLimit(1)
+                        .privacySensitive()
                     content.whenText(next)
                         .foregroundStyle(.secondary)
                 }
@@ -297,11 +299,20 @@ private struct CircularWidgetView: View {
     var body: some View {
         ZStack {
             AccessoryWidgetBackground()
-            if let days = content.daysUntilNext {
+            if let days = content.daysUntilNext, days == 0 {
+                VStack(spacing: 0) {
+                    Image(systemName: "calendar")
+                        .font(.title3)
+                    Text("Today")
+                        .font(.caption2.weight(.semibold))
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(Text("A charge is due today"))
+            } else if let days = content.daysUntilNext {
                 VStack(spacing: -2) {
                     Text(days, format: .number)
                         .font(.title2.weight(.bold))
-                    Text(days == 1 ? "day" : "days")
+                    (days == 1 ? Text("day") : Text("days"))
                         .font(.caption2)
                 }
                 .accessibilityElement(children: .combine)
@@ -320,9 +331,10 @@ private struct InlineWidgetView: View {
     var body: some View {
         if let next = content.nextCharge {
             if content.isDiscreet {
-                Text("Next charge ") + content.whenText(next)
+                Text("Next charge") + Text(verbatim: " ") + content.whenText(next)
             } else {
-                content.nameText(next) + Text(verbatim: " ") + content.whenText(next) + Text(verbatim: " · \(content.amountText(next))")
+                (content.nameText(next) + Text(verbatim: " ") + content.whenText(next) + Text(verbatim: " · \(content.amountText(next))"))
+                    .privacySensitive()
             }
         } else if let total = content.totalText, !content.isDiscreet {
             Text("\(total) per month")

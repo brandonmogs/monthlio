@@ -45,7 +45,9 @@ final class NotificationSchedulerTests: XCTestCase {
     }
 
     func testPendingRequestsAreCapped() {
-        let many = (1...31).map { Expense(name: "Bill \($0)", amount: 1, category: .other, dueDay: $0) }
+        let many: [Expense] = (1...31).map { (day: Int) -> Expense in
+            Expense(name: "Bill \(String(day))", amount: 1, category: .other, dueDay: day)
+        }
         let requests = NotificationScheduler.requests(for: many, now: date(2026, 9, 1), discreet: false, calendar: calendar)
         XCTAssertLessThanOrEqual(requests.count, NotificationScheduler.maxPending)
         XCTAssertEqual(Set(requests.map(\.identifier)).count, requests.count)

@@ -100,7 +100,7 @@ struct RootTabView: View {
     /// Reading these properties in the body also subscribes to their updates.
     private var syncFingerprint: String {
         let expensePart = expenses.map {
-            "\($0.id.uuidString)|\($0.amount)|\($0.currencyCode)|\($0.cadenceRaw)|\($0.dueDay ?? 0)|\($0.isActive)|\($0.name)"
+            "\($0.id.uuidString)|\($0.amount)|\($0.currencyCode)|\($0.cadenceRaw)|\($0.dueDay ?? 0)|\($0.chargeDate?.timeIntervalSince1970 ?? 0)|\($0.categoryRaw)|\($0.isActive)|\($0.name)"
         }
         .joined(separator: ";")
         let notifications = settingsRows.first?.notificationsEnabled ?? false

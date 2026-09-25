@@ -93,8 +93,9 @@ enum BackupService {
     static func isEmpty(_ context: ModelContext) -> Bool {
         let expenses = (try? context.fetchCount(FetchDescriptor<Expense>())) ?? 0
         let budgets = (try? context.fetchCount(FetchDescriptor<CategoryBudget>())) ?? 0
+        let rates = (try? context.fetchCount(FetchDescriptor<ExchangeRate>())) ?? 0
         let income = AppSettings.existing(in: context)?.monthlyIncome ?? 0
-        return expenses == 0 && budgets == 0 && income == 0
+        return expenses == 0 && budgets == 0 && rates == 0 && income == 0
     }
 
     @discardableResult
@@ -102,10 +103,12 @@ enum BackupService {
         var summary = RestoreSummary()
 
         if mode == .replace {
-            try context.delete(model: Expense.self)
-            try context.delete(model: CategoryBudget.self)
-            try context.delete(model: ExchangeRate.self)
-            try context.delete(model: MonthSnapshot.self)
+            // One object at a time: store-level batch deletes are not mirrored
+            // to CloudKit, so they would come back from other devices.
+            for expense in try context.fetch(FetchDescriptor<Expense>()) { context.delete(expense) }
+            for budget in try context.fetch(FetchDescriptor<CategoryBudget>()) { context.delete(budget) }
+            for rate in try context.fetch(FetchDescriptor<ExchangeRate>()) { context.delete(rate) }
+            for snapshot in try context.fetch(FetchDescriptor<MonthSnapshot>()) { context.delete(snapshot) }
         }
 
         let existingIDs = Set(try context.fetch(FetchDescriptor<Expense>()).map(\.id))

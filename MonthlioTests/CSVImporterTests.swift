@@ -22,7 +22,7 @@ final class CSVImporterTests: XCTestCase {
             Expense(name: "Rent, downtown", amount: 1850, currencyCode: "USD", category: .housing, cadence: .monthly, dueDay: 1),
             Expense(name: "VPN", amount: Decimal(string: "59.88")!, currencyCode: "EUR", category: .subscriptions, cadence: .yearly, dueDay: 14, notes: "renews in May"),
             Expense(name: "HBO Max", amount: Decimal(string: "15.99")!, currencyCode: "USD", category: .subscriptions, cadence: .monthly, dueDay: 9, isActive: false),
-            Expense(name: "=Concert", amount: 180, currencyCode: "USD", category: .entertainment, cadence: .oneTime, chargeDate: .now),
+            Expense(name: "=Concert", amount: 180, currencyCode: "USD", category: .entertainment, cadence: .oneTime, chargeDate: Calendar.current.date(byAdding: .day, value: 40, to: .now)),
         ]
         let csv = CSVExporter.csv(from: expenses, converter: CurrencyConverter(baseCode: "USD"))
 
@@ -40,6 +40,8 @@ final class CSVImporterTests: XCTestCase {
         XCTAssertEqual(preview.expenses.map(\.isActive), [true, true, false, true])
         XCTAssertEqual(preview.expenses[1].notes, "renews in May")
         XCTAssertNotNil(preview.expenses[0].createdAt)
+        let chargeDate = try XCTUnwrap(preview.expenses[3].chargeDate)
+        XCTAssertTrue(Calendar.current.isDate(chargeDate, inSameDayAs: expenses[3].chargeDate!), "a one-time expense keeps its charge month")
     }
 
     func testMapsLooseHeadersAndValuesFromOtherApps() throws {

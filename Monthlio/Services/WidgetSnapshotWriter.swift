@@ -38,9 +38,9 @@ enum WidgetSnapshotWriter {
     static func update(expenses: [Expense], settings: AppSettings?, converter: CurrencyConverter) {
         let next = snapshot(expenses: expenses, settings: settings, converter: converter)
         if var current = WidgetSnapshotStore.load() {
-            current.generatedAt = next.generatedAt
             // Refresh at least daily so the charge window keeps rolling forward.
             let sameDay = Calendar.current.isDate(current.generatedAt, inSameDayAs: next.generatedAt)
+            current.generatedAt = next.generatedAt
             if current == next, sameDay { return }
         }
         do {

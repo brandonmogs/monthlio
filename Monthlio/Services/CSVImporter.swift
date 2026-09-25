@@ -12,6 +12,8 @@ struct ImportedExpense: Equatable {
     var isActive: Bool
     var notes: String?
     var createdAt: Date?
+    /// When a one-time expense hits; falls back to `createdAt` on commit.
+    var chargeDate: Date?
 }
 
 struct CSVImportPreview: Equatable {
@@ -44,7 +46,7 @@ enum CSVImportError: LocalizedError, Equatable {
 /// "annual" or "Streaming" are normalized. Unknown categories become Other.
 enum CSVImporter {
     enum Column: CaseIterable {
-        case name, amount, currency, cadence, category, dueDay, active, notes, created
+        case name, amount, currency, cadence, category, dueDay, active, notes, created, chargeDate
 
         var aliases: [String] {
             switch self {
@@ -57,6 +59,7 @@ enum CSVImporter {
             case .active: ["active", "enabled", "status", "is active"]
             case .notes: ["notes", "note", "memo", "comment", "comments"]
             case .created: ["created", "created at", "date added", "added", "start date", "first payment"]
+            case .chargeDate: ["charge date", "chargedate", "charged on", "date charged", "one time date", "payment date"]
             }
         }
     }
@@ -129,7 +132,8 @@ enum CSVImporter {
                 dueDay: resolvedCadence == .oneTime ? nil : dueDay,
                 isActive: cell(.active).flatMap(parseActive) ?? true,
                 notes: cell(.notes).map(MoneyLimits.clampedNotes).flatMap { $0.isEmpty ? nil : $0 },
-                createdAt: cell(.created).flatMap(parseDate)
+                createdAt: cell(.created).flatMap(parseDate),
+                chargeDate: cell(.chargeDate).flatMap(parseDate)
             ))
         }
 
@@ -147,7 +151,7 @@ enum CSVImporter {
                 category: item.category,
                 cadence: item.cadence,
                 dueDay: item.dueDay,
-                chargeDate: item.cadence == .oneTime ? (item.createdAt ?? .now) : nil,
+                chargeDate: item.cadence == .oneTime ? (item.chargeDate ?? item.createdAt ?? .now) : nil,
                 isActive: item.isActive,
                 notes: item.notes,
                 createdAt: item.createdAt ?? .now

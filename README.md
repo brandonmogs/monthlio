@@ -20,8 +20,8 @@ cost broken down by category.
 - Multi-currency with a base currency and manual rates
 - Home Screen and Lock Screen widgets: next charge and monthly total
 - JSON backup and restore, CSV export and CSV import
-- iCloud sync (Monthlio Pro, a one-time purchase; free for installs from
-  before Pro existed)
+- iCloud sync (Monthlio Pro, a one-time purchase; free on every device
+  for anyone who downloaded Monthlio before Pro existed)
 - English source strings in a String Catalog, ready for translation
 
 ## Build & run

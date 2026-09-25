@@ -121,7 +121,7 @@ struct SettingsView: View {
     /// the next launch and the footer says so.
     private var syncSection: some View {
         let signedIn = FileManager.default.ubiquityIdentityToken != nil
-        let canSync = SyncPreference.canSync(isPro: pro.isEntitled)
+        let canSync = pro.canSync
         return Section {
             if canSync {
                 Toggle("iCloud sync", isOn: $syncEnabled)
@@ -173,8 +173,8 @@ struct SettingsView: View {
         } else {
             lines.append(String(localized: "Your data stays on this device."))
         }
-        if SyncPreference.isGrandfathered(), !pro.isEntitled {
-            lines.append(String(localized: "Sync is free on this device because you were here before Monthlio Pro."))
+        if pro.isGrandfathered, !pro.isEntitled {
+            lines.append(String(localized: "Sync is free for you because you downloaded Monthlio before Pro existed."))
         }
         return lines.joined(separator: " ")
     }

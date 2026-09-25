@@ -22,6 +22,9 @@ protocol ProStoreClient {
     func purchase(id: String) async throws -> ProPurchaseResult
     func restore() async throws
     func hasEntitlement(for id: String) async -> Bool
+    /// The build the account first downloaded, from the App Store's signed
+    /// app transaction. Nil when it can't be verified.
+    func originalAppBuild() async throws -> String?
     /// Yields whenever a transaction arrives outside `purchase`: another
     /// device, Family Sharing, or a refund.
     func updates() -> AsyncStream<Void>
@@ -70,6 +73,11 @@ final class StoreKitProClient: ProStoreClient {
         return false
     }
 
+    func originalAppBuild() async throws -> String? {
+        guard case .verified(let transaction) = try await AppTransaction.shared else { return nil }
+        return transaction.originalAppVersion
+    }
+
     func updates() -> AsyncStream<Void> {
         AsyncStream { continuation in
             let task = Task {
@@ -97,6 +105,8 @@ final class ProStore {
 
     private(set) var product: ProProductInfo?
     private(set) var isEntitled: Bool
+    /// Downloaded before Pro existed, so sync is free on this account.
+    private(set) var isGrandfathered: Bool
     private(set) var isPurchasing = false
     private(set) var isLoadingProduct = false
     private(set) var lastError: String?
@@ -109,7 +119,11 @@ final class ProStore {
         self.client = client
         self.defaults = defaults
         isEntitled = defaults.bool(forKey: Self.entitlementKey)
+        isGrandfathered = SyncPreference.isGrandfathered(defaults)
     }
+
+    /// Sync is allowed with Pro or for accounts that predate it.
+    var canSync: Bool { isEntitled || isGrandfathered }
 
     /// Verifies the entitlement, loads the product and starts listening for
     /// transactions made elsewhere.
@@ -123,7 +137,18 @@ final class ProStore {
             }
         }
         await refreshEntitlement()
+        await recordOriginalBuildIfNeeded()
         await loadProduct()
+    }
+
+    /// Asks the App Store once which build this account first downloaded.
+    /// If it can't answer (offline, or a simulator without StoreKit testing)
+    /// the question is asked again on the next launch.
+    func recordOriginalBuildIfNeeded() async {
+        guard !SyncPreference.ignoresAppTransaction, !SyncPreference.hasRecordedOriginalBuild(defaults) else { return }
+        guard let version = try? await client.originalAppBuild() else { return }
+        SyncPreference.recordOriginalBuild(version, defaults)
+        isGrandfathered = SyncPreference.isGrandfathered(defaults)
     }
 
     func loadProduct() async {

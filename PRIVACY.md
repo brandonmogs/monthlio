@@ -13,8 +13,9 @@ sync, Monthlio also stores a copy in your private iCloud database so it
 syncs to your other devices. That data is encrypted by Apple and is
 accessible only to you through your Apple Account. We cannot read it.
 iCloud sync is optional: new installs start local-only and turn it on
-in Settings after unlocking Monthlio Pro; installs from before Pro
-existed keep sync as it was. If you sign out of iCloud on a device while
+in Settings after unlocking Monthlio Pro. Anyone who downloaded Monthlio
+before Pro existed keeps sync on every device; the app checks the build
+your Apple Account first downloaded, through Apple's own app receipt. If you sign out of iCloud on a device while
 sync is on, iOS removes the synced copy from that device, so keep a
 backup (Settings → Data → Back Up to File) before changing accounts.
 
@@ -28,8 +29,8 @@ data unencrypted; Monthlio does not transmit them anywhere itself.
 
 **Purchases.** Monthlio Pro is a one-time purchase processed by Apple
 through the App Store. Apple handles payment; Monthlio only learns
-whether the purchase exists on your Apple Account and stores that answer
-on the device.
+whether the purchase exists on your Apple Account, and which build you
+first downloaded, and stores those answers on the device.
 
 **Face ID.** If you turn on the app lock, Monthlio asks iOS to verify you
 with Face ID, Touch ID, or your passcode. Biometric data never leaves the

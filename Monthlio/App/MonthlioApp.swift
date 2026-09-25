@@ -28,6 +28,7 @@ struct MonthlioApp: App {
             let defaults = UserDefaults(suiteName: suite)!
             defaults.removePersistentDomain(forName: suite)
             SyncPreference.standard = defaults
+            SyncPreference.ignoresAppTransaction = true
             storeExists = false
         }
         #endif

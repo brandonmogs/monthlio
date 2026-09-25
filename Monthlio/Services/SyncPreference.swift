@@ -4,17 +4,26 @@ import Foundation
 /// the store opens, because the container's CloudKit option can't change
 /// while the app runs.
 ///
-/// Installs from before Monthlio Pro keep sync for free: the first launch of
-/// this version finds an existing store and marks the device grandfathered.
+/// Anyone who downloaded Monthlio before Pro existed keeps sync for free.
+/// Two signals establish that: an existing store on disk at the first launch
+/// of this version (an in-place upgrade), and the App Store's record of the
+/// build the account first downloaded (`AppTransaction.originalAppVersion`),
+/// which also covers reinstalls and new devices.
 enum SyncPreference {
     /// Where the flags live. DEBUG builds swap in a throwaway suite for
     /// `-MonthlioFreshInstall` so UI tests see a brand-new install.
     static var standard: UserDefaults = .standard
+    /// DEBUG: set with `-MonthlioFreshInstall` so the App Store record can't
+    /// grandfather a UI test run.
+    static var ignoresAppTransaction = false
 
     static let enabledKey = "sync.enabled"
     static let grandfatheredKey = "sync.grandfathered"
     static let migrationKey = "sync.migrationVersion"
+    static let originalBuildKey = "sync.originalBuild"
     static let currentMigration = 1
+    /// The first build that sells Pro; earlier downloads keep sync free.
+    static let firstProBuild = 4
 
     static func isEnabled(_ defaults: UserDefaults = standard) -> Bool {
         defaults.bool(forKey: enabledKey)
@@ -44,6 +53,28 @@ enum SyncPreference {
             defaults.set(false, forKey: enabledKey)
         }
         defaults.set(currentMigration, forKey: migrationKey)
+    }
+
+    static func hasRecordedOriginalBuild(_ defaults: UserDefaults = standard) -> Bool {
+        defaults.object(forKey: originalBuildKey) != nil
+    }
+
+    /// Records the build the account first downloaded, as reported by the
+    /// App Store, and grandfathers downloads from before Pro. Sync was always
+    /// on before Pro, so a grandfathered install gets it back on. Returns
+    /// true when this call turned grandfathering on.
+    @discardableResult
+    static func recordOriginalBuild(_ version: String, _ defaults: UserDefaults = standard) -> Bool {
+        defaults.set(version, forKey: originalBuildKey)
+        guard let build = leadingInteger(in: version), build < firstProBuild, !isGrandfathered(defaults) else { return false }
+        defaults.set(true, forKey: grandfatheredKey)
+        defaults.set(true, forKey: enabledKey)
+        return true
+    }
+
+    /// "3" -> 3, "1.0" (the sandbox's value) -> 1, "abc" -> nil.
+    static func leadingInteger(in version: String) -> Int? {
+        Int(version.prefix { $0.isNumber })
     }
 
     /// Turns sync off when the entitlement that allowed it is gone (a refund,

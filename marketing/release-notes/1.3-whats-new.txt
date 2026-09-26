@@ -1,0 +1,9 @@
+Widgets: see your next charge and your true monthly cost on the Home Screen and Lock Screen.
+
+Backup and import: back up everything to a file, restore it on a new device, and import expenses from a CSV.
+
+iPad: Monthlio now runs full screen on iPad, in every orientation, with keyboard shortcuts.
+
+Monthlio Pro: iCloud sync is now a one-time purchase for new downloads. If you downloaded Monthlio before this update, sync stays free on all of your devices.
+
+Ready for translation, plus fixes and polish throughout.

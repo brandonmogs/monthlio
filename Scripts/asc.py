@@ -76,6 +76,20 @@ class ASC:
     def get(self, path, **params):
         return self.request("GET", path, params=params or None)
 
+    def get_optional(self, path):
+        """A related resource that may not exist yet (Apple answers 404)."""
+        url = API + path
+        req = urllib.request.Request(url, headers={"Authorization": "Bearer " + self.token()})
+        try:
+            with urllib.request.urlopen(req, timeout=180) as response:
+                text = response.read()
+                return (json.loads(text) if text else {}).get("data")
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                return None
+            detail = error.read().decode(errors="replace")
+            raise SystemExit(f"GET {url} -> HTTP {error.code}\n{detail[:3000]}")
+
     def get_all(self, path, **params):
         items, url = [], None
         while True:
@@ -131,7 +145,7 @@ def cmd_check(asc, app, args):
     info = asc.get(f"/v1/apps/{app}")["data"]["attributes"]
     print(f"App: {info['name']} ({info['bundleId']}), sku {info.get('sku')}")
     print("Versions:")
-    for v in asc.get_all(f"/v1/apps/{app}/appStoreVersions", **{"limit": 10, "sort": "-createdDate"}):
+    for v in asc.get_all(f"/v1/apps/{app}/appStoreVersions", **{"limit": 10}):
         a = v["attributes"]
         print(f"  {a['versionString']:>6}  {a.get('appVersionState') or a.get('appStoreState')}  release={a.get('releaseType')}  id={v['id']}")
     print("Builds:")
@@ -178,7 +192,7 @@ def cmd_version(asc, app, args):
         print(f"  What's New set ({len(text)} chars, en-US)")
     if args.review_note:
         notes = open(args.review_note).read().strip()
-        detail = asc.get(f"/v1/appStoreVersions/{vid}/appStoreReviewDetail").get("data")
+        detail = asc.get_optional(f"/v1/appStoreVersions/{vid}/appStoreReviewDetail")
         if detail:
             asc.patch(f"/v1/appStoreReviewDetails/{detail['id']}", {"data": {"type": "appStoreReviewDetails", "id": detail["id"], "attributes": {"notes": notes}}})
         else:
@@ -231,7 +245,7 @@ def cmd_iap(asc, app, args):
     else:
         print("  en-US localization present")
 
-    schedule = asc.get(f"/v2/inAppPurchases/{iap_id}/iapPriceSchedule").get("data")
+    schedule = asc.get_optional(f"/v2/inAppPurchases/{iap_id}/iapPriceSchedule")
     if schedule is None:
         points = asc.get_all(f"/v2/inAppPurchases/{iap_id}/pricePoints", **{"filter[territory]": "USA", "limit": 200})
         point = next((p for p in points if p["attributes"]["customerPrice"] == args.price), None)
@@ -247,7 +261,7 @@ def cmd_iap(asc, app, args):
     else:
         print("  price schedule present")
 
-    availability = asc.get(f"/v2/inAppPurchases/{iap_id}/inAppPurchaseAvailability").get("data")
+    availability = asc.get_optional(f"/v2/inAppPurchases/{iap_id}/inAppPurchaseAvailability")
     if availability is None:
         territories = [t["id"] for t in asc.get_all("/v1/territories", limit=200)]
         asc.post("/v1/inAppPurchaseAvailabilities", {"data": {"type": "inAppPurchaseAvailabilities", "attributes": {"availableInNewTerritories": True}, "relationships": {"inAppPurchase": rel("inAppPurchases", iap_id), "availableTerritories": {"data": [{"type": "territories", "id": t} for t in territories]}}}})
@@ -255,7 +269,7 @@ def cmd_iap(asc, app, args):
     else:
         print("  availability present")
 
-    shot = asc.get(f"/v2/inAppPurchases/{iap_id}/appStoreReviewScreenshot").get("data")
+    shot = asc.get_optional(f"/v2/inAppPurchases/{iap_id}/appStoreReviewScreenshot")
     if shot is None and args.review_screenshot:
         upload_asset(asc, "inAppPurchaseAppStoreReviewScreenshots", "/v1/inAppPurchaseAppStoreReviewScreenshots", {"inAppPurchaseV2": rel("inAppPurchases", iap_id)}, args.review_screenshot)
         print("  review screenshot uploaded")

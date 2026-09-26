@@ -22,14 +22,34 @@ final class PaywallRenderTests: XCTestCase {
         await store.loadProduct()
         XCTAssertEqual(store.product?.displayPrice, "$9.99")
 
-        let view = PaywallView()
+        // ImageRenderer doesn't pick up the asset catalog's accent colour, so
+        // apply the same green the app uses.
+        let view = PaywallBody()
             .environment(store)
+            .padding()
             .frame(width: 393, height: 852)
             .background(Color(.systemGroupedBackground))
+            .tint(MonthlioBrand.green)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 3
         let image = try XCTUnwrap(renderer.uiImage)
         XCTAssertEqual(image.size.width * image.scale, 1179)
+
+        // A blank background or SwiftUI's unsupported-view placeholder must
+        // fail: the real paywall has the green Unlock button somewhere.
+        let cg = try XCTUnwrap(image.cgImage)
+        let data = try XCTUnwrap(cg.dataProvider?.data) as Data
+        let bytesPerPixel = cg.bitsPerPixel / 8
+        var sawGreen = false
+        for y in stride(from: 0, to: cg.height, by: 12) {
+            for x in stride(from: 0, to: cg.width, by: 12) {
+                let i = y * cg.bytesPerRow + x * bytesPerPixel
+                let (p0, p1, p2) = (Int(data[i]), Int(data[i + 1]), Int(data[i + 2]))
+                // Brand green is roughly (45, 179, 111); byte order may be RGB or BGR.
+                if p1 > 150 && p1 > p0 + 60 && p1 > p2 + 40 { sawGreen = true }
+            }
+        }
+        XCTAssertTrue(sawGreen, "no green button pixels: the paywall did not render")
 
         let directory = FileManager.default.temporaryDirectory.appending(path: "monthlio-paywall")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

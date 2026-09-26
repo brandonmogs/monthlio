@@ -9,7 +9,50 @@ struct PaywallView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
+            PaywallContent(onUnlocked: onUnlocked)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Close") { dismiss() }
+                    }
+                }
+                .task {
+                    await pro.recordOriginalBuildIfNeeded()
+                    if pro.isGrandfathered {
+                        onUnlocked()
+                        dismiss()
+                        return
+                    }
+                    if pro.product == nil { await pro.loadProduct() }
+                }
+        }
+        .presentationDragIndicator(.visible)
+    }
+}
+
+/// The paywall's scrolling body, separate from the navigation chrome.
+struct PaywallContent: View {
+    var onUnlocked: () -> Void = {}
+
+    var body: some View {
+        ScrollView {
+            PaywallBody(onUnlocked: onUnlocked)
+                .padding()
+                .readableWidth()
+        }
+        .background(Color(.systemGroupedBackground))
+    }
+}
+
+/// The paywall's stack of pitch, benefits and buttons. Kept free of scroll
+/// and navigation containers so ImageRenderer can draw it: the in-app
+/// purchase review screenshot comes from a test that renders this view.
+struct PaywallBody: View {
+    @Environment(ProStore.self) private var pro
+    @Environment(\.dismiss) private var dismiss
+    var onUnlocked: () -> Void = {}
+
+    var body: some View {
                 VStack(spacing: 28) {
                     VStack(spacing: 10) {
                         Image(systemName: "icloud.fill")
@@ -70,27 +113,6 @@ struct PaywallView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                .padding()
-                .readableWidth()
-            }
-            .background(Color(.systemGroupedBackground))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
-                }
-            }
-            .task {
-                await pro.recordOriginalBuildIfNeeded()
-                if pro.isGrandfathered {
-                    onUnlocked()
-                    dismiss()
-                    return
-                }
-                if pro.product == nil { await pro.loadProduct() }
-            }
-        }
-        .presentationDragIndicator(.visible)
     }
 
     private func benefit(_ symbol: String, title: LocalizedStringKey, detail: LocalizedStringKey) -> some View {

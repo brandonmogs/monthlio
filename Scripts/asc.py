@@ -16,6 +16,8 @@ performs the release steps that otherwise need clicking:
                 it to the version
   submit        create the review submission for the version; --confirm
                 actually submits (nothing is sent to review without it)
+  cancel        withdraw the open review submission (developer removed
+                from review); the version can be edited and resubmitted
 
 Usage: asc.py --key-id K --issuer-id I --key-path AuthKey.p8 [--app ID] <command> [options]
 Requires PyJWT and cryptography.
@@ -333,6 +335,16 @@ def cmd_submit(asc, app, args):
         print("ready; run again with --confirm to submit for review")
 
 
+def cmd_cancel(asc, app, args):
+    open_subs = asc.get_all(f"/v1/apps/{app}/reviewSubmissions", **{"filter[state]": "READY_FOR_REVIEW,WAITING_FOR_REVIEW,IN_REVIEW,UNRESOLVED_ISSUES"})
+    if not open_subs:
+        print("no open review submission")
+        return
+    for submission in open_subs:
+        asc.patch(f"/v1/reviewSubmissions/{submission['id']}", {"data": {"type": "reviewSubmissions", "id": submission["id"], "attributes": {"canceled": True}}})
+        print(f"canceled review submission {submission['id']} (was {submission['attributes']['state']})")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--key-id", required=True)
@@ -346,9 +358,10 @@ def main():
     p = sub.add_parser("iap"); p.add_argument("--product-id", required=True); p.add_argument("--name", required=True); p.add_argument("--description", required=True); p.add_argument("--price", default="9.99"); p.add_argument("--review-screenshot"); p.add_argument("--review-note"); p.add_argument("--submit", action="store_true")
     p = sub.add_parser("build"); p.add_argument("--version", required=True); p.add_argument("--build", required=True); p.add_argument("--wait", type=int, default=45, help="minutes to wait for processing")
     p = sub.add_parser("submit"); p.add_argument("--version", required=True); p.add_argument("--iap-product-id"); p.add_argument("--confirm", action="store_true")
+    sub.add_parser("cancel")
     args = parser.parse_args()
     asc = ASC(args.key_id, args.issuer_id, args.key_path)
-    {"check": cmd_check, "version": cmd_version, "screenshots": cmd_screenshots, "iap": cmd_iap, "build": cmd_build, "submit": cmd_submit}[args.command](asc, args.app, args)
+    {"check": cmd_check, "version": cmd_version, "screenshots": cmd_screenshots, "iap": cmd_iap, "build": cmd_build, "submit": cmd_submit, "cancel": cmd_cancel}[args.command](asc, args.app, args)
 
 
 if __name__ == "__main__":

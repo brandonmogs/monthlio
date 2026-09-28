@@ -57,18 +57,18 @@ final class SyncPreferenceTests: XCTestCase {
     func testOriginalBuildGrandfathersOnlyPreProDownloads() {
         SyncPreference.migrateIfNeeded(storeExists: false, defaults)
 
-        XCTAssertTrue(SyncPreference.recordOriginalBuild("3", defaults))
+        XCTAssertTrue(SyncPreference.recordOriginalBuild("4", defaults))
         XCTAssertTrue(SyncPreference.isGrandfathered(defaults))
         XCTAssertTrue(SyncPreference.isEnabled(defaults))
         XCTAssertTrue(SyncPreference.hasRecordedOriginalBuild(defaults))
-        XCTAssertFalse(SyncPreference.recordOriginalBuild("3", defaults), "already grandfathered")
+        XCTAssertFalse(SyncPreference.recordOriginalBuild("4", defaults), "already grandfathered")
 
         let later = UserDefaults(suiteName: suite + "-later")!
         defer { later.removePersistentDomain(forName: suite + "-later") }
         SyncPreference.migrateIfNeeded(storeExists: false, later)
-        XCTAssertFalse(SyncPreference.recordOriginalBuild("4", later))
+        XCTAssertFalse(SyncPreference.recordOriginalBuild("6", later))
         XCTAssertFalse(SyncPreference.isGrandfathered(later))
-        XCTAssertFalse(SyncPreference.recordOriginalBuild("abc", later))
+        XCTAssertFalse(SyncPreference.recordOriginalBuild("sandbox", later))
         XCTAssertTrue(SyncPreference.hasRecordedOriginalBuild(later), "an unparseable answer is still an answer")
     }
 

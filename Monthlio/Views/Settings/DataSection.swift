@@ -111,7 +111,10 @@ struct DataSection: View {
         guard let data = readPickedFile(result) else { return }
         do {
             let document = try BackupService.decode(data)
-            if BackupService.isEmpty(modelContext) {
+            // Skip the question only for a store that is empty and not
+            // syncing; with sync on, the first iCloud import may still be
+            // arriving and would duplicate a silent replace.
+            if BackupService.isEmpty(modelContext), !MonthlioApp.isCloudSyncEnabled {
                 restore(document, mode: .replace)
             } else {
                 pendingRestore = document
@@ -132,6 +135,7 @@ struct DataSection: View {
             }
             notice = DataNotice(title: String(localized: "Restore complete"), message: message)
         } catch {
+            modelContext.rollback()
             Haptics.warning()
             notice = DataNotice(title: String(localized: "Couldn't restore"), message: Text(error.localizedDescription))
         }

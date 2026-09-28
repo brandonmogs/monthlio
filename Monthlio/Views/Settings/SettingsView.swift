@@ -57,11 +57,9 @@ struct SettingsView: View {
                     SyncPreference.setEnabled(true)
                 }
             }
-            .task {
-                // Downloads from before Pro get sync back here, not at launch.
-                guard !pro.canSync else { return }
-                await pro.recordOriginalBuildIfNeeded()
-                if pro.isGrandfathered { syncEnabled = SyncPreference.isEnabled() }
+            .onChange(of: pro.isGrandfathered) { _, grandfathered in
+                // The paywall's check can free sync; mirror the toggle.
+                if grandfathered { syncEnabled = SyncPreference.isEnabled() }
             }
             .onAppear {
                 let current = AppSettings.current(in: modelContext)

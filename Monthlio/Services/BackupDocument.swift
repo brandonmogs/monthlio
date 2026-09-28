@@ -74,7 +74,7 @@ struct BackupDocument: Codable, Equatable {
 
     /// Filename like "Monthlio Backup 2026-09-24.json".
     static func fileName(for date: Date = .now) -> String {
-        let day = date.formatted(.iso8601.year().month().day().dateSeparator(.dash))
+        let day = date.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day().dateSeparator(.dash))
         return "Monthlio Backup \(day).json"
     }
 }

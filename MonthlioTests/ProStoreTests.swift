@@ -214,7 +214,7 @@ final class ProStoreTests: XCTestCase {
 
     func testDownloadFromBeforeProKeepsSyncOnAnyDevice() async {
         let client = FakeProClient()
-        client.originalBuild = "3"
+        client.originalBuild = "4"
         let store = ProStore(client: client, defaults: defaults)
         XCTAssertFalse(store.canSync, "a fresh install starts local-only")
 
@@ -234,13 +234,37 @@ final class ProStoreTests: XCTestCase {
 
     func testDownloadAfterProIsNotGrandfathered() async {
         let client = FakeProClient()
-        client.originalBuild = "4"
+        client.originalBuild = "6"
         let store = ProStore(client: client, defaults: defaults)
         await store.recordOriginalBuildIfNeeded()
 
         XCTAssertFalse(store.isGrandfathered)
         XCTAssertFalse(store.canSync)
         XCTAssertFalse(SyncPreference.isEnabled(defaults))
+    }
+
+    func testSandboxAnswerIsRecordedButNeverGrandfathers() async {
+        let client = FakeProClient()
+        client.originalBuild = "sandbox"
+        let store = ProStore(client: client, defaults: defaults)
+        await store.recordOriginalBuildIfNeeded()
+        await store.recordOriginalBuildIfNeeded()
+
+        XCTAssertFalse(store.isGrandfathered, "App Review and TestFlight must see the paywall")
+        XCTAssertEqual(client.originalBuildRequests, 1, "answered once, not retried")
+    }
+
+    func testRestorePurchasesAlsoRecoversAPreProDownload() async {
+        let client = FakeProClient()
+        client.originalBuild = "2"
+        let store = ProStore(client: client, defaults: defaults)
+        await store.start()
+
+        await store.restore()
+
+        XCTAssertTrue(store.isGrandfathered)
+        XCTAssertTrue(store.canSync)
+        XCTAssertNil(store.lastError, "a free-sync account isn't told no purchase was found")
     }
 
     func testOriginalBuildIsAskedAgainWhenTheAppStoreCantAnswer() async {
@@ -251,11 +275,11 @@ final class ProStoreTests: XCTestCase {
         XCTAssertFalse(store.isGrandfathered)
 
         client.originalBuildError = nil
-        client.originalBuild = "1.0"
+        client.originalBuild = "5"
         await store.recordOriginalBuildIfNeeded()
 
         XCTAssertEqual(client.originalBuildRequests, 2)
-        XCTAssertTrue(store.isGrandfathered, "a sandbox-style version string still counts as build 1")
+        XCTAssertTrue(store.isGrandfathered, "build 5 never shipped but is still before Pro")
     }
 
     func testGrandfatheredDeviceKeepsSyncAfterRefund() async {

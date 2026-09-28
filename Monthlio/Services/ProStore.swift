@@ -84,8 +84,13 @@ final class StoreKitProClient: ProStoreClient {
         return false
     }
 
+    /// Only a production transaction can prove a pre-Pro download. The
+    /// sandbox (App Review, TestFlight) and Xcode report "1.0" for every
+    /// account, so those environments answer with a sentinel that is
+    /// recorded but never grandfathers.
     func originalAppBuild() async throws -> String? {
         guard case .verified(let transaction) = try await AppTransaction.shared else { return nil }
+        guard transaction.environment == .production else { return "sandbox" }
         return transaction.originalAppVersion
     }
 
@@ -208,7 +213,8 @@ final class ProStore {
             lastError = error.localizedDescription
         }
         await refreshEntitlement()
-        if !isEntitled, lastError == nil {
+        await recordOriginalBuildIfNeeded()
+        if !isEntitled, !isGrandfathered, lastError == nil {
             lastError = String(localized: "No Monthlio Pro purchase was found for this Apple Account.")
         }
     }

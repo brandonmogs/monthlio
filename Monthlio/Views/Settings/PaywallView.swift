@@ -145,7 +145,7 @@ struct PaywallBody: View {
 
     private func restore() async {
         await pro.restore()
-        if pro.isEntitled {
+        if pro.canSync {
             Haptics.success()
             onUnlocked()
             dismiss()

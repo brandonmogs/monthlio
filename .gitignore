@@ -15,3 +15,10 @@ build/
 
 # Local tooling
 .claude/settings.local.json
+
+# Credentials and build artefacts
+*.p8
+AuthKey_*
+*.xcarchive
+*.ipa
+*.swp

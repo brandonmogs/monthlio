@@ -22,8 +22,9 @@ enum SyncPreference {
     static let migrationKey = "sync.migrationVersion"
     static let originalBuildKey = "sync.originalBuild"
     static let currentMigration = 1
-    /// The first build that sells Pro; earlier downloads keep sync free.
-    static let firstProBuild = 4
+    /// The first build that sells Pro (1.3 is build 6; 1.0 through 1.2 were
+    /// builds 1 to 4). Earlier downloads keep sync free.
+    static let firstProBuild = 6
 
     static func isEnabled(_ defaults: UserDefaults = standard) -> Bool {
         defaults.bool(forKey: enabledKey)
@@ -72,7 +73,7 @@ enum SyncPreference {
         return true
     }
 
-    /// "3" -> 3, "1.0" (the sandbox's value) -> 1, "abc" -> nil.
+    /// "3" -> 3, "1.0" -> 1, "sandbox" or "abc" -> nil.
     static func leadingInteger(in version: String) -> Int? {
         Int(version.prefix { $0.isNumber })
     }

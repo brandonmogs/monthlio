@@ -15,7 +15,8 @@ performs the release steps that otherwise need clicking:
   build         wait for the uploaded build to finish processing and attach
                 it to the version
   submit        create the review submission for the version; --confirm
-                actually submits (nothing is sent to review without it)
+                actually submits (nothing is sent to review without it);
+                safe to rerun: exits 0 once the version is waiting for review
   cancel        withdraw the open review submission (developer removed
                 from review); the version can be edited and resubmitted
 
@@ -311,8 +312,13 @@ def cmd_submit(asc, app, args):
     version = find_version(asc, app, args.version) or sys.exit(f"version {args.version} not found")
     open_subs = asc.get_all(f"/v1/apps/{app}/reviewSubmissions", **{"filter[state]": "READY_FOR_REVIEW,WAITING_FOR_REVIEW,IN_REVIEW,UNRESOLVED_ISSUES"})
     submission = next((s for s in open_subs if s["attributes"]["state"] in ("READY_FOR_REVIEW", "UNRESOLVED_ISSUES")), None)
-    if any(s["attributes"]["state"] in ("WAITING_FOR_REVIEW", "IN_REVIEW") for s in open_subs):
-        raise SystemExit("a submission is already waiting for or in review")
+    for s in open_subs:
+        if s["attributes"]["state"] in ("WAITING_FOR_REVIEW", "IN_REVIEW"):
+            queued = asc.get_all(f"/v1/reviewSubmissions/{s['id']}/items", include="appStoreVersion")
+            if any((i.get("relationships", {}).get("appStoreVersion", {}).get("data") or {}).get("id") == version["id"] for i in queued):
+                print(f"version {args.version} is already {s['attributes']['state'].lower().replace('_', ' ')} in submission {s['id']}; nothing to do")
+                return
+            raise SystemExit(f"submission {s['id']} is {s['attributes']['state']} with other items; wait for it or cancel it first")
     if submission and submission["attributes"]["state"] == "UNRESOLVED_ISSUES":
         print(f"reusing submission {submission['id']} that came back with unresolved issues")
     if submission is None:
@@ -331,7 +337,18 @@ def cmd_submit(asc, app, args):
             except SystemExit as error:
                 print(f"in-app purchase not added as a submission item ({str(error).splitlines()[0]}); it is submitted separately")
     if args.confirm:
-        asc.patch(f"/v1/reviewSubmissions/{submission['id']}", {"data": {"type": "reviewSubmissions", "id": submission["id"], "attributes": {"submitted": True}}})
+        try:
+            asc.patch(f"/v1/reviewSubmissions/{submission['id']}", {"data": {"type": "reviewSubmissions", "id": submission["id"], "attributes": {"submitted": True}}})
+        except SystemExit as error:
+            # Right after a build is attached App Store Connect answers 409 "Version is
+            # not ready to be submitted yet" for a minute or two, yet the submit can
+            # still go through on their side; check before reporting a failure.
+            if "not ready to be submitted yet" not in str(error):
+                raise
+            time.sleep(20)
+            state = asc.get(f"/v1/reviewSubmissions/{submission['id']}")["data"]["attributes"]["state"]
+            if state not in ("WAITING_FOR_REVIEW", "IN_REVIEW"):
+                raise SystemExit("App Store Connect says the version is not ready to be submitted yet; wait a minute or two and run submit again")
         print("SUBMITTED for review")
     else:
         print("ready; run again with --confirm to submit for review")

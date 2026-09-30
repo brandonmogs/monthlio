@@ -12,6 +12,7 @@ struct RootTabView: View {
     @Environment(AppLockService.self) private var lock
     @State private var currencyStore = CurrencyStore()
     @State private var shield = PrivacyShield()
+    @State private var deleted = DeletedExpenseBuffer()
     @State private var selectedTab = Tab.initial
     @State private var showingRecoveryNotice = MonthlioApp.storeRecoveryNotice != nil
     @AppStorage(DeviceSettings.remindersEnabledKey, store: SyncPreference.standard) private var remindersEnabled = false
@@ -35,7 +36,16 @@ struct RootTabView: View {
 
     var body: some View {
         tabs
+            // The overlay must sit inside the environment modifiers below,
+            // or the undo bar can't find the buffer.
+            .overlay(alignment: .bottom) {
+                UndoDeleteBar()
+                    // Above the tab bar, which the overlay's frame includes.
+                    .padding(.bottom, 60)
+            }
+            .animation(.snappy, value: deleted.pending)
             .environment(currencyStore)
+            .environment(deleted)
             // The shield window covers the screen, but assistive tech and
             // keyboard focus can still reach views underneath it.
             .accessibilityHidden(lock.isLocked)
@@ -142,6 +152,7 @@ struct RootTabView: View {
     RootTabView()
         .modelContainer(PreviewContainer.shared)
         .environment(CurrencyStore())
+        .environment(DeletedExpenseBuffer())
         .environment(AppLockService(isEnabled: false))
         .environment(ProStore(defaults: UserDefaults(suiteName: "preview")!))
 }

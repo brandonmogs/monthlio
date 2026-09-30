@@ -6,6 +6,7 @@ struct ExpenseListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Expense.createdAt) private var expenses: [Expense]
     @Environment(CurrencyStore.self) private var currencyStore
+    @Environment(DeletedExpenseBuffer.self) private var deleted
 
     @State private var viewModel = ExpenseListViewModel()
     @State private var showingAddSheet = false
@@ -98,6 +99,7 @@ struct ExpenseListView: View {
     }
 
     private func delete(_ expense: Expense) {
+        deleted.remember(expense)
         withAnimation {
             modelContext.delete(expense)
         }
@@ -126,4 +128,5 @@ private struct CategorySectionHeader: View {
     ExpenseListView()
         .modelContainer(PreviewContainer.shared)
         .environment(CurrencyStore())
+        .environment(DeletedExpenseBuffer())
 }

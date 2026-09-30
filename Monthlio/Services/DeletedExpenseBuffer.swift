@@ -1,0 +1,92 @@
+import Foundation
+import Observation
+import SwiftData
+import os
+
+private let log = Logger(subsystem: "com.monthlio.app", category: "undo")
+
+/// Holds the last deleted expense for a few seconds so an accidental swipe
+/// can be undone. Deletion is immediate and, with sync on, reaches every
+/// device, so this copy is the only way back.
+@MainActor
+@Observable
+final class DeletedExpenseBuffer {
+    struct Snapshot: Equatable {
+        var id: UUID
+        var name: String
+        var amount: Decimal
+        var currencyCode: String
+        var category: ExpenseCategory
+        var cadence: Cadence
+        var dueDay: Int?
+        var chargeDate: Date?
+        var isActive: Bool
+        var notes: String?
+        var createdAt: Date
+        var previousAmount: Decimal?
+        var amountChangedAt: Date?
+        var colorHex: String?
+
+        init(_ expense: Expense) {
+            id = expense.id
+            name = expense.name
+            amount = expense.amount
+            currencyCode = expense.currencyCode
+            category = expense.category
+            cadence = expense.cadence
+            dueDay = expense.dueDay
+            chargeDate = expense.chargeDate
+            isActive = expense.isActive
+            notes = expense.notes
+            createdAt = expense.createdAt
+            previousAmount = expense.previousAmount
+            amountChangedAt = expense.amountChangedAt
+            colorHex = expense.colorHex
+        }
+
+        /// A new row with the original identity and every field.
+        func restored() -> Expense {
+            let expense = Expense(
+                id: id, name: name, amount: amount, currencyCode: currencyCode, category: category, cadence: cadence,
+                dueDay: dueDay, chargeDate: chargeDate, isActive: isActive, notes: notes, createdAt: createdAt, colorHex: colorHex
+            )
+            expense.previousAmount = previousAmount
+            expense.amountChangedAt = amountChangedAt
+            return expense
+        }
+    }
+
+    private(set) var pending: Snapshot?
+    /// How long the undo offer stays up.
+    var timeout: Duration = .seconds(6)
+    private var expiry: Task<Void, Never>?
+
+    /// Call before `context.delete(expense)`.
+    func remember(_ expense: Expense) {
+        log.notice("Remembering \(expense.name, privacy: .public) for undo")
+        pending = Snapshot(expense)
+        expiry?.cancel()
+        let timeout = timeout
+        expiry = Task { [weak self] in
+            try? await Task.sleep(for: timeout)
+            guard !Task.isCancelled else { return }
+            self?.pending = nil
+        }
+    }
+
+    func dismiss() {
+        expiry?.cancel()
+        pending = nil
+    }
+
+    /// Puts the expense back with its original identity and fields.
+    @discardableResult
+    func undo(in context: ModelContext) -> Expense? {
+        guard let pending else { return nil }
+        dismiss()
+        let expense = pending.restored()
+        context.insert(expense)
+        try? context.save()
+        return expense
+    }
+}

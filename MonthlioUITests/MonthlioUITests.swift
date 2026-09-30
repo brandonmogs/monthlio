@@ -92,6 +92,38 @@ final class MonthlioUITests: XCTestCase {
         saveScreenshot(app, name: priced ? "paywall" : "paywall-no-storekit")
     }
 
+    func testSwipeToDeleteCanBeUndone() {
+        let app = launch(["-MonthlioTab", "expenses"])
+        // Rows are single accessibility elements labelled "Rent, Due on the
+        // 1st, $1,850.00/mo"; Rent heads the list, so it is always on screen.
+        let rentRow = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Rent'"))
+        XCTAssertTrue(rentRow.firstMatch.waitForExistence(timeout: 15))
+        rentRow.firstMatch.swipeLeft()
+        let delete = app.buttons["Delete"]
+        if delete.waitForExistence(timeout: 3) {
+            delete.tap()
+        } // otherwise the swipe went all the way and deleted on its own
+
+        let undo = app.buttons["undo-delete"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 5))
+        XCTAssertFalse(rentRow.firstMatch.exists)
+        saveScreenshot(app, name: "undo-delete")
+        undo.tap()
+        XCTAssertTrue(rentRow.firstMatch.waitForExistence(timeout: 5))
+    }
+
+    func testLockedLaunchShowsTheLockScreenAndHidesAmounts() {
+        let app = launch(["-MonthlioLocked"])
+        XCTAssertTrue(app.staticTexts["Monthlio is locked"].waitForExistence(timeout: 15))
+        // XCUITest still lists accessibility-hidden elements, so check that
+        // the amount can't be reached: covered by the shield and disabled.
+        let amount = app.staticTexts["$3,459.29"]
+        XCTAssertFalse(amount.isHittable, "amounts must not be reachable behind the lock")
+        XCTAssertFalse(amount.isEnabled)
+        XCTAssertTrue(app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Unlock with'")).firstMatch.exists)
+        saveScreenshot(app, name: "locked-launch")
+    }
+
     func testDeepLinkOpensTheUpcomingTab() {
         let app = launch()
         XCTAssertTrue(app.staticTexts["$3,459.29"].waitForExistence(timeout: 15))

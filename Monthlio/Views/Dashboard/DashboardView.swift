@@ -9,6 +9,7 @@ struct DashboardView: View {
     @Query(sort: \AppSettings.createdAt) private var settingsRows: [AppSettings]
     @Query private var budgets: [CategoryBudget]
     @Query private var snapshots: [MonthSnapshot]
+    @Environment(DeletedExpenseBuffer.self) private var deleted
 
     @State private var viewModel = DashboardViewModel()
     @State private var showingAddSheet = false
@@ -79,6 +80,7 @@ struct DashboardView: View {
     }
 
     private func delete(_ expense: Expense) {
+        deleted.remember(expense)
         withAnimation {
             modelContext.delete(expense)
         }
@@ -91,10 +93,12 @@ struct DashboardView: View {
     DashboardView()
         .modelContainer(PreviewContainer.shared)
         .environment(CurrencyStore())
+        .environment(DeletedExpenseBuffer())
 }
 
 #Preview("Empty") {
     DashboardView()
         .modelContainer(PreviewContainer.empty)
         .environment(CurrencyStore())
+        .environment(DeletedExpenseBuffer())
 }

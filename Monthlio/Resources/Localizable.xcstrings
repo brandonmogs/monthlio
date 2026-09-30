@@ -288,6 +288,8 @@
     "iCloud sync": {},
     "iCloud sync is on. Quit Monthlio from the app switcher and reopen it to load your expenses.": {},
     "in ^[%lld day](inflect: true)": {},
+    "near the cap": {},
+    "over budget": {},
     "≈ %@ per month": {},
     "≈ %@ per month. Add a %@ exchange rate in Settings to include it in totals accurately.": {},
     "≈ %@/mo": {}

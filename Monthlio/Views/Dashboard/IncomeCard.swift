@@ -45,6 +45,8 @@ struct IncomeCard: View {
                     Text(leftover.rounded().currencyString)
                         .font(.title2.weight(.bold))
                         .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
                         .foregroundStyle(leftover < 0 ? .red : .primary)
                         .contentTransition(.numericText())
                 }
@@ -56,6 +58,8 @@ struct IncomeCard: View {
                     Text(income.rounded().currencyString)
                         .font(.subheadline.weight(.semibold))
                         .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                 }
             }
 

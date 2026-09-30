@@ -60,6 +60,7 @@ struct SettingsView: View {
                 }
             }
             .dataNoticeAlert($dataNotice)
+            .keyboardDoneButton()
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

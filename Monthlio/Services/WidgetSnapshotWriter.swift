@@ -3,12 +3,11 @@ import WidgetKit
 
 /// Builds the widget snapshot from live data and hands it to the extension.
 enum WidgetSnapshotWriter {
-    static func snapshot(expenses: [Expense], discreet: Bool, converter: CurrencyConverter, now: Date = .now, calendar: Calendar = .current) -> WidgetSnapshot {
+    static func snapshot(expenses: [Expense], discreet: Bool, converter: CurrencyConverter, now: Date = .now, calendar: Calendar = .gregorianLocal) -> WidgetSnapshot {
         let counted = ExpenseCalculator.counted(expenses, now: now, calendar: calendar)
         let total = ExpenseCalculator.monthlyTotal(expenses, converter: converter, now: now, calendar: calendar)
-        let recurring = expenses
-            .filter { $0.isActive && $0.cadence.isRecurring }
-            .reduce(Decimal.zero) { $0 + converter.monthlyCostInBase(of: $1) }
+        let recurringExpenses = expenses.filter { $0.isActive && $0.cadence.isRecurring }
+        let recurring = recurringExpenses.reduce(Decimal.zero) { $0 + converter.monthlyCostInBase(of: $1) }
         let charges = UpcomingChargeCalculator
             .charges(for: expenses, from: now, days: WidgetSnapshot.chargeWindowDays, calendar: calendar)
             .map { charge in
@@ -29,6 +28,7 @@ enum WidgetSnapshotWriter {
             monthlyTotal: "\(total.rounded())",
             recurringMonthlyTotal: "\(recurring.rounded())",
             activeCount: counted.count,
+            recurringActiveCount: recurringExpenses.count,
             discreet: discreet,
             charges: charges
         )
@@ -40,7 +40,7 @@ enum WidgetSnapshotWriter {
         let next = snapshot(expenses: expenses, discreet: discreet, converter: converter)
         if var current = WidgetSnapshotStore.load() {
             // Refresh at least daily so the charge window keeps rolling forward.
-            let sameDay = Calendar.current.isDate(current.generatedAt, inSameDayAs: next.generatedAt)
+            let sameDay = Calendar.gregorianLocal.isDate(current.generatedAt, inSameDayAs: next.generatedAt)
             current.generatedAt = next.generatedAt
             if current == next, sameDay { return }
         }

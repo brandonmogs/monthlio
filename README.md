@@ -22,6 +22,11 @@ cost broken down by category.
 - JSON backup and restore, CSV export and CSV import
 - iCloud sync (Monthlio Pro, a one-time purchase; free on every device
   for anyone who downloaded Monthlio before Pro existed)
+- Custom expense colors (Monthlio Pro), shown on every screen and in widgets
+- Weekly, biweekly, quarterly and yearly charges on the timeline, in
+  reminders and in the widget once they have a next charge date
+- Undo after deleting an expense; a per-device app lock with a grace
+  period; a reminder time of your choosing
 - English source strings in a String Catalog, ready for translation
 
 ## Build & run

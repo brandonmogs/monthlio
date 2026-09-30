@@ -61,6 +61,8 @@ struct SubscriptionsView: View {
                     Text(ExpenseCalculator.monthlyTotal(active, converter: currencyStore.converter).rounded().currencyString)
                         .font(.title2.weight(.bold))
                         .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {

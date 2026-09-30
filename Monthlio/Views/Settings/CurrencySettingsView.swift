@@ -41,6 +41,7 @@ struct CurrencySettingsView: View {
                 Text("Monthlio works offline and never fetches rates. Enter how much one unit of each currency is worth in \(base). Currencies without a rate count 1:1 until you add one.")
             }
         }
+        .keyboardDoneButton()
         .navigationTitle("Currency")
         .navigationBarTitleDisplayMode(.inline)
         .alert("Rates needed for \(pendingBaseWithoutPivot ?? "")", isPresented: Binding(

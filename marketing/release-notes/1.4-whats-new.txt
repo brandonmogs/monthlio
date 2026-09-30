@@ -1,0 +1,12 @@
+
+Every cadence on the timeline: give a weekly, quarterly or yearly expense its next charge date and it shows up in Upcoming, in the widget and in reminders.
+
+Undo: deleted something by accident? Tap Undo.
+
+Monthlio Pro: give any expense its own color, on every screen and in widgets.
+
+Reminders and the app lock are now settings for each device, with a lock grace period so a quick hop to another app doesn't ask for Face ID again, and a reminder time of your choosing.
+
+Smarter money: a notice when a currency has no exchange rate, an offer to convert income and budgets when you change your base currency, and a price-increase badge that no longer fires when you switch billing cycles.
+
+Plus a recovery path for a data file that can't be opened, duplicate clean-up after iCloud merges, and many smaller fixes.

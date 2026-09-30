@@ -301,7 +301,7 @@ enum CSVImporter {
 
     static func parseDueDay(_ raw: String) -> Int? {
         if let date = parseDate(raw) {
-            return Calendar.current.component(.day, from: date)
+            return Calendar.gregorianLocal.component(.day, from: date)
         }
         let digits = raw.filter(\.isNumber)
         guard let day = Int(digits), (1...31).contains(day) else { return nil }

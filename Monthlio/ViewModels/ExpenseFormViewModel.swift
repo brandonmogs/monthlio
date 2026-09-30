@@ -35,7 +35,7 @@ final class ExpenseFormViewModel {
         // edited as its day of month, so saving doesn't lose the schedule.
         let importedDay = expense
             .flatMap { $0.cadence == .monthly && $0.dueDay == nil ? $0.chargeDate : nil }
-            .map { Calendar.current.component(.day, from: $0) }
+            .map { Calendar.gregorianLocal.component(.day, from: $0) }
         hasDueDay = expense?.dueDay != nil || importedDay != nil
         dueDay = expense?.dueDay ?? importedDay ?? 1
         chargeDate = expense?.chargeDate ?? .now

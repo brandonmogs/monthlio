@@ -28,7 +28,7 @@ extension MonthlioSchemaV1 {
 
         /// First day of the snapshot's month, for charting on a date axis.
         var monthStart: Date {
-            Calendar.current.date(from: DateComponents(year: year, month: month, day: 1)) ?? .now
+            Calendar.gregorianLocal.date(from: DateComponents(year: year, month: month, day: 1)) ?? .now
         }
 
         var shortLabel: String {

@@ -40,7 +40,7 @@ enum UpcomingChargeCalculator {
 
     /// Dates a charge hits in the `days`-day window starting at `start`
     /// (inclusive of the start day, exclusive of the end).
-    static func occurrences(cadence: Cadence, dueDay: Int?, anchor: Date?, from start: Date, days: Int = windowDays, calendar: Calendar = .current) -> [Date] {
+    static func occurrences(cadence: Cadence, dueDay: Int?, anchor: Date?, from start: Date, days: Int = windowDays, calendar: Calendar = .gregorianLocal) -> [Date] {
         let startDay = calendar.startOfDay(for: start)
         guard days > 0, let end = calendar.date(byAdding: .day, value: days, to: startDay) else { return [] }
         switch cadence {
@@ -60,18 +60,18 @@ enum UpcomingChargeCalculator {
         }
     }
 
-    static func occurrences(for expense: Expense, from start: Date = .now, days: Int = windowDays, calendar: Calendar = .current) -> [Date] {
+    static func occurrences(for expense: Expense, from start: Date = .now, days: Int = windowDays, calendar: Calendar = .gregorianLocal) -> [Date] {
         occurrences(cadence: expense.cadence, dueDay: expense.dueDay, anchor: scheduleAnchor(for: expense), from: start, days: days, calendar: calendar)
     }
 
     /// Monthly occurrences of a day of month. Kept for callers that only
     /// know a day; the other cadences need a charge date and produce nothing.
-    static func occurrences(dueDay: Int, cadence: Cadence, from start: Date, days: Int = windowDays, calendar: Calendar = .current) -> [Date] {
+    static func occurrences(dueDay: Int, cadence: Cadence, from start: Date, days: Int = windowDays, calendar: Calendar = .gregorianLocal) -> [Date] {
         occurrences(cadence: cadence, dueDay: dueDay, anchor: nil, from: start, days: days, calendar: calendar)
     }
 
     /// The single date a one-time charge hits, if it falls in the window.
-    static func oneTimeOccurrence(chargeDate: Date, from start: Date, days: Int = windowDays, calendar: Calendar = .current) -> [Date] {
+    static func oneTimeOccurrence(chargeDate: Date, from start: Date, days: Int = windowDays, calendar: Calendar = .gregorianLocal) -> [Date] {
         let startDay = calendar.startOfDay(for: start)
         let chargeDay = calendar.startOfDay(for: chargeDate)
         guard let end = calendar.date(byAdding: .day, value: days, to: startDay) else { return [] }
@@ -80,16 +80,16 @@ enum UpcomingChargeCalculator {
 
     /// The next date a charge hits on or after `start`, looking far enough
     /// ahead for a yearly charge.
-    static func nextCharge(cadence: Cadence, dueDay: Int?, anchor: Date?, after start: Date = .now, lookaheadDays: Int = 400, calendar: Calendar = .current) -> Date? {
+    static func nextCharge(cadence: Cadence, dueDay: Int?, anchor: Date?, after start: Date = .now, lookaheadDays: Int = 400, calendar: Calendar = .gregorianLocal) -> Date? {
         occurrences(cadence: cadence, dueDay: dueDay, anchor: anchor, from: start, days: lookaheadDays, calendar: calendar).first
     }
 
-    static func nextCharge(for expense: Expense, after start: Date = .now, calendar: Calendar = .current) -> Date? {
+    static func nextCharge(for expense: Expense, after start: Date = .now, calendar: Calendar = .gregorianLocal) -> Date? {
         nextCharge(cadence: expense.cadence, dueDay: expense.dueDay, anchor: scheduleAnchor(for: expense), after: start, calendar: calendar)
     }
 
     /// All charges in the window across active expenses, sorted by date then amount.
-    static func charges(for expenses: [Expense], from start: Date = .now, days: Int = windowDays, calendar: Calendar = .current) -> [UpcomingCharge] {
+    static func charges(for expenses: [Expense], from start: Date = .now, days: Int = windowDays, calendar: Calendar = .gregorianLocal) -> [UpcomingCharge] {
         expenses
             .filter(\.isActive)
             .flatMap { expense -> [UpcomingCharge] in

@@ -51,7 +51,7 @@ final class NotificationScheduler {
     /// `discreet` hides names and amounts, for when the app lock is on.
     /// Nothing is scheduled while the permission is missing: iOS would
     /// drop the requests anyway, and the UI shows the denied state.
-    func reschedule(for expenses: [Expense], enabled: Bool, discreet: Bool, hour: Int = reminderHour, calendar: Calendar = .current) async {
+    func reschedule(for expenses: [Expense], enabled: Bool, discreet: Bool, hour: Int = reminderHour, calendar: Calendar = .gregorianLocal) async {
         generation += 1
         let mine = generation
         // Read the models now, on the main actor, before any await.
@@ -73,7 +73,7 @@ final class NotificationScheduler {
     /// Pure: the requests that should be pending as of `now`. A reminder
     /// fires at `hour` o'clock the day before the charge; it's skipped only
     /// once that moment has passed, not at midnight of that day.
-    nonisolated static func requests(for expenses: [Expense], now: Date = .now, discreet: Bool, hour: Int = reminderHour, calendar: Calendar = .current) -> [UNNotificationRequest] {
+    nonisolated static func requests(for expenses: [Expense], now: Date = .now, discreet: Bool, hour: Int = reminderHour, calendar: Calendar = .gregorianLocal) -> [UNNotificationRequest] {
         let charges = UpcomingChargeCalculator.charges(for: expenses, from: now, days: lookaheadDays, calendar: calendar)
         var requests: [UNNotificationRequest] = []
 

@@ -30,6 +30,8 @@ struct CategoryLegendRow: View {
                         Text(slice.amount.rounded().currencyString)
                             .font(.body.weight(.semibold))
                             .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
                         Text(slice.percentage.formatted(.percent.precision(.fractionLength(0))))
                             .font(.caption)
                             .foregroundStyle(.secondary)

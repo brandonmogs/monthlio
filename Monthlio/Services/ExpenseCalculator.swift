@@ -27,7 +27,7 @@ extension ExpenseCosting {
     /// Whether this expense contributes to the month containing `date`.
     /// Recurring expenses always do while active; one-time expenses only in
     /// the month they hit.
-    func counts(inMonthOf date: Date, calendar: Calendar = .current) -> Bool {
+    func counts(inMonthOf date: Date, calendar: Calendar = .gregorianLocal) -> Bool {
         guard isActive else { return false }
         guard let oneTimeDate else { return true }
         return calendar.isDate(oneTimeDate, equalTo: date, toGranularity: .month)
@@ -51,12 +51,12 @@ struct CategorySlice: Identifiable, Equatable {
 enum ExpenseCalculator {
     /// Expenses that belong in the month containing `now`: active recurring
     /// ones plus one-time ones that hit that month.
-    static func counted<E: ExpenseCosting>(_ expenses: [E], now: Date = .now, calendar: Calendar = .current) -> [E] {
+    static func counted<E: ExpenseCosting>(_ expenses: [E], now: Date = .now, calendar: Calendar = .gregorianLocal) -> [E] {
         expenses.filter { $0.counts(inMonthOf: now, calendar: calendar) }
     }
 
     /// Sum of monthly equivalents for the month containing `now`, in the base currency.
-    static func monthlyTotal<E: ExpenseCosting>(_ expenses: [E], converter: CurrencyConverter, now: Date = .now, calendar: Calendar = .current) -> Decimal {
+    static func monthlyTotal<E: ExpenseCosting>(_ expenses: [E], converter: CurrencyConverter, now: Date = .now, calendar: Calendar = .gregorianLocal) -> Decimal {
         counted(expenses, now: now, calendar: calendar)
             .reduce(Decimal.zero) { $0 + converter.monthlyCostInBase(of: $1) }
     }
@@ -64,13 +64,13 @@ enum ExpenseCalculator {
     /// Currency codes of this month's expenses that `converter` can't
     /// convert. Those amounts count 1:1 until the user enters a rate, so
     /// the dashboard warns and history isn't recorded while any are missing.
-    static func missingRateCodes<E: ExpenseCosting>(_ expenses: [E], converter: CurrencyConverter, now: Date = .now, calendar: Calendar = .current) -> [String] {
+    static func missingRateCodes<E: ExpenseCosting>(_ expenses: [E], converter: CurrencyConverter, now: Date = .now, calendar: Calendar = .gregorianLocal) -> [String] {
         converter.missingCodes(in: counted(expenses, now: now, calendar: calendar).map(\.currencyCode))
     }
 
     /// Spend per category for the month containing `now`, in the base
     /// currency, sorted descending. Categories with zero spend are omitted.
-    static func categoryBreakdown<E: ExpenseCosting>(_ expenses: [E], converter: CurrencyConverter, now: Date = .now, calendar: Calendar = .current) -> [CategorySlice] {
+    static func categoryBreakdown<E: ExpenseCosting>(_ expenses: [E], converter: CurrencyConverter, now: Date = .now, calendar: Calendar = .gregorianLocal) -> [CategorySlice] {
         let active = counted(expenses, now: now, calendar: calendar)
         let total = monthlyTotal(active, converter: converter, now: now, calendar: calendar)
         let grouped = Dictionary(grouping: active, by: \.category)

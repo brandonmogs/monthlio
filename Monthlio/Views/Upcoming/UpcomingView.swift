@@ -76,6 +76,8 @@ struct UpcomingView: View {
                     Text(UpcomingChargeCalculator.total(of: charges, converter: currencyStore.converter).rounded().currencyString)
                         .font(.title2.weight(.bold))
                         .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
                 }
                 Spacer()
                 Text("^[\(charges.count) charge](inflect: true)")
@@ -140,6 +142,8 @@ private struct UpcomingChargeRow: View {
             Text(charge.expense.amount.currencyString(in: charge.expense.currencyCode))
                 .font(.body.weight(.semibold))
                 .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)

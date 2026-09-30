@@ -41,6 +41,8 @@ struct ExpenseRow: View {
                 Text(expense.amount.currencyString(in: expense.currencyCode) + expense.cadence.shortSuffix)
                     .font(.body.weight(.semibold))
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                 if expense.cadence == .oneTime {
                     if !expense.counts(inMonthOf: .now) {
                         Text("Not this month")

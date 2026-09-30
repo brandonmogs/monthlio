@@ -26,6 +26,7 @@ struct BudgetEditorView: View {
                 Text("Leave a category blank for no budget. Budgets compare against monthly-equivalent spending.")
             }
         }
+        .keyboardDoneButton()
         .navigationTitle("Category budgets")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -62,7 +63,7 @@ private struct BudgetRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(category.title)
-                Text("Spending \(spent.rounded().currencyString)/mo")
+                Text(spendingLine)
                     .font(.caption)
                     .foregroundStyle(statusColor)
             }
@@ -75,6 +76,18 @@ private struct BudgetRow: View {
                 .frame(maxWidth: 120)
         }
         .onChange(of: cap) { _, newValue in commit(newValue) }
+    }
+
+    /// Words as well as color: "over budget" and "near the cap" read the
+    /// same to everyone.
+    private var spendingLine: String {
+        let spending = String(localized: "Spending \(spent.rounded().currencyString)/mo")
+        guard let progress = BudgetEvaluator.progress(spent: spent, cap: budget?.cap) else { return spending }
+        switch progress.status {
+        case .over: return spending + " · " + String(localized: "over budget")
+        case .near: return spending + " · " + String(localized: "near the cap")
+        case .under: return spending
+        }
     }
 
     private var statusColor: Color {

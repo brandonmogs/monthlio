@@ -49,12 +49,15 @@ struct WidgetSnapshot: Codable, Equatable {
     /// one-time charge doesn't linger into next month.
     var recurringMonthlyTotal: String
     var activeCount: Int
+    /// Active recurring expenses only, shown with `recurringMonthlyTotal`
+    /// once the month has rolled over. Absent in older snapshots.
+    var recurringActiveCount: Int? = nil
     /// True when the app lock is on: widgets hide names and amounts.
     var discreet: Bool
     /// Sorted by date, `chargeWindowDays` ahead of `generatedAt`.
     var charges: [Charge]
 
-    static func monthKey(for date: Date, calendar: Calendar = .current) -> String {
+    static func monthKey(for date: Date, calendar: Calendar = .gregorianLocal) -> String {
         let parts = calendar.dateComponents([.year, .month], from: date)
         return String(format: "%04d-%02d", parts.year ?? 0, parts.month ?? 0)
     }
@@ -101,7 +104,7 @@ struct WidgetEntryContent: Equatable {
     var hasData: Bool
 
     /// Sample content for the gallery and placeholders.
-    static func placeholder(now: Date = .now, calendar: Calendar = .current) -> WidgetEntryContent {
+    static func placeholder(now: Date = .now, calendar: Calendar = .gregorianLocal) -> WidgetEntryContent {
         let today = calendar.startOfDay(for: now)
         func day(_ offset: Int) -> Date { calendar.date(byAdding: .day, value: offset, to: today) ?? today }
         let charges = [
@@ -131,7 +134,7 @@ enum WidgetTimelineBuilder {
     static let upcomingCount = 3
 
     /// One entry for now, then one per midnight for `days` days.
-    static func entries(from snapshot: WidgetSnapshot?, now: Date = .now, days: Int = 14, calendar: Calendar = .current) -> [WidgetEntryContent] {
+    static func entries(from snapshot: WidgetSnapshot?, now: Date = .now, days: Int = 14, calendar: Calendar = .gregorianLocal) -> [WidgetEntryContent] {
         let startOfToday = calendar.startOfDay(for: now)
         var dates = [now]
         for offset in 1...max(days, 1) {
@@ -140,7 +143,7 @@ enum WidgetTimelineBuilder {
         return dates.map { content(from: snapshot, at: $0, calendar: calendar) }
     }
 
-    static func content(from snapshot: WidgetSnapshot?, at date: Date, calendar: Calendar = .current) -> WidgetEntryContent {
+    static func content(from snapshot: WidgetSnapshot?, at date: Date, calendar: Calendar = .gregorianLocal) -> WidgetEntryContent {
         guard let snapshot else {
             return WidgetEntryContent(
                 date: date,
@@ -159,16 +162,16 @@ enum WidgetTimelineBuilder {
         let upcoming = snapshot.charges.filter { calendar.startOfDay(for: $0.date) >= today }
         let next = upcoming.first
         let days = next.map { calendar.dateComponents([.day], from: today, to: calendar.startOfDay(for: $0.date)).day ?? 0 }
-        let totalText = WidgetSnapshot.monthKey(for: date, calendar: calendar) == snapshot.monthKey
-            ? snapshot.monthlyTotal
-            : snapshot.recurringMonthlyTotal
+        let sameMonth = WidgetSnapshot.monthKey(for: date, calendar: calendar) == snapshot.monthKey
+        let totalText = sameMonth ? snapshot.monthlyTotal : snapshot.recurringMonthlyTotal
+        let activeCount = sameMonth ? snapshot.activeCount : (snapshot.recurringActiveCount ?? snapshot.activeCount)
         let age = calendar.dateComponents([.day], from: snapshot.generatedAt, to: date).day ?? 0
 
         return WidgetEntryContent(
             date: date,
             baseCurrencyCode: snapshot.baseCurrencyCode,
             monthlyTotal: Decimal(string: totalText, locale: Locale(identifier: "en_US_POSIX")),
-            activeCount: snapshot.activeCount,
+            activeCount: activeCount,
             nextCharge: next,
             daysUntilNext: days,
             upcoming: Array(upcoming.prefix(upcomingCount)),

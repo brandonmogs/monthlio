@@ -35,6 +35,24 @@ final class BackupServiceTests: XCTestCase {
         try context.save()
     }
 
+    func testBackupKeepsSubSecondDates() throws {
+        let source = try makeContext()
+        let created = Date(timeIntervalSince1970: 1_700_000_000.75)
+        source.insert(Expense(name: "Gym", amount: 45, category: .health, createdAt: created))
+        try source.save()
+
+        let data = try BackupService.data(from: source)
+        XCTAssertTrue(String(decoding: data, as: UTF8.self).contains("T22:13:20.750Z"), "fractional seconds are written")
+        let target = try makeContext()
+        try BackupService.restore(try BackupService.decode(data), into: target, mode: .replace)
+        XCTAssertEqual(try target.fetch(FetchDescriptor<Expense>()).first?.createdAt, created)
+
+        // A file written before fractional seconds still decodes.
+        let legacy = String(decoding: data, as: UTF8.self).replacingOccurrences(of: "T22:13:20.750Z", with: "T22:13:20Z")
+        let document = try BackupService.decode(Data(legacy.utf8))
+        XCTAssertEqual(document.expenses.first?.createdAt, Date(timeIntervalSince1970: 1_700_000_000))
+    }
+
     func testABackupCarryingADuplicatedExpenseRestoresItOnce() throws {
         let source = try makeContext()
         try seed(source)

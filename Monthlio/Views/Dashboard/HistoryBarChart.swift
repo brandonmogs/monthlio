@@ -6,7 +6,7 @@ struct HistoryBarChart: View {
     let snapshots: [MonthSnapshot]
 
     private var currentKey: String {
-        let parts = Calendar.current.dateComponents([.year, .month], from: .now)
+        let parts = Calendar.gregorianLocal.dateComponents([.year, .month], from: .now)
         return MonthSnapshot.key(year: parts.year ?? 0, month: parts.month ?? 0)
     }
 

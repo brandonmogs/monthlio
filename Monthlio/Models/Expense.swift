@@ -92,7 +92,7 @@ extension MonthlioSchemaV2 {
         /// enough to still matter.
         var hadPriceIncrease: Bool { hasPriceIncrease() }
 
-        func hasPriceIncrease(asOf now: Date = .now, calendar: Calendar = .current) -> Bool {
+        func hasPriceIncrease(asOf now: Date = .now, calendar: Calendar = .gregorianLocal) -> Bool {
             guard let previousAmount, previousAmount < amount else { return false }
             guard let amountChangedAt,
                   let expiry = calendar.date(byAdding: .day, value: Self.priceIncreaseWindowDays, to: amountChangedAt) else { return true }

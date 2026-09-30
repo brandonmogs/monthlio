@@ -30,6 +30,8 @@ struct SubscriptionRow: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
                         if expense.hadPriceIncrease, let previous = expense.previousAmount {
                             increaseLine(from: previous)
                                 .font(.caption2)

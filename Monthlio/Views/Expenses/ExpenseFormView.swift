@@ -33,6 +33,7 @@ struct ExpenseFormView: View {
             }
             .navigationTitle(viewModel.title)
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneButton()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

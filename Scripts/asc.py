@@ -355,7 +355,11 @@ def cmd_submit(asc, app, args):
             time.sleep(20)
             state = asc.get(f"/v1/reviewSubmissions/{submission['id']}")["data"]["attributes"]["state"]
             if state not in ("WAITING_FOR_REVIEW", "IN_REVIEW"):
-                raise SystemExit("App Store Connect says the version is not ready to be submitted yet; wait a minute or two and run submit again")
+                # Seen to persist for 10+ minutes on a resubmission after a rejection while
+                # the submission page in App Store Connect already offered "Resubmit to
+                # App Review", which went through at once (1.3 build 8, 2026-09-30).
+                raise SystemExit("App Store Connect says the version is not ready to be submitted yet; wait a minute or two and run submit again, "
+                                 "or open the submission page (App Review > the open submission) and click Resubmit to App Review")
         print("SUBMITTED for review")
     else:
         print("ready; run again with --confirm to submit for review")

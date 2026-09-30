@@ -11,15 +11,22 @@ struct DashboardContentView: View {
     let onEdit: (Expense) -> Void
     let onDelete: (Expense) -> Void
     let onOpenSettings: () -> Void
+    /// Opens Settings on the Currency screen, from the missing-rates banner.
+    var onOpenCurrency: () -> Void = {}
     @Environment(CurrencyStore.self) private var currencyStore
 
     var body: some View {
         let summary = viewModel.summary(for: expenses, converter: currencyStore.converter)
         let delta = SnapshotService.delta(currentTotal: summary.total, snapshots: snapshots)
         let history = SnapshotService.history(from: snapshots, months: 12)
+        let missingRates = ExpenseCalculator.missingRateCodes(expenses, converter: currencyStore.converter)
 
         ScrollView {
             VStack(spacing: 24) {
+                if !missingRates.isEmpty {
+                    MissingRatesBanner(codes: missingRates, onAddRates: onOpenCurrency)
+                }
+
                 MonthlyTotalHeader(
                     total: summary.total,
                     activeCount: summary.activeCount,

@@ -1,8 +1,18 @@
 import SwiftData
 import SwiftUI
 
+/// Screens inside Settings that other views can open directly.
+enum SettingsDestination: Hashable {
+    case budgets
+    case currency
+}
+
 /// Income, budgets, currency, security, reminders and export.
 struct SettingsView: View {
+    /// Pushed when the sheet appears, e.g. the dashboard's rates banner
+    /// opens the Currency screen.
+    var opening: SettingsDestination? = nil
+    @State private var path: [SettingsDestination] = []
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Environment(CurrencyStore.self) private var currencyStore
@@ -19,18 +29,14 @@ struct SettingsView: View {
     private var settings: AppSettings? { settingsRows.first }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Form {
                 incomeSection
                 Section("Budgets & currency") {
-                    NavigationLink {
-                        BudgetEditorView()
-                    } label: {
+                    NavigationLink(value: SettingsDestination.budgets) {
                         Label("Category budgets", systemImage: "gauge.with.dots.needle.33percent")
                     }
-                    NavigationLink {
-                        CurrencySettingsView()
-                    } label: {
+                    NavigationLink(value: SettingsDestination.currency) {
                         LabeledContent {
                             Text(currencyStore.baseCode)
                         } label: {
@@ -42,6 +48,12 @@ struct SettingsView: View {
                 remindersSection
                 syncSection
                 DataSection(notice: $dataNotice)
+            }
+            .navigationDestination(for: SettingsDestination.self) { destination in
+                switch destination {
+                case .budgets: BudgetEditorView()
+                case .currency: CurrencySettingsView()
+                }
             }
             .dataNoticeAlert($dataNotice)
             .navigationTitle("Settings")
@@ -64,6 +76,7 @@ struct SettingsView: View {
             .onAppear {
                 let current = AppSettings.current(in: modelContext)
                 income = current.hasIncome ? current.monthlyIncome : nil
+                if let opening, path.isEmpty { path = [opening] }
             }
         }
         .presentationDragIndicator(.visible)

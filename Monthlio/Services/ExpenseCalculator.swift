@@ -61,6 +61,13 @@ enum ExpenseCalculator {
             .reduce(Decimal.zero) { $0 + converter.monthlyCostInBase(of: $1) }
     }
 
+    /// Currency codes of this month's expenses that `converter` can't
+    /// convert. Those amounts count 1:1 until the user enters a rate, so
+    /// the dashboard warns and history isn't recorded while any are missing.
+    static func missingRateCodes<E: ExpenseCosting>(_ expenses: [E], converter: CurrencyConverter, now: Date = .now, calendar: Calendar = .current) -> [String] {
+        converter.missingCodes(in: counted(expenses, now: now, calendar: calendar).map(\.currencyCode))
+    }
+
     /// Spend per category for the month containing `now`, in the base
     /// currency, sorted descending. Categories with zero spend are omitted.
     static func categoryBreakdown<E: ExpenseCosting>(_ expenses: [E], converter: CurrencyConverter, now: Date = .now, calendar: Calendar = .current) -> [CategorySlice] {

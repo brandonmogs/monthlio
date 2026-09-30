@@ -111,9 +111,15 @@ struct RootTabView: View {
     /// Records this month's total, refreshes local reminders and hands the
     /// widgets a fresh snapshot.
     private func sync() async {
-        let total = ExpenseCalculator.monthlyTotal(expenses, converter: currencyStore.converter)
-        SnapshotService.record(total: total, in: modelContext)
-        WidgetSnapshotWriter.update(expenses: expenses, settings: settingsRows.first, converter: currencyStore.converter)
+        let converter = currencyStore.converter
+        let total = ExpenseCalculator.monthlyTotal(expenses, converter: converter)
+        // Past months freeze, so never record a total that is known to be
+        // wrong: an empty store (a new device before its first iCloud
+        // import) or a currency still counting 1:1 for want of a rate.
+        if !expenses.isEmpty, ExpenseCalculator.missingRateCodes(expenses, converter: converter).isEmpty {
+            SnapshotService.record(total: total, in: modelContext)
+        }
+        WidgetSnapshotWriter.update(expenses: expenses, settings: settingsRows.first, converter: converter)
 
         let enabled = settingsRows.first?.notificationsEnabled ?? false
         let discreet = settingsRows.first?.requireAuthentication ?? false

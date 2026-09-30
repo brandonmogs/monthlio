@@ -47,6 +47,10 @@ struct ExpenseRow: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+                } else if !currencyStore.converter.hasRate(for: expense.currencyCode) {
+                    Text("Rate needed")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
                 } else if expense.cadence != .monthly || expense.currencyCode != currencyStore.baseCode {
                     Text("≈ \(currencyStore.converter.monthlyCostInBase(of: expense).rounded().currencyString)/mo")
                         .font(.caption)

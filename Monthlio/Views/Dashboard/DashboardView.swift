@@ -13,6 +13,7 @@ struct DashboardView: View {
     @State private var viewModel = DashboardViewModel()
     @State private var showingAddSheet = false
     @State private var showingSettings = DashboardView.opensSettingsAtLaunch
+    @State private var settingsDestination: SettingsDestination?
     @State private var editingExpense: Expense?
 
     /// DEBUG builds honour `-MonthlioSettings` so screenshots can open Settings.
@@ -38,7 +39,11 @@ struct DashboardView: View {
                         viewModel: viewModel,
                         onEdit: { editingExpense = $0 },
                         onDelete: delete,
-                        onOpenSettings: { showingSettings = true }
+                        onOpenSettings: { showingSettings = true },
+                        onOpenCurrency: {
+                            settingsDestination = .currency
+                            showingSettings = true
+                        }
                     )
                 }
             }
@@ -64,8 +69,8 @@ struct DashboardView: View {
             .sheet(isPresented: $showingAddSheet) {
                 ExpenseFormView()
             }
-            .sheet(isPresented: $showingSettings) {
-                SettingsView()
+            .sheet(isPresented: $showingSettings, onDismiss: { settingsDestination = nil }) {
+                SettingsView(opening: settingsDestination)
             }
             .sheet(item: $editingExpense) { expense in
                 ExpenseFormView(expense: expense)

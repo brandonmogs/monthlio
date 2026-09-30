@@ -35,6 +35,19 @@ final class ExpenseCalculatorTests: XCTestCase {
         XCTAssertEqual(breakdown.map(\.amount), [100, 100])
     }
 
+    func testMissingRateCodesCoverOnlyThisMonthsExpenses() {
+        let converter = CurrencyConverter(baseCode: "USD", rates: ["EUR": 1.1])
+        let expenses = [
+            TestExpense(amount: 10, cadence: .monthly, category: .food, currencyCode: "EUR"),
+            TestExpense(amount: 10, cadence: .monthly, category: .food, currencyCode: "JPY"),
+            TestExpense(amount: 10, cadence: .monthly, category: .food, isActive: false, currencyCode: "GBP"),
+            TestExpense(amount: 10, cadence: .oneTime, category: .food, currencyCode: "CHF", chargeDate: day(2026, 1, 5)),
+            TestExpense(amount: 10, cadence: .monthly, category: .food, currencyCode: "USD"),
+        ]
+        let missing = ExpenseCalculator.missingRateCodes(expenses, converter: converter, now: day(2026, 9, 15), calendar: calendar)
+        XCTAssertEqual(missing, ["JPY"], "paused and other-month expenses don't need a rate yet")
+    }
+
     func testOneTimeCountsOnlyInItsMonth() {
         let expenses = [
             TestExpense(amount: 100, cadence: .monthly, category: .housing),

@@ -19,10 +19,19 @@ final class StoreKitIntegrationTests: XCTestCase {
         session.disableDialogs = true
         session.clearTransactions()
 
-        let client = StoreKitProClient()
-        let product = try? await client.product(id: ProStore.productID)
-        try XCTSkipIf(product == nil, "StoreKit testing needs an Xcode IDE run on iOS 26.3+ simulators (command-line runs can't push the configuration); run this from Xcode with Cmd+U")
+        // The App Store sandbox answers product requests from the simulator
+        // too (the Paid Apps Agreement is active), so a loaded product no
+        // longer proves the local configuration is in charge. A purchase
+        // through the test session does: it throws SKInternalErrorDomain 3
+        // when the configuration never reached storekitd, and a real
+        // sandbox purchase would block on a sign-in sheet instead.
+        guard (try? await session.buyProduct(identifier: ProStore.productID, options: [])) != nil else {
+            throw XCTSkip("StoreKit testing needs an Xcode IDE run on iOS 26.3+ simulators (command-line runs can't push the configuration); run this from Xcode with Cmd+U")
+        }
+        session.clearTransactions()
 
+        let client = StoreKitProClient()
+        let product = try await client.product(id: ProStore.productID)
         XCTAssertEqual(product?.displayPrice, "$9.99")
         let outcome = try await client.purchase(id: ProStore.productID)
         XCTAssertEqual(outcome, .purchased)

@@ -26,6 +26,11 @@ struct EmptyStateView: View {
                 }
                 .padding(.horizontal)
 
+                if CloudRestoreCard.isRelevant {
+                    CloudRestoreCard()
+                        .padding(.horizontal)
+                }
+
                 Button {
                     showingAddSheet = true
                 } label: {
@@ -85,6 +90,69 @@ struct EmptyStateView: View {
         }
         try? modelContext.save()
         Haptics.success()
+    }
+}
+
+/// A reinstall (or a new phone set up without a device backup) starts
+/// with an empty local store and, until now, no hint that months of data
+/// were waiting in iCloud. Shown when the device is signed in to iCloud
+/// and sync is off; the button asks the App Store whether this account
+/// may sync and turns it on, or offers Pro.
+struct CloudRestoreCard: View {
+    @Environment(ProStore.self) private var pro
+    @State private var checking = false
+    @State private var syncTurnedOn = false
+    @State private var showingPaywall = false
+
+    static var isRelevant: Bool {
+        FileManager.default.ubiquityIdentityToken != nil && !SyncPreference.isEnabled()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Had Monthlio before?", systemImage: "icloud.and.arrow.down")
+                .font(.headline)
+            if syncTurnedOn {
+                Text("iCloud sync is on. Quit Monthlio from the app switcher and reopen it to load your expenses.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Your expenses may be waiting in iCloud. Turn on iCloud sync to bring them back to this device.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Button {
+                    Task { await restore() }
+                } label: {
+                    if checking {
+                        ProgressView()
+                    } else {
+                        Text("Turn on iCloud sync")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(checking)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+        .sheet(isPresented: $showingPaywall) {
+            PaywallView {
+                SyncPreference.setEnabled(true)
+                syncTurnedOn = true
+            }
+        }
+    }
+
+    private func restore() async {
+        checking = true
+        defer { checking = false }
+        if await pro.enableSyncIfAllowed() {
+            syncTurnedOn = true
+            Haptics.success()
+        } else {
+            showingPaywall = true
+        }
     }
 }
 

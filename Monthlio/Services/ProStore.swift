@@ -201,6 +201,18 @@ final class ProStore {
     /// the answer is empty or fails. The error is reported once, after the
     /// last attempt, so the paywall shows a spinner rather than a message
     /// that flickers between tries.
+    /// For a reinstalled device with an empty store: asks the App Store
+    /// whether this account may sync (an early download or a Pro purchase)
+    /// and turns sync on if so. Returns whether sync is now on; the store
+    /// itself switches to iCloud on the next launch.
+    func enableSyncIfAllowed() async -> Bool {
+        await recordOriginalBuildIfNeeded()
+        await refreshEntitlement()
+        guard canSync else { return false }
+        SyncPreference.setEnabled(true, defaults)
+        return true
+    }
+
     func loadProduct() async {
         guard product == nil, !isLoadingProduct else { return }
         isLoadingProduct = true

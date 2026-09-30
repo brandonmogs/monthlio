@@ -266,6 +266,31 @@ final class ProStoreTests: XCTestCase {
         XCTAssertFalse(fresh.isEntitled, "nothing cached and nothing entitled stays unentitled")
     }
 
+    func testEnableSyncIfAllowedTurnsSyncOnForProOwnersAndEarlyDownloads() async {
+        let client = FakeProClient()
+        client.originalBuild = "sandbox"
+        let store = ProStore(client: client, defaults: defaults)
+
+        var allowed = await store.enableSyncIfAllowed()
+        XCTAssertFalse(allowed, "neither an early download nor a purchase")
+        XCTAssertFalse(SyncPreference.isEnabled(defaults))
+
+        client.entitled = true
+        allowed = await store.enableSyncIfAllowed()
+        XCTAssertTrue(allowed)
+        XCTAssertTrue(SyncPreference.isEnabled(defaults))
+
+        let early = FakeProClient()
+        early.originalBuild = "2"
+        let earlyDefaults = UserDefaults(suiteName: suite + "-early")!
+        defer { earlyDefaults.removePersistentDomain(forName: suite + "-early") }
+        SyncPreference.migrateIfNeeded(storeExists: false, earlyDefaults)
+        let reinstalled = ProStore(client: early, defaults: earlyDefaults)
+        let recovered = await reinstalled.enableSyncIfAllowed()
+        XCTAssertTrue(recovered, "a pre-Pro download gets its iCloud data back")
+        XCTAssertTrue(SyncPreference.isEnabled(earlyDefaults))
+    }
+
     func testDownloadFromBeforeProKeepsSyncOnAnyDevice() async {
         let client = FakeProClient()
         client.originalBuild = "4"

@@ -1,10 +1,10 @@
 import Foundation
 import SwiftData
 
-/// The store's schema history. Every model lives inside its schema version
+/// The store's schema history. Every model lives inside a schema version
 /// (the app refers to the current one through top-level typealiases), so a
-/// future change is a new version plus a migration stage, and an old store
-/// is never opened against a model it doesn't match.
+/// change is a new version plus a migration stage, and an old store is
+/// never opened against a model it doesn't match.
 ///
 /// V1 is what shipped in 1.0 through 1.3: the additions in between were
 /// optional or defaulted attributes, which SwiftData migrates in place.
@@ -16,13 +16,24 @@ enum MonthlioSchemaV1: VersionedSchema {
     }
 }
 
+/// V2 (1.4) adds `Expense.colorHex`. The other models are unchanged and
+/// shared with V1. CloudKit needs the new field deployed to the Production
+/// schema before this version ships (see the README's shipping checklist).
+enum MonthlioSchemaV2: VersionedSchema {
+    static let versionIdentifier = Schema.Version(2, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [Expense.self, MonthlioSchemaV1.AppSettings.self, MonthlioSchemaV1.CategoryBudget.self, MonthlioSchemaV1.MonthSnapshot.self, MonthlioSchemaV1.ExchangeRate.self]
+    }
+}
+
 enum MonthlioMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [MonthlioSchemaV1.self]
+        [MonthlioSchemaV1.self, MonthlioSchemaV2.self]
     }
 
     static var stages: [MigrationStage] {
-        []
+        [.lightweight(fromVersion: MonthlioSchemaV1.self, toVersion: MonthlioSchemaV2.self)]
     }
 }
 

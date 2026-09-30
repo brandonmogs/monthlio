@@ -6,9 +6,11 @@ struct ExpenseFormView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Environment(CurrencyStore.self) private var currencyStore
+    @Environment(ProStore.self) private var pro
 
     @State private var viewModel: ExpenseFormViewModel
     @State private var showingDeleteConfirmation = false
+    @State private var showingPaywall = false
     @FocusState private var focusedField: Field?
 
     private enum Field { case name, amount, notes }
@@ -22,6 +24,7 @@ struct ExpenseFormView: View {
             Form {
                 detailsSection
                 scheduleSection
+                colorSection
                 notesSection
                 if viewModel.isEditing {
                     statusSection
@@ -41,6 +44,9 @@ struct ExpenseFormView: View {
             }
             .onAppear {
                 if !viewModel.isEditing { focusedField = .name }
+            }
+            .sheet(isPresented: $showingPaywall) {
+                PaywallView()
             }
             .confirmationDialog(
                 "Delete this expense?",
@@ -144,6 +150,39 @@ struct ExpenseFormView: View {
         return lines.joined(separator: " ")
     }
 
+    /// Monthlio Pro perk: a color of the user's own for this expense.
+    private var colorSection: some View {
+        Section {
+            if pro.isEntitled {
+                ExpenseColorPicker(selection: $viewModel.colorHex, fallback: viewModel.category.color)
+            } else {
+                Button {
+                    showingPaywall = true
+                } label: {
+                    HStack {
+                        Label("Color", systemImage: "paintpalette")
+                        Spacer()
+                        Text("Pro")
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Color.accentColor.opacity(0.15), in: Capsule())
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .tint(.primary)
+            }
+        } header: {
+            Text("Color")
+        } footer: {
+            Text(pro.isEntitled
+                ? String(localized: "Shown on every screen and in widgets. Auto uses the category's color.")
+                : String(localized: "Monthlio Pro lets you give any expense its own color."))
+        }
+    }
+
     private var notesSection: some View {
         Section("Notes") {
             TextField("Optional", text: $viewModel.notes, axis: .vertical)
@@ -194,10 +233,12 @@ struct ExpenseFormView: View {
     ExpenseFormView()
         .modelContainer(PreviewContainer.empty)
         .environment(CurrencyStore())
+        .environment(ProStore(defaults: UserDefaults(suiteName: "preview")!))
 }
 
 #Preview("Edit") {
     ExpenseFormView(expense: SampleData.starterExpenses()[2])
         .modelContainer(PreviewContainer.shared)
         .environment(CurrencyStore())
+        .environment(ProStore(defaults: UserDefaults(suiteName: "preview")!))
 }

@@ -14,7 +14,7 @@ struct ExpenseRow: View {
                     .font(.subheadline)
                     .foregroundStyle(.white)
                     .frame(width: 32, height: 32)
-                    .background(expense.category.color, in: RoundedRectangle(cornerRadius: 8))
+                    .background(expense.displayColor, in: RoundedRectangle(cornerRadius: 8))
             }
 
             VStack(alignment: .leading, spacing: 2) {

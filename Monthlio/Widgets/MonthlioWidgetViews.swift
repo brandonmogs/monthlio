@@ -75,6 +75,8 @@ private struct HiddenAmount: View {
 
 private struct CategoryTile: View {
     let category: ExpenseCategory
+    /// A custom expense color, when the user set one.
+    var color: Color? = nil
     var size: CGFloat = 24
 
     var body: some View {
@@ -82,7 +84,7 @@ private struct CategoryTile: View {
             .font(.system(size: size * 0.5, weight: .semibold))
             .foregroundStyle(.white)
             .frame(width: size, height: size)
-            .background(category.color, in: RoundedRectangle(cornerRadius: size * 0.28))
+            .background(color ?? category.color, in: RoundedRectangle(cornerRadius: size * 0.28))
     }
 }
 
@@ -93,7 +95,7 @@ private struct ChargeRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            CategoryTile(category: content.isDiscreet ? .other : charge.categoryValue, size: compact ? 22 : 26)
+            CategoryTile(category: content.isDiscreet ? .other : charge.categoryValue, color: content.isDiscreet ? nil : charge.color, size: compact ? 22 : 26)
             VStack(alignment: .leading, spacing: 1) {
                 content.nameText(charge)
                     .font(compact ? .caption : .subheadline)

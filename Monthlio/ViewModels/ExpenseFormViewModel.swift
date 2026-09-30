@@ -18,6 +18,8 @@ final class ExpenseFormViewModel {
     var hasChargeDate: Bool
     var notes: String
     var isActive: Bool
+    /// "#RRGGBB" or nil for the category color. Pro only; the form gates it.
+    var colorHex: String?
 
     /// Non-nil when editing an existing expense.
     let existing: Expense?
@@ -40,6 +42,7 @@ final class ExpenseFormViewModel {
         hasChargeDate = (expense?.cadence.isRecurring ?? false) && expense?.chargeDate != nil
         notes = expense?.notes ?? ""
         isActive = expense?.isActive ?? true
+        colorHex = expense?.colorHex
     }
 
     var isEditing: Bool { existing != nil }
@@ -112,6 +115,7 @@ final class ExpenseFormViewModel {
             existing.chargeDate = resolvedChargeDate
             existing.notes = trimmedNotes.isEmpty ? nil : trimmedNotes
             existing.isActive = isActive
+            existing.colorHex = colorHex
         } else {
             let expense = Expense(
                 name: trimmedName,
@@ -122,7 +126,8 @@ final class ExpenseFormViewModel {
                 dueDay: resolvedDueDay,
                 chargeDate: resolvedChargeDate,
                 isActive: isActive,
-                notes: trimmedNotes.isEmpty ? nil : trimmedNotes
+                notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
+                colorHex: colorHex
             )
             context.insert(expense)
         }

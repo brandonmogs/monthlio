@@ -15,6 +15,8 @@ struct ImportedExpense: Equatable {
     /// When a one-time expense hits (falls back to `createdAt` on commit),
     /// or a known charge date a recurring expense's schedule steps from.
     var chargeDate: Date?
+    /// "#RRGGBB" from a color column, already validated.
+    var colorHex: String?
 }
 
 struct CSVImportPreview: Equatable {
@@ -47,7 +49,7 @@ enum CSVImportError: LocalizedError, Equatable {
 /// "annual" or "Streaming" are normalized. Unknown categories become Other.
 enum CSVImporter {
     enum Column: CaseIterable {
-        case name, amount, currency, cadence, category, dueDay, active, notes, created, chargeDate
+        case name, amount, currency, cadence, category, dueDay, active, notes, created, chargeDate, color
 
         var aliases: [String] {
             switch self {
@@ -61,6 +63,7 @@ enum CSVImporter {
             case .notes: ["notes", "note", "memo", "comment", "comments"]
             case .created: ["created", "created at", "date added", "added", "start date", "first payment"]
             case .chargeDate: ["charge date", "chargedate", "charged on", "date charged", "one time date", "payment date"]
+            case .color: ["color", "colour", "hex", "color hex"]
             }
         }
     }
@@ -137,7 +140,8 @@ enum CSVImporter {
                 isActive: cell(.active).flatMap(parseActive) ?? true,
                 notes: cell(.notes).map(MoneyLimits.clampedNotes).flatMap { $0.isEmpty ? nil : $0 },
                 createdAt: cell(.created).flatMap(parseDate),
-                chargeDate: cell(.chargeDate).flatMap(parseDate) ?? dueDate
+                chargeDate: cell(.chargeDate).flatMap(parseDate) ?? dueDate,
+                colorHex: ExpenseColor.canonicalHex(cell(.color))
             ))
         }
 
@@ -158,7 +162,8 @@ enum CSVImporter {
                 chargeDate: item.cadence == .oneTime ? (item.chargeDate ?? item.createdAt ?? .now) : item.chargeDate,
                 isActive: item.isActive,
                 notes: item.notes,
-                createdAt: item.createdAt ?? .now
+                createdAt: item.createdAt ?? .now,
+                colorHex: item.colorHex
             ))
         }
         try context.save()

@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 /// Everything the widget shows, written by the app whenever expenses,
 /// settings or rates change and read by the extension through the App
@@ -22,6 +23,12 @@ struct WidgetSnapshot: Codable, Equatable {
         /// Start of the day the charge hits.
         var date: Date
         var category: String
+        /// A Pro user's custom color, "#RRGGBB"; nil means the category color.
+        var colorHex: String?
+
+        var color: Color? {
+            colorHex.flatMap { Color(hex: $0) }
+        }
 
         var amountValue: Decimal {
             Decimal(string: amount, locale: Locale(identifier: "en_US_POSIX")) ?? 0

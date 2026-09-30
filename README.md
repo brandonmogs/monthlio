@@ -99,7 +99,10 @@ Things App Store Connect needs that the code can't do for you:
   developer portal if a device build fails to sign.
 - **CloudKit**: deploy schema changes to Production in CloudKit Console
   before submitting a build that adds fields (current fields include
-  `chargeDate` on expenses and `baseCode` on exchange rates).
+  `chargeDate` on expenses and `baseCode` on exchange rates). **1.4 adds
+  `colorHex` on expenses (schema version 2)**: run a development build once
+  so the field appears in the Development environment, then deploy it to
+  Production, or synced installs of 1.4 will fail to save colors.
 - **iPad**: the app now targets iPad, so the listing needs iPad screenshots.
 
 ## Layout

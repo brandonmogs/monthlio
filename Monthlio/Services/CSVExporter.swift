@@ -4,28 +4,31 @@ import UniformTypeIdentifiers
 
 /// Renders expenses as RFC 4180-style CSV.
 enum CSVExporter {
-    static let header = "Name,Amount,Currency,Cadence,Monthly Equivalent,Base Currency,Category,Due Day,Active,Notes,Created,Charge Date"
+    static let header = "Name,Amount,Currency,Cadence,Monthly Equivalent,Base Currency,Category,Due Day,Active,Notes,Created,Charge Date,Color"
 
     static func csv(from expenses: [Expense], converter: CurrencyConverter) -> String {
-        let rows = expenses.map { expense in
-            [
-                expense.name,
-                plain(expense.amount),
-                expense.currencyCode,
-                expense.cadence.rawValue,
-                plain(converter.monthlyCostInBase(of: expense).rounded()),
-                converter.baseCode,
-                expense.category.rawValue,
-                expense.dueDay.map(String.init) ?? "",
-                expense.isActive ? "true" : "false",
-                expense.notes ?? "",
-                expense.createdAt.formatted(.iso8601),
-                (expense.oneTimeDate ?? expense.chargeDate).map(chargeDay) ?? "",
-            ]
-            .map(escape)
-            .joined(separator: ",")
-        }
+        let rows = expenses.map { row(for: $0, converter: converter) }
         return ([header] + rows).joined(separator: "\n") + "\n"
+    }
+
+    /// One line, in `header` order. Built step by step: a single array
+    /// literal of this size makes the type checker give up.
+    private static func row(for expense: Expense, converter: CurrencyConverter) -> String {
+        var fields: [String] = []
+        fields.append(expense.name)
+        fields.append(plain(expense.amount))
+        fields.append(expense.currencyCode)
+        fields.append(expense.cadence.rawValue)
+        fields.append(plain(converter.monthlyCostInBase(of: expense).rounded()))
+        fields.append(converter.baseCode)
+        fields.append(expense.category.rawValue)
+        fields.append(expense.dueDay.map { String($0) } ?? "")
+        fields.append(expense.isActive ? "true" : "false")
+        fields.append(expense.notes ?? "")
+        fields.append(expense.createdAt.formatted(.iso8601))
+        fields.append((expense.oneTimeDate ?? expense.chargeDate).map(chargeDay) ?? "")
+        fields.append(expense.colorHex ?? "")
+        return fields.map(escape).joined(separator: ",")
     }
 
     /// Characters that make spreadsheets treat a cell as a formula.

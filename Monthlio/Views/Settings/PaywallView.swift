@@ -73,6 +73,7 @@ struct PaywallBody: View {
                     VStack(alignment: .leading, spacing: 16) {
                         benefit("icloud", title: "iCloud sync", detail: "Your expenses, budgets and history on every iPhone and iPad signed in to your Apple Account.")
                         benefit("lock.shield", title: "Private by design", detail: "Data syncs through your own iCloud. Monthlio has no servers and no accounts.")
+                        benefit("paintpalette", title: "Your colors", detail: "Give any expense its own color, on every screen and in widgets.")
                         benefit("infinity", title: "Buy once, keep forever", detail: "One purchase, no subscription. Supports an independent app.")
                     }
                     .padding(20)

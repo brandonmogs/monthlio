@@ -38,6 +38,8 @@ struct BackupDocument: Codable, Equatable {
         var createdAt: Date
         var previousAmount: String?
         var amountChangedAt: Date?
+        /// "#RRGGBB"; absent in backups from before 1.4.
+        var colorHex: String?
     }
 
     struct BudgetRecord: Codable, Equatable {

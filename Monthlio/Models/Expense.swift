@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 
 /// A single recurring or one-time expense.
 ///
@@ -9,7 +10,7 @@ import SwiftData
 ///
 /// Every property has a default and nothing is `.unique` because the store
 /// is CloudKit-backed; CloudKit can't enforce uniqueness across devices.
-extension MonthlioSchemaV1 {
+extension MonthlioSchemaV2 {
     @Model
     final class Expense {
         var id: UUID = UUID()
@@ -35,6 +36,9 @@ extension MonthlioSchemaV1 {
         /// Amount before the most recent edit, for price-increase tracking.
         var previousAmount: Decimal?
         var amountChangedAt: Date?
+        /// "#RRGGBB" chosen by a Monthlio Pro user; nil shows the category's
+        /// color. Added in schema version 2.
+        var colorHex: String?
 
         init(
             id: UUID = UUID(),
@@ -47,7 +51,8 @@ extension MonthlioSchemaV1 {
             chargeDate: Date? = nil,
             isActive: Bool = true,
             notes: String? = nil,
-            createdAt: Date = .now
+            createdAt: Date = .now,
+            colorHex: String? = nil
         ) {
             self.id = id
             self.name = name
@@ -60,6 +65,7 @@ extension MonthlioSchemaV1 {
             self.isActive = isActive
             self.notes = notes
             self.createdAt = createdAt
+            self.colorHex = colorHex
         }
 
         var category: ExpenseCategory {
@@ -70,6 +76,11 @@ extension MonthlioSchemaV1 {
         var cadence: Cadence {
             get { Cadence(rawValue: cadenceRaw) ?? .monthly }
             set { cadenceRaw = newValue.rawValue }
+        }
+
+        /// The custom color if one is set and valid, else the category's.
+        var displayColor: Color {
+            colorHex.flatMap { Color(hex: $0) } ?? category.color
         }
 
         /// Edits this soon after creation are typo fixes, not price changes.
@@ -110,7 +121,7 @@ extension MonthlioSchemaV1 {
     }
 }
 
-typealias Expense = MonthlioSchemaV1.Expense
+typealias Expense = MonthlioSchemaV2.Expense
 
 extension Expense: ExpenseCosting {}
 
@@ -121,5 +132,32 @@ extension Expense {
         guard let rows = try? context.fetch(descriptor), !rows.isEmpty else { return }
         for row in rows { row.currencyCode = base }
         try? context.save()
+    }
+}
+
+extension MonthlioSchemaV1 {
+    /// The expense as shipped in 1.0 through 1.3, kept only so an old store
+    /// can migrate. Never used by the app itself.
+    @Model
+    final class Expense {
+        var id: UUID = UUID()
+        var name: String = ""
+        var amount: Decimal = 0
+        var currencyCode: String = ""
+        var categoryRaw: String = ExpenseCategory.other.rawValue
+        var cadenceRaw: String = Cadence.monthly.rawValue
+        var dueDay: Int?
+        var chargeDate: Date?
+        var isActive: Bool = true
+        var notes: String?
+        var createdAt: Date = Date.now
+        var previousAmount: Decimal?
+        var amountChangedAt: Date?
+
+        init(name: String, amount: Decimal, category: ExpenseCategory) {
+            self.name = name
+            self.amount = amount
+            self.categoryRaw = category.rawValue
+        }
     }
 }

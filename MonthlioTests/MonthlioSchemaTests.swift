@@ -4,11 +4,34 @@ import XCTest
 
 @MainActor
 final class MonthlioSchemaTests: XCTestCase {
-    func testTheCurrentModelsAreVersionOne() {
+    func testTheCurrentModelsAreVersionTwo() {
         XCTAssertEqual(MonthlioSchemaV1.versionIdentifier, Schema.Version(1, 0, 0))
+        XCTAssertEqual(MonthlioSchemaV2.versionIdentifier, Schema.Version(2, 0, 0))
         XCTAssertEqual(MonthlioSchemaV1.models.count, 5)
+        XCTAssertEqual(MonthlioSchemaV2.models.count, 5)
         XCTAssertTrue(MonthlioMigrationPlan.schemas.first == MonthlioSchemaV1.self)
-        XCTAssertTrue(MonthlioMigrationPlan.stages.isEmpty)
+        XCTAssertTrue(MonthlioMigrationPlan.schemas.last == MonthlioSchemaV2.self)
+        XCTAssertEqual(MonthlioMigrationPlan.stages.count, 1)
+    }
+
+    func testAVersionOneStoreMigratesToVersionTwo() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "migrate-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appending(path: "default.store")
+
+        // A store written by the 1.3 model set, without a migration plan.
+        let old = try ModelContainer(for: Schema(versionedSchema: MonthlioSchemaV1.self), configurations: [ModelConfiguration(url: url, cloudKitDatabase: .none)])
+        old.mainContext.insert(MonthlioSchemaV1.Expense(name: "Rent", amount: 1850, category: .housing))
+        try old.mainContext.save()
+
+        let current = try ModelContainer(for: MonthlioApp.schema, migrationPlan: MonthlioMigrationPlan.self, configurations: [ModelConfiguration(url: url, cloudKitDatabase: .none)])
+        let rows = try current.mainContext.fetch(FetchDescriptor<Expense>())
+        XCTAssertEqual(rows.map(\.name), ["Rent"])
+        XCTAssertNil(rows.first?.colorHex)
+        rows.first?.colorHex = "#FF3B30"
+        try current.mainContext.save()
+        XCTAssertEqual(try current.mainContext.fetch(FetchDescriptor<Expense>()).first?.colorHex, "#FF3B30")
     }
 
     func testAStoreOnDiskReopensThroughTheMigrationPlan() throws {

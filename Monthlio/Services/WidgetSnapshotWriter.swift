@@ -18,7 +18,8 @@ enum WidgetSnapshotWriter {
                     amount: "\(charge.expense.amount)",
                     currencyCode: charge.expense.currencyCode,
                     date: charge.date,
-                    category: charge.expense.categoryRaw
+                    category: charge.expense.categoryRaw,
+                    colorHex: charge.expense.colorHex
                 )
             }
         return WidgetSnapshot(

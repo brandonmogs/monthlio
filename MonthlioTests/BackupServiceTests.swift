@@ -34,6 +34,20 @@ final class BackupServiceTests: XCTestCase {
         try context.save()
     }
 
+    func testABackupCarryingADuplicatedExpenseRestoresItOnce() throws {
+        let source = try makeContext()
+        try seed(source)
+        var document = try BackupService.document(from: source)
+        document.expenses.append(document.expenses[0])
+
+        let target = try makeContext()
+        let summary = try BackupService.restore(document, into: target, mode: .replace)
+
+        XCTAssertEqual(summary.expensesAdded, 3)
+        XCTAssertEqual(summary.expensesSkipped, 1)
+        XCTAssertEqual(try target.fetchCount(FetchDescriptor<Expense>()), 3)
+    }
+
     func testRoundTripThroughJSONReproducesEverything() throws {
         let source = try makeContext()
         try seed(source)

@@ -111,9 +111,11 @@ enum BackupService {
             for snapshot in try context.fetch(FetchDescriptor<MonthSnapshot>()) { context.delete(snapshot) }
         }
 
-        let existingIDs = Set(try context.fetch(FetchDescriptor<Expense>()).map(\.id))
+        // Ids already in the store, plus each id as it is restored, so a
+        // backup that itself carries a duplicated row restores it once.
+        var existingIDs = Set(try context.fetch(FetchDescriptor<Expense>()).map(\.id))
         for record in document.expenses {
-            guard !existingIDs.contains(record.id),
+            guard existingIDs.insert(record.id).inserted,
                   let amount = Decimal(backupString: record.amount), MoneyLimits.isValidAmount(amount) else {
                 summary.expensesSkipped += 1
                 continue

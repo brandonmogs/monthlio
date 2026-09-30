@@ -1,0 +1,66 @@
+import SwiftData
+import XCTest
+@testable import Monthlio
+
+@MainActor
+final class StoreMaintenanceTests: XCTestCase {
+    private var container: ModelContainer?
+
+    private func makeContext() throws -> ModelContext {
+        let container = try TestContainer.make()
+        self.container = container
+        return container.mainContext
+    }
+
+    override func tearDown() {
+        container = nil
+        super.tearDown()
+    }
+
+    func testDuplicateExpensesCollapseToTheOriginal() throws {
+        let context = try makeContext()
+        let id = UUID()
+        context.insert(Expense(id: id, name: "Rent", amount: 1850, category: .housing, createdAt: Date(timeIntervalSince1970: 2_000)))
+        context.insert(Expense(id: id, name: "Rent", amount: 1850, category: .housing, createdAt: Date(timeIntervalSince1970: 1_000)))
+        context.insert(Expense(name: "Gym", amount: 45, category: .health))
+        try context.save()
+
+        let report = StoreMaintenance.deduplicate(in: context)
+
+        XCTAssertEqual(report.expensesRemoved, 1)
+        let survivors = try context.fetch(FetchDescriptor<Expense>(sortBy: [SortDescriptor(\.name)]))
+        XCTAssertEqual(survivors.map(\.name), ["Gym", "Rent"])
+        XCTAssertEqual(survivors[1].createdAt, Date(timeIntervalSince1970: 1_000), "the oldest copy is the original")
+    }
+
+    func testBudgetsSnapshotsAndSettingsCollapseToTheRowInUse() throws {
+        let context = try makeContext()
+        context.insert(CategoryBudget(category: .food, cap: 500))
+        context.insert(CategoryBudget(category: .food, cap: 600))
+        context.insert(CategoryBudget(category: .transport, cap: 200))
+        context.insert(MonthSnapshot(year: 2026, month: 9, total: 3000, updatedAt: Date(timeIntervalSince1970: 1_000)))
+        context.insert(MonthSnapshot(year: 2026, month: 9, total: 3200, updatedAt: Date(timeIntervalSince1970: 2_000)))
+        context.insert(AppSettings(monthlyIncome: 5200, createdAt: Date(timeIntervalSince1970: 1_000)))
+        context.insert(AppSettings(monthlyIncome: 0, createdAt: Date(timeIntervalSince1970: 2_000)))
+        try context.save()
+
+        let report = StoreMaintenance.deduplicate(in: context)
+
+        XCTAssertEqual(report, StoreMaintenance.Report(expensesRemoved: 0, budgetsRemoved: 1, snapshotsRemoved: 1, settingsRemoved: 1))
+        let budgets = try context.fetch(FetchDescriptor<CategoryBudget>())
+        XCTAssertEqual(budgets.byCategory, [.food: 600, .transport: 200])
+        XCTAssertEqual(budgets.count, 2)
+        let snapshots = try context.fetch(FetchDescriptor<MonthSnapshot>())
+        XCTAssertEqual(snapshots.map(\.total), [3200])
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<AppSettings>()), 1)
+        XCTAssertEqual(AppSettings.existing(in: context)?.monthlyIncome, 5200)
+    }
+
+    func testACleanStoreIsLeftAlone() throws {
+        let context = try makeContext()
+        context.insert(Expense(name: "Gym", amount: 45, category: .health))
+        try context.save()
+        XCTAssertTrue(StoreMaintenance.deduplicate(in: context).isEmpty)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Expense>()), 1)
+    }
+}

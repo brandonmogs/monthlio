@@ -66,7 +66,7 @@ struct DataSection: View {
                 Button("Merge with current data") { restore(document, mode: .merge) }
                 Button("Cancel", role: .cancel) { pendingRestore = nil }
             } message: { document in
-                Text("Backup from \(document.exportedAt.formatted(date: .abbreviated, time: .shortened)) with ^[\(document.expenses.count) expense](inflect: true). Replacing deletes everything currently in Monthlio first.")
+                restoreWarning(for: document)
             }
 
             Button {
@@ -122,6 +122,14 @@ struct DataSection: View {
         } catch {
             notice = DataNotice(title: String(localized: "Couldn't restore"), message: Text(error.localizedDescription))
         }
+    }
+
+    /// Replacing on a synced store deletes on every device; two devices
+    /// each restoring the same backup would double every expense.
+    private func restoreWarning(for document: BackupDocument) -> Text {
+        let summary = Text("Backup from \(document.exportedAt.formatted(date: .abbreviated, time: .shortened)) with ^[\(document.expenses.count) expense](inflect: true). Replacing deletes everything currently in Monthlio first.")
+        guard MonthlioApp.isCloudSyncEnabled else { return summary }
+        return summary + Text(verbatim: " ") + Text("With iCloud sync on, that happens on every device signed in to your iCloud. Restore on one device only and let the others sync.")
     }
 
     private func restore(_ document: BackupDocument, mode: RestoreMode) {

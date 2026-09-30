@@ -7,6 +7,8 @@ struct RootTabView: View {
     @Query private var expenses: [Expense]
     @Query(sort: \AppSettings.createdAt) private var settingsRows: [AppSettings]
     @Query private var rates: [ExchangeRate]
+    @Query private var budgets: [CategoryBudget]
+    @Query private var snapshots: [MonthSnapshot]
     @Environment(AppLockService.self) private var lock
     @State private var currencyStore = CurrencyStore()
     @State private var shield = PrivacyShield()
@@ -40,8 +42,10 @@ struct RootTabView: View {
             .onChange(of: shieldMode, initial: true) { _, mode in
                 shield.update(to: mode, lock: lock)
             }
-            .onChange(of: settingsRows.count) { _, count in
-                if count > 1 { AppSettings.deduplicate(in: modelContext) }
+            .onChange(of: rowCounts, initial: true) {
+                // Sync merges can duplicate any of these; collapse them at
+                // launch and whenever a count changes (an import landing).
+                StoreMaintenance.deduplicate(in: modelContext)
             }
             .task(id: syncFingerprint) { await sync() }
             .onChange(of: currencyFingerprint, initial: true) {
@@ -82,6 +86,10 @@ struct RootTabView: View {
                 .tabItem { Label("Upcoming", systemImage: "calendar") }
                 .tag(Tab.upcoming)
         }
+    }
+
+    private var rowCounts: String {
+        "\(expenses.count)|\(settingsRows.count)|\(budgets.count)|\(snapshots.count)"
     }
 
     private var currencyFingerprint: String {

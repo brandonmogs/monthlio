@@ -51,13 +51,19 @@ struct UpcomingView: View {
                     Button {
                         showingSettings = true
                     } label: {
-                        Label("Reminders", systemImage: remindersEnabled ? "bell.fill" : "bell")
+                        Label("Reminders", systemImage: bellSymbol)
                     }
                 }
             }
             .sheet(item: $editingExpense) { ExpenseFormView(expense: $0) }
             .sheet(isPresented: $showingSettings) { SettingsView() }
         }
+    }
+
+    /// A slashed bell means reminders are on but iOS won't deliver them.
+    private var bellSymbol: String {
+        guard remindersEnabled else { return "bell" }
+        return NotificationScheduler.shared.authorization == .denied ? "bell.slash" : "bell.fill"
     }
 
     private func summarySection(_ charges: [UpcomingCharge]) -> some View {

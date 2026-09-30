@@ -18,6 +18,7 @@ struct SettingsView: View {
     @Environment(CurrencyStore.self) private var currencyStore
     @Environment(AppLockService.self) private var lock
     @Environment(ProStore.self) private var pro
+    @Environment(\.openURL) private var openURL
     @Query(sort: \AppSettings.createdAt) private var settingsRows: [AppSettings]
 
     @State private var income: Decimal?
@@ -81,6 +82,7 @@ struct SettingsView: View {
                 income = current.hasIncome ? current.monthlyIncome : nil
                 if let opening, path.isEmpty { path = [opening] }
             }
+            .task { await NotificationScheduler.shared.refreshAuthorization() }
         }
         .presentationDragIndicator(.visible)
     }
@@ -148,10 +150,16 @@ struct SettingsView: View {
                     }
                 }
             }
-            if notificationsDenied {
-                Text("Notifications are turned off for Monthlio. Enable them in the Settings app to get reminders.")
-                    .font(.footnote)
-                    .foregroundStyle(.red)
+            if remindersDenied {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Notifications are turned off for Monthlio, so reminders can't be delivered.")
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                    Button("Open Settings") {
+                        if let url = URL(string: UIApplication.openNotificationSettingsURLString) { openURL(url) }
+                    }
+                    .font(.footnote.weight(.semibold))
+                }
             }
         } header: {
             Text("Reminders")
@@ -249,6 +257,12 @@ struct SettingsView: View {
                 Haptics.selection()
             }
         )
+    }
+
+    /// Reminders are on here but the system permission is missing: either
+    /// the request was just refused or it was revoked in the Settings app.
+    private var remindersDenied: Bool {
+        notificationsDenied || (remindersEnabled && NotificationScheduler.shared.authorization == .denied)
     }
 
     private var notificationsBinding: Binding<Bool> {

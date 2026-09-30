@@ -18,6 +18,16 @@ private final class FakeAuthenticator: Authenticating {
     }
 }
 
+/// The auto-prompt runs in a Task; wait for it instead of sleeping a fixed
+/// time, which flaked when the machine was busy.
+@MainActor
+private func waitForAttempts(_ expected: Int, on auth: FakeAuthenticator, timeout: Duration = .seconds(3)) async {
+    let deadline = ContinuousClock.now + timeout
+    while auth.attempts < expected, ContinuousClock.now < deadline {
+        try? await Task.sleep(for: .milliseconds(10))
+    }
+}
+
 @MainActor
 final class AppLockServiceTests: XCTestCase {
     func testDisabledLockStartsUnlockedAndIgnoresBackground() {
@@ -71,8 +81,7 @@ final class AppLockServiceTests: XCTestCase {
 
         // Launch: the first activation auto-prompts once.
         lock.handleScenePhase(.active)
-        await Task.yield()
-        try? await Task.sleep(for: .milliseconds(50))
+        await waitForAttempts(1, on: auth)
         XCTAssertEqual(auth.attempts, 1)
         XCTAssertTrue(lock.isLocked)
         XCTAssertNil(lock.lastError, "a cancel is not an error")
@@ -80,7 +89,7 @@ final class AppLockServiceTests: XCTestCase {
         // The system prompt bounces the scene inactive → active. No re-prompt.
         lock.handleScenePhase(.inactive)
         lock.handleScenePhase(.active)
-        try? await Task.sleep(for: .milliseconds(50))
+        try? await Task.sleep(for: .milliseconds(100))
         XCTAssertEqual(auth.attempts, 1)
 
         // The manual button still works.
@@ -94,12 +103,12 @@ final class AppLockServiceTests: XCTestCase {
         auth.outcome = .cancelled
         let lock = AppLockService(isEnabled: true, authenticator: auth)
         lock.handleScenePhase(.active)
-        try? await Task.sleep(for: .milliseconds(50))
+        await waitForAttempts(1, on: auth)
         XCTAssertEqual(auth.attempts, 1)
 
         lock.handleScenePhase(.background)
         lock.handleScenePhase(.active)
-        try? await Task.sleep(for: .milliseconds(50))
+        await waitForAttempts(2, on: auth)
         XCTAssertEqual(auth.attempts, 2)
     }
 
@@ -123,7 +132,7 @@ final class AppLockServiceTests: XCTestCase {
         XCTAssertTrue(lock.isLocked, "the app switcher snapshot must not show data")
         clock += 30
         lock.handleScenePhase(.active)
-        try? await Task.sleep(for: .milliseconds(50))
+        try? await Task.sleep(for: .milliseconds(100))
 
         XCTAssertFalse(lock.isLocked)
         XCTAssertEqual(auth.attempts, 1, "back within a minute: no prompt")
@@ -139,7 +148,7 @@ final class AppLockServiceTests: XCTestCase {
         lock.handleScenePhase(.background)
         clock += 61
         lock.handleScenePhase(.active)
-        try? await Task.sleep(for: .milliseconds(50))
+        await waitForAttempts(2, on: auth)
 
         XCTAssertEqual(auth.attempts, 2)
         XCTAssertFalse(lock.isLocked)
@@ -149,7 +158,7 @@ final class AppLockServiceTests: XCTestCase {
         let auth = FakeAuthenticator()
         let lock = AppLockService(isEnabled: true, gracePeriod: 300, authenticator: auth)
         lock.handleScenePhase(.active)
-        try? await Task.sleep(for: .milliseconds(50))
+        await waitForAttempts(1, on: auth)
         XCTAssertEqual(auth.attempts, 1)
     }
 

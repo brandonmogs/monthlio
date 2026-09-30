@@ -78,8 +78,10 @@ struct SettingsView: View {
                 if grandfathered { syncEnabled = SyncPreference.isEnabled() }
             }
             .onAppear {
-                let current = AppSettings.current(in: modelContext)
-                income = current.hasIncome ? current.monthlyIncome : nil
+                // Read-only: `current` would insert a row, which on a fresh
+                // synced device races the first iCloud import and leaves two.
+                let current = AppSettings.existing(in: modelContext)
+                income = (current?.hasIncome ?? false) ? current?.monthlyIncome : nil
                 if let opening, path.isEmpty { path = [opening] }
             }
             .task { await NotificationScheduler.shared.refreshAuthorization() }

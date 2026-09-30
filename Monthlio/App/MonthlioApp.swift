@@ -19,6 +19,7 @@ struct MonthlioApp: App {
     private(set) static var storeRecoveryNotice: StoreRecoveryNotice?
 
     init() {
+        MonthlioApp.adoptGroupStoreIfNeeded()
         var storeExists = MonthlioApp.defaultStoreExists
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-MonthlioFreshInstall") {
@@ -62,9 +63,54 @@ struct MonthlioApp: App {
         _lock = State(initialValue: AppLockService(isEnabled: lockEnabled, gracePeriod: DeviceSettings.lockGrace().seconds))
     }
 
-    /// SwiftData's default store, which any earlier version will have created.
+    /// The store's location: the app's own Application Support folder, as in
+    /// 1.0 through 1.2. SwiftData's default configuration moves the store
+    /// into the App Group container as soon as an app has that entitlement,
+    /// which 1.3 added for widgets; without this explicit URL, every user
+    /// updating from 1.2 would have opened a new, empty store while their
+    /// data sat untouched in the old file.
+    static var storeURL: URL {
+        URL.applicationSupportDirectory.appending(path: "default.store")
+    }
+
+    /// Where SwiftData's default configuration put the store on builds that
+    /// carried the App Group entitlement (the 1.3 builds before this fix).
+    static var groupStoreURL: URL? {
+        FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: WidgetSnapshot.appGroup)?
+            .appending(path: "Library/Application Support/default.store")
+    }
+
+    /// The store any earlier version will have created.
     private static var defaultStoreExists: Bool {
-        FileManager.default.fileExists(atPath: URL.applicationSupportDirectory.appending(path: "default.store").path)
+        FileManager.default.fileExists(atPath: storeURL.path)
+    }
+
+    /// A device that ran a 1.3 build wrote to the group store. When the
+    /// pinned location has no store yet, that store and its journal move
+    /// over so nothing is lost. When both exist, the app's own store (the
+    /// 1.2 data) wins and the group store is left in place.
+    @discardableResult
+    static func adoptGroupStoreIfNeeded(appURL: URL = storeURL, groupURL: URL? = groupStoreURL) -> Bool {
+        let files = FileManager.default
+        guard let groupURL, files.fileExists(atPath: groupURL.path) else { return false }
+        guard !files.fileExists(atPath: appURL.path) else {
+            log.notice("Both the app store and a group store exist; keeping the app store")
+            return false
+        }
+        do {
+            try files.createDirectory(at: appURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+            for suffix in ["", "-wal", "-shm"] {
+                let source = URL(fileURLWithPath: groupURL.path + suffix)
+                guard files.fileExists(atPath: source.path) else { continue }
+                try files.moveItem(at: source, to: URL(fileURLWithPath: appURL.path + suffix))
+            }
+            log.notice("Adopted the group container store")
+            return true
+        } catch {
+            log.fault("Couldn't adopt the group store: \(error.localizedDescription, privacy: .public)")
+            return false
+        }
     }
 
     /// Opens the iCloud-backed store when sync is on, and a local store
@@ -82,14 +128,15 @@ struct MonthlioApp: App {
             }
         }
         #endif
+        try? FileManager.default.createDirectory(at: storeURL.deletingLastPathComponent(), withIntermediateDirectories: true)
         if wantsCloud {
-            let cloud = ModelConfiguration(schema: schema, cloudKitDatabase: .automatic)
+            let cloud = ModelConfiguration(schema: schema, url: storeURL, cloudKitDatabase: .automatic)
             if let container = try? ModelContainer(for: schema, migrationPlan: MonthlioMigrationPlan.self, configurations: [cloud]) {
                 isCloudSyncEnabled = true
                 return container
             }
         }
-        let local = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
+        let local = ModelConfiguration(schema: schema, url: storeURL, cloudKitDatabase: .none)
         do {
             return try ModelContainer(for: schema, migrationPlan: MonthlioMigrationPlan.self, configurations: [local])
         } catch {

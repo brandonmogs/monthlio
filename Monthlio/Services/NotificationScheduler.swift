@@ -18,6 +18,12 @@ final class NotificationScheduler {
     private(set) var authorization: UNAuthorizationStatus = .notDetermined
 
     private let center = UNUserNotificationCenter.current()
+    /// Bumped by every `reschedule`; a run that sees a newer generation
+    /// after one of its awaits stops, so overlapping runs (the launch task
+    /// and the scene activation, or an edit right after a delete) can't
+    /// interleave their remove-all and add steps and resurrect a reminder
+    /// for an expense that no longer exists.
+    private var generation = 0
     nonisolated static let identifierPrefix = "monthlio.charge."
     nonisolated static let lookaheadDays = 45
     nonisolated static let reminderHour = 9
@@ -46,10 +52,16 @@ final class NotificationScheduler {
     /// Nothing is scheduled while the permission is missing: iOS would
     /// drop the requests anyway, and the UI shows the denied state.
     func reschedule(for expenses: [Expense], enabled: Bool, discreet: Bool, hour: Int = reminderHour, calendar: Calendar = .current) async {
+        generation += 1
+        let mine = generation
+        // Read the models now, on the main actor, before any await.
+        let requests = enabled ? NotificationScheduler.requests(for: expenses, discreet: discreet, hour: hour, calendar: calendar) : []
         await refreshAuthorization()
+        guard mine == generation else { return }
         await removeAll()
-        guard enabled, isAuthorized else { return }
-        for request in NotificationScheduler.requests(for: expenses, discreet: discreet, hour: hour, calendar: calendar) {
+        guard mine == generation, enabled, isAuthorized else { return }
+        for request in requests {
+            guard mine == generation else { return }
             do {
                 try await center.add(request)
             } catch {

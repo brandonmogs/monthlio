@@ -49,6 +49,8 @@ struct RootTabView: View {
             }
             .onChange(of: scenePhase) { _, phase in
                 lock.handleScenePhase(phase)
+                // Month rollover and permission changes happen while the app
+                // is away; the scheduler serializes this with the task above.
                 if phase == .active { Task { await sync() } }
             }
             .onOpenURL { url in

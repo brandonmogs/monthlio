@@ -156,12 +156,19 @@ def cmd_check(asc, app, args):
         a = b["attributes"]
         print(f"  build {a['version']:>3}  {a['processingState']:<10} uploaded {a.get('uploadedDate')}  expired={a.get('expired')}  id={b['id']}")
     print("In-app purchases:")
-    for p in asc.get_all(f"/v1/apps/{app}/inAppPurchasesV2"):
+    iaps = asc.get_all(f"/v1/apps/{app}/inAppPurchasesV2")
+    for p in iaps:
         a = p["attributes"]
         print(f"  {a['productId']}  {a['inAppPurchaseType']}  state={a.get('state')}  id={p['id']}")
+    if iaps:
+        # No API reports the agreement; the 1.3 (7) rejection under 2.1(b) was this.
+        print("  note: the sandbox and App Review serve no products until the Paid Apps Agreement is Active"
+              " (App Store Connect > Business > Agreements, with bank and tax details on file); check it before submitting")
     print("Open review submissions:")
     for s in asc.get_all(f"/v1/apps/{app}/reviewSubmissions", **{"filter[state]": "READY_FOR_REVIEW,WAITING_FOR_REVIEW,IN_REVIEW,UNRESOLVED_ISSUES"}):
-        print(f"  {s['attributes']['state']}  id={s['id']}")
+        items = asc.get_all(f"/v1/reviewSubmissions/{s['id']}/items", include="appStoreVersion")
+        described = ", ".join(("version " if (i.get("relationships", {}).get("appStoreVersion", {}).get("data")) else "in-app purchase ") + i["attributes"]["state"] for i in items)
+        print(f"  {s['attributes']['state']}  id={s['id']}  items: {described or 'none'}")
 
 
 def find_version(asc, app, version_string):

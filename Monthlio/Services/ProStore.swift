@@ -1,6 +1,9 @@
 import Foundation
 import Observation
 import StoreKit
+import os
+
+private let log = Logger(subsystem: "com.monthlio.app", category: "store")
 
 /// What the app needs to know about the Pro product, free of StoreKit
 /// types so the purchase state machine can be tested with a fake client.
@@ -38,14 +41,35 @@ final class StoreKitProClient: ProStoreClient {
 
     func product(id: String) async throws -> ProProductInfo? {
         if loaded == nil {
-            loaded = try await Product.products(for: [id]).first
+            loaded = try await fetch(id)
         }
         return loaded.map { ProProductInfo(id: $0.id, displayPrice: $0.displayPrice) }
     }
 
+    /// One App Store request, with the answer logged: an empty answer is
+    /// silent in StoreKit and has cost an App Review round already (the
+    /// Paid Apps Agreement wasn't in effect, so the sandbox had nothing to
+    /// sell), so the log names what to check.
+    private func fetch(_ id: String) async throws -> Product? {
+        let products: [Product]
+        do {
+            products = try await Product.products(for: [id])
+        } catch {
+            log.error("Loading \(id, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+            throw error
+        }
+        guard let product = products.first else {
+            let storefront = await Storefront.current?.countryCode ?? "unknown"
+            log.error("The App Store has no product \(id, privacy: .public) for storefront \(storefront, privacy: .public). Check the Paid Apps Agreement (Business > Agreements must be Active) and the product's state in App Store Connect.")
+            return nil
+        }
+        log.info("Loaded \(product.id, privacy: .public) at \(product.displayPrice, privacy: .public)")
+        return product
+    }
+
     func purchase(id: String) async throws -> ProPurchaseResult {
         if loaded == nil {
-            loaded = try await Product.products(for: [id]).first
+            loaded = try await fetch(id)
         }
         guard let product = loaded else { return .unverified }
         switch try await product.purchase() {
@@ -126,6 +150,11 @@ final class ProStore {
     private(set) var isPurchasing = false
     private(set) var isLoadingProduct = false
     private(set) var lastError: String?
+    /// Pauses between product requests before the paywall offers "Try
+    /// Again". The App Store can answer empty for a moment right after an
+    /// install, and the sandbox App Review uses is slower still. Tests
+    /// shorten or drop them.
+    var retryDelays: [Duration] = [.milliseconds(500), .seconds(2)]
 
     private let client: ProStoreClient
     private let defaults: UserDefaults
@@ -168,16 +197,30 @@ final class ProStore {
         isGrandfathered = SyncPreference.isGrandfathered(defaults)
     }
 
+    /// Loads the product, asking again after each `retryDelays` pause when
+    /// the answer is empty or fails. The error is reported once, after the
+    /// last attempt, so the paywall shows a spinner rather than a message
+    /// that flickers between tries.
     func loadProduct() async {
         guard product == nil, !isLoadingProduct else { return }
         isLoadingProduct = true
         defer { isLoadingProduct = false }
-        do {
-            product = try await client.product(id: Self.productID)
-            lastError = product == nil ? String(localized: "Monthlio Pro isn't available right now.") : nil
-        } catch {
-            lastError = String(localized: "Couldn't load pricing. Check your connection and try again.")
+        lastError = nil
+        var failure: String?
+        for attempt in 0...retryDelays.count {
+            if attempt > 0 {
+                try? await Task.sleep(for: retryDelays[attempt - 1])
+                if Task.isCancelled { break }
+            }
+            do {
+                product = try await client.product(id: Self.productID)
+                if product != nil { return }
+                failure = String(localized: "Monthlio Pro isn't available right now.")
+            } catch {
+                failure = String(localized: "Couldn't load pricing. Check your connection and try again.")
+            }
         }
+        lastError = failure
     }
 
     /// Returns true once the purchase is verified.

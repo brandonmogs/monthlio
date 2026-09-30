@@ -11,13 +11,18 @@ private final class FakeProClient: ProStoreClient {
     var revoked = false
     var originalBuild: String?
     var originalBuildError: Error?
+    /// How many product requests answer empty before `productInfo` is returned.
+    var emptyAnswers = 0
     var purchases = 0
     var restores = 0
+    var productRequests = 0
     var originalBuildRequests = 0
     private var continuation: AsyncStream<Void>.Continuation?
 
     func product(id: String) async throws -> ProProductInfo? {
+        productRequests += 1
         if let productError { throw productError }
+        if productRequests <= emptyAnswers { return nil }
         return productInfo
     }
 
@@ -130,6 +135,7 @@ final class ProStoreTests: XCTestCase {
         let client = FakeProClient()
         client.productError = StubError()
         let store = ProStore(client: client, defaults: defaults)
+        store.retryDelays = []
         await store.start()
 
         XCTAssertNil(store.product)
@@ -148,8 +154,56 @@ final class ProStoreTests: XCTestCase {
         let client = FakeProClient()
         client.productInfo = nil
         let store = ProStore(client: client, defaults: defaults)
+        store.retryDelays = []
         await store.start()
         XCTAssertEqual(store.lastError, "Monthlio Pro isn't available right now.")
+        XCTAssertEqual(client.productRequests, 1, "no delays, no retries")
+    }
+
+    func testEmptyAnswerIsAskedAgainBeforeGivingUp() async {
+        let client = FakeProClient()
+        client.productInfo = nil
+        let store = ProStore(client: client, defaults: defaults)
+        store.retryDelays = [.milliseconds(1), .milliseconds(1)]
+
+        await store.loadProduct()
+
+        XCTAssertNil(store.product)
+        XCTAssertEqual(client.productRequests, 3, "the first request plus one per delay")
+        XCTAssertEqual(store.lastError, "Monthlio Pro isn't available right now.")
+        XCTAssertFalse(store.isLoadingProduct)
+    }
+
+    func testProductArrivingOnARetryLoadsQuietly() async {
+        let client = FakeProClient()
+        client.emptyAnswers = 2
+        let store = ProStore(client: client, defaults: defaults)
+        store.retryDelays = [.milliseconds(1), .milliseconds(1)]
+
+        await store.start()
+
+        XCTAssertEqual(store.product?.displayPrice, "$9.99")
+        XCTAssertNil(store.lastError, "a slow App Store is not an error")
+        XCTAssertEqual(client.productRequests, 3)
+
+        await store.loadProduct()
+        XCTAssertEqual(client.productRequests, 3, "a loaded product is not requested again")
+    }
+
+    func testFailureThenEmptyReportsTheLastAnswer() async {
+        let client = FakeProClient()
+        client.productError = StubError()
+        let store = ProStore(client: client, defaults: defaults)
+        store.retryDelays = [.milliseconds(1)]
+        await store.loadProduct()
+        XCTAssertEqual(store.lastError, "Couldn't load pricing. Check your connection and try again.")
+        XCTAssertEqual(client.productRequests, 2)
+
+        client.productError = nil
+        client.productInfo = nil
+        await store.loadProduct()
+        XCTAssertEqual(store.lastError, "Monthlio Pro isn't available right now.")
+        XCTAssertEqual(client.productRequests, 4)
     }
 
     func testRestoreFindsOrExplains() async {

@@ -79,7 +79,14 @@ catalog rather than in code.
 Things App Store Connect needs that the code can't do for you:
 
 - **Monthlio Pro**: create a non-consumable in-app purchase with product ID
-  `com.monthlio.app.pro`, and sign the Paid Applications agreement.
+  `com.monthlio.app.pro`, and get the Paid Apps Agreement to **Active**
+  under Business > Agreements: confirm the legal entity, have the Account
+  Holder accept the agreement, and add bank and tax details. While it is
+  "New" or pending, the sandbox and App Review get an empty answer from
+  `Product.products(for:)`, the paywall says "Monthlio Pro isn't available
+  right now", and the review fails under guideline 2.1(b). The
+  `Scripts/asc.py check` command prints a reminder because the API can't
+  read the agreement.
 - **App Group**: automatic signing registers `group.com.monthlio.app` for
   the app and the widget; check it appears on both bundle IDs in the
   developer portal if a device build fails to sign.

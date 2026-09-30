@@ -17,13 +17,17 @@ struct PaywallView: View {
                     }
                 }
                 .task {
+                    // The price loads while the App Store is asked which
+                    // build this account downloaded; that check can show a
+                    // sign-in prompt and take a while, and must not hold
+                    // up the purchase button.
+                    async let price: Void = pro.loadProduct()
                     await pro.recordOriginalBuildIfNeeded()
                     if pro.isGrandfathered {
                         onUnlocked()
                         dismiss()
-                        return
                     }
-                    if pro.product == nil { await pro.loadProduct() }
+                    await price
                 }
         }
         .presentationDragIndicator(.visible)

@@ -22,6 +22,9 @@ struct SettingsView: View {
 
     @State private var income: Decimal?
     @State private var notificationsDenied = false
+    @AppStorage(DeviceSettings.remindersEnabledKey, store: SyncPreference.standard) private var remindersEnabled = false
+    @AppStorage(DeviceSettings.reminderHourKey, store: SyncPreference.standard) private var reminderHour = DeviceSettings.defaultReminderHour
+    @AppStorage(DeviceSettings.lockGraceKey, store: SyncPreference.standard) private var lockGraceSeconds = DeviceSettings.LockGrace.default.rawValue
     @State private var syncEnabled = SyncPreference.isEnabled()
     @State private var showingPaywall = false
     @State private var dataNotice: DataNotice?
@@ -110,18 +113,41 @@ struct SettingsView: View {
         Section {
             Toggle("Require \(lock.biometryName) to open", isOn: lockBinding)
                 .disabled(!lock.canAuthenticate)
+            if lock.isEnabled {
+                Picker("Lock after", selection: graceBinding) {
+                    ForEach(DeviceSettings.LockGrace.allCases) { grace in
+                        Text(grace.title).tag(grace)
+                    }
+                }
+            }
         } header: {
             Text("Security")
         } footer: {
-            Text(lock.canAuthenticate
-                ? String(localized: "Monthlio locks whenever you leave the app.")
-                : String(localized: "Set up Face ID, Touch ID or a device passcode first."))
+            Text(securityFooter)
         }
+    }
+
+    private var securityFooter: String {
+        guard lock.canAuthenticate else {
+            return String(localized: "Set up Face ID, Touch ID or a device passcode first.")
+        }
+        let grace = DeviceSettings.LockGrace(rawValue: lockGraceSeconds) ?? .default
+        let lockLine = grace == .immediately
+            ? String(localized: "Monthlio locks whenever you leave the app.")
+            : String(localized: "Monthlio locks when you leave the app; coming back within \(grace.title) skips \(lock.biometryName).")
+        return lockLine + " " + String(localized: "This setting stays on this device.")
     }
 
     private var remindersSection: some View {
         Section {
             Toggle("Remind me the day before a charge", isOn: notificationsBinding)
+            if remindersEnabled {
+                Picker("Remind me at", selection: $reminderHour) {
+                    ForEach(DeviceSettings.reminderHours, id: \.self) { hour in
+                        Text(DeviceSettings.hourLabel(hour)).tag(hour)
+                    }
+                }
+            }
             if notificationsDenied {
                 Text("Notifications are turned off for Monthlio. Enable them in the Settings app to get reminders.")
                     .font(.footnote)
@@ -130,7 +156,7 @@ struct SettingsView: View {
         } header: {
             Text("Reminders")
         } footer: {
-            Text("A local notification at 9 AM the day before each upcoming charge. Nothing leaves your device.")
+            Text("A local notification at \(DeviceSettings.hourLabel(reminderHour)) the day before each upcoming charge. Nothing leaves your device, and this setting stays on it.")
         }
     }
 
@@ -206,34 +232,41 @@ struct SettingsView: View {
     }
 
     private func setLock(_ enabled: Bool) async {
-        let current = AppSettings.current(in: modelContext)
         if enabled {
             guard await lock.verify(reason: String(localized: "Confirm to require \(lock.biometryName) when opening Monthlio")) else { return }
         }
-        current.requireAuthentication = enabled
+        DeviceSettings.setLockEnabled(enabled)
         lock.isEnabled = enabled
-        try? modelContext.save()
         Haptics.selection()
+    }
+
+    private var graceBinding: Binding<DeviceSettings.LockGrace> {
+        Binding(
+            get: { DeviceSettings.LockGrace(rawValue: lockGraceSeconds) ?? .default },
+            set: { grace in
+                lockGraceSeconds = grace.rawValue
+                lock.gracePeriod = grace.seconds
+                Haptics.selection()
+            }
+        )
     }
 
     private var notificationsBinding: Binding<Bool> {
         Binding(
-            get: { settings?.notificationsEnabled ?? false },
+            get: { remindersEnabled },
             set: { enabled in Task { await setNotifications(enabled) } }
         )
     }
 
     private func setNotifications(_ enabled: Bool) async {
-        let current = AppSettings.current(in: modelContext)
         if enabled {
             let granted = await NotificationScheduler.shared.requestAuthorization()
-            current.notificationsEnabled = granted
+            remindersEnabled = granted
             notificationsDenied = !granted
         } else {
-            current.notificationsEnabled = false
+            remindersEnabled = false
             notificationsDenied = false
         }
-        try? modelContext.save()
         Haptics.selection()
     }
 }

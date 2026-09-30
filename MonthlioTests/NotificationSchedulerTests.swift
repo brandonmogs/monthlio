@@ -44,6 +44,15 @@ final class NotificationSchedulerTests: XCTestCase {
         XCTAssertFalse(requests[0].content.body.contains("1,500"))
     }
 
+    func testReminderHourFollowsTheSetting() {
+        let requests = NotificationScheduler.requests(for: [rent], now: date(2026, 9, 30, 8), discreet: false, hour: 18, calendar: calendar)
+        let triggers = requests.compactMap { $0.trigger as? UNCalendarNotificationTrigger }.map(\.dateComponents)
+        XCTAssertEqual(triggers.map(\.hour), [18, 18])
+
+        let evening = NotificationScheduler.requests(for: [rent], now: date(2026, 9, 30, 19), discreet: false, hour: 18, calendar: calendar)
+        XCTAssertEqual(evening.count, 1, "6 PM on the reminder day has passed")
+    }
+
     func testPendingRequestsAreCapped() {
         let many: [Expense] = (1...31).map { (day: Int) -> Expense in
             Expense(name: "Bill \(String(day))", amount: 1, category: .other, dueDay: day)

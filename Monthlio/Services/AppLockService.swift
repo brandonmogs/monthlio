@@ -88,16 +88,25 @@ final class AppLockService {
         didSet { if !isEnabled { isLocked = false } }
     }
 
+    /// Seconds after leaving the app within which coming back skips the
+    /// prompt. Zero locks on every return. The switcher snapshot is still
+    /// covered, because the app locks the moment it leaves.
+    var gracePeriod: TimeInterval
+    /// Injected so tests can move time.
+    var now: () -> Date = { .now }
+
     /// Set when the app locks; consumed by the first return to `.active`.
     /// The biometric prompt itself bounces the scene inactive→active, so
     /// without this a cancelled prompt would re-prompt forever.
     private var pendingAutoUnlock: Bool
+    private var backgroundedAt: Date?
     private let authenticator: Authenticating
 
-    init(isEnabled: Bool, authenticator: Authenticating = DeviceAuthenticator()) {
+    init(isEnabled: Bool, gracePeriod: TimeInterval = 0, authenticator: Authenticating = DeviceAuthenticator()) {
         self.isEnabled = isEnabled
         self.isLocked = isEnabled
         self.pendingAutoUnlock = isEnabled
+        self.gracePeriod = gracePeriod
         self.authenticator = authenticator
     }
 
@@ -110,7 +119,15 @@ final class AppLockService {
         case .background:
             lockIfEnabled()
         case .active:
-            if isLocked, pendingAutoUnlock {
+            guard isLocked else { return }
+            if let backgroundedAt, now().timeIntervalSince(backgroundedAt) < gracePeriod {
+                // A quick hop to another app and back: no prompt.
+                isLocked = false
+                pendingAutoUnlock = false
+                self.backgroundedAt = nil
+                return
+            }
+            if pendingAutoUnlock {
                 pendingAutoUnlock = false
                 Task { await unlock() }
             }
@@ -124,6 +141,7 @@ final class AppLockService {
         isLocked = true
         pendingAutoUnlock = true
         lastError = nil
+        backgroundedAt = now()
     }
 
     func unlock() async {

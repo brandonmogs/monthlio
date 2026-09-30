@@ -4,13 +4,11 @@ import SwiftUI
 /// 30-day timeline of charges with a due day.
 struct UpcomingView: View {
     @Query(sort: \Expense.createdAt) private var expenses: [Expense]
-    @Query(sort: \AppSettings.createdAt) private var settingsRows: [AppSettings]
     @Environment(CurrencyStore.self) private var currencyStore
+    @AppStorage(DeviceSettings.remindersEnabledKey, store: SyncPreference.standard) private var remindersEnabled = false
 
     @State private var editingExpense: Expense?
     @State private var showingSettings = false
-
-    private var remindersEnabled: Bool { settingsRows.first?.notificationsEnabled ?? false }
 
     var body: some View {
         let charges = UpcomingChargeCalculator.charges(for: expenses)

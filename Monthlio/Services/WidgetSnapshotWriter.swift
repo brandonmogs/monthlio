@@ -3,7 +3,7 @@ import WidgetKit
 
 /// Builds the widget snapshot from live data and hands it to the extension.
 enum WidgetSnapshotWriter {
-    static func snapshot(expenses: [Expense], settings: AppSettings?, converter: CurrencyConverter, now: Date = .now, calendar: Calendar = .current) -> WidgetSnapshot {
+    static func snapshot(expenses: [Expense], discreet: Bool, converter: CurrencyConverter, now: Date = .now, calendar: Calendar = .current) -> WidgetSnapshot {
         let counted = ExpenseCalculator.counted(expenses, now: now, calendar: calendar)
         let total = ExpenseCalculator.monthlyTotal(expenses, converter: converter, now: now, calendar: calendar)
         let recurring = expenses
@@ -28,15 +28,15 @@ enum WidgetSnapshotWriter {
             monthlyTotal: "\(total.rounded())",
             recurringMonthlyTotal: "\(recurring.rounded())",
             activeCount: counted.count,
-            discreet: settings?.requireAuthentication ?? false,
+            discreet: discreet,
             charges: charges
         )
     }
 
     /// Writes a fresh snapshot and reloads the widgets, unless nothing but
     /// the timestamp changed.
-    static func update(expenses: [Expense], settings: AppSettings?, converter: CurrencyConverter) {
-        let next = snapshot(expenses: expenses, settings: settings, converter: converter)
+    static func update(expenses: [Expense], discreet: Bool, converter: CurrencyConverter) {
+        let next = snapshot(expenses: expenses, discreet: discreet, converter: converter)
         if var current = WidgetSnapshotStore.load() {
             // Refresh at least daily so the charge window keeps rolling forward.
             let sameDay = Calendar.current.isDate(current.generatedAt, inSameDayAs: next.generatedAt)

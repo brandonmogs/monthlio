@@ -48,11 +48,18 @@ struct MonthlioApp: App {
         Expense.backfillCurrencyCodes(in: container.mainContext, base: baseCode)
         ExchangeRate.backfillBaseCodes(in: container.mainContext, base: baseCode)
 
-        var lockEnabled = settings?.requireAuthentication ?? false
+        // The lock and reminders are device settings; adopt what the synced
+        // row carried, once, and only a lock this device can open.
+        DeviceSettings.migrateIfNeeded(
+            lockWasEnabled: settings?.requireAuthentication ?? false,
+            remindersWereEnabled: settings?.notificationsEnabled ?? false,
+            canAuthenticate: DeviceAuthenticator().canAuthenticate
+        )
+        var lockEnabled = DeviceSettings.isLockEnabled()
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-MonthlioLocked") { lockEnabled = true }
         #endif
-        _lock = State(initialValue: AppLockService(isEnabled: lockEnabled))
+        _lock = State(initialValue: AppLockService(isEnabled: lockEnabled, gracePeriod: DeviceSettings.lockGrace().seconds))
     }
 
     /// SwiftData's default store, which any earlier version will have created.

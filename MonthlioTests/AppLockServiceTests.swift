@@ -111,6 +111,48 @@ final class AppLockServiceTests: XCTestCase {
         XCTAssertEqual(lock.lastError, "Set a device passcode in Settings to unlock Monthlio.")
     }
 
+    func testReturnWithinGracePeriodSkipsThePrompt() async {
+        let auth = FakeAuthenticator()
+        let lock = AppLockService(isEnabled: true, gracePeriod: 60, authenticator: auth)
+        var clock = Date(timeIntervalSince1970: 1_000)
+        lock.now = { clock }
+        await lock.unlock()
+        XCTAssertEqual(auth.attempts, 1)
+
+        lock.handleScenePhase(.background)
+        XCTAssertTrue(lock.isLocked, "the app switcher snapshot must not show data")
+        clock += 30
+        lock.handleScenePhase(.active)
+        try? await Task.sleep(for: .milliseconds(50))
+
+        XCTAssertFalse(lock.isLocked)
+        XCTAssertEqual(auth.attempts, 1, "back within a minute: no prompt")
+    }
+
+    func testReturnAfterGracePeriodPromptsAgain() async {
+        let auth = FakeAuthenticator()
+        let lock = AppLockService(isEnabled: true, gracePeriod: 60, authenticator: auth)
+        var clock = Date(timeIntervalSince1970: 1_000)
+        lock.now = { clock }
+        await lock.unlock()
+
+        lock.handleScenePhase(.background)
+        clock += 61
+        lock.handleScenePhase(.active)
+        try? await Task.sleep(for: .milliseconds(50))
+
+        XCTAssertEqual(auth.attempts, 2)
+        XCTAssertFalse(lock.isLocked)
+    }
+
+    func testColdStartPromptsRegardlessOfGracePeriod() async {
+        let auth = FakeAuthenticator()
+        let lock = AppLockService(isEnabled: true, gracePeriod: 300, authenticator: auth)
+        lock.handleScenePhase(.active)
+        try? await Task.sleep(for: .milliseconds(50))
+        XCTAssertEqual(auth.attempts, 1)
+    }
+
     func testUnlockIsNoOpWhenNotLocked() async {
         let auth = FakeAuthenticator()
         let lock = AppLockService(isEnabled: false, authenticator: auth)

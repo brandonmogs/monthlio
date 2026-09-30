@@ -11,6 +11,8 @@ struct RootTabView: View {
     @State private var currencyStore = CurrencyStore()
     @State private var shield = PrivacyShield()
     @State private var selectedTab = Tab.initial
+    @AppStorage(DeviceSettings.remindersEnabledKey, store: SyncPreference.standard) private var remindersEnabled = false
+    @AppStorage(DeviceSettings.reminderHourKey, store: SyncPreference.standard) private var reminderHour = DeviceSettings.defaultReminderHour
 
     enum Tab: String, CaseIterable {
         case dashboard, expenses, subscriptions, upcoming
@@ -40,10 +42,6 @@ struct RootTabView: View {
             }
             .onChange(of: settingsRows.count) { _, count in
                 if count > 1 { AppSettings.deduplicate(in: modelContext) }
-            }
-            .onChange(of: settingsRows.first?.requireAuthentication) { _, enabled in
-                // A change synced from another device, or a merge above.
-                if let enabled, enabled != lock.isEnabled { lock.isEnabled = enabled }
             }
             .task(id: syncFingerprint) { await sync() }
             .onChange(of: currencyFingerprint, initial: true) {
@@ -103,9 +101,7 @@ struct RootTabView: View {
             "\($0.id.uuidString)|\($0.amount)|\($0.currencyCode)|\($0.cadenceRaw)|\($0.dueDay ?? 0)|\($0.chargeDate?.timeIntervalSince1970 ?? 0)|\($0.categoryRaw)|\($0.isActive)|\($0.name)"
         }
         .joined(separator: ";")
-        let notifications = settingsRows.first?.notificationsEnabled ?? false
-        let discreet = settingsRows.first?.requireAuthentication ?? false
-        return "\(notifications)|\(discreet)#\(currencyFingerprint)#\(expensePart)"
+        return "\(remindersEnabled)|\(reminderHour)|\(lock.isEnabled)#\(currencyFingerprint)#\(expensePart)"
     }
 
     /// Records this month's total, refreshes local reminders and hands the
@@ -119,11 +115,10 @@ struct RootTabView: View {
         if !expenses.isEmpty, ExpenseCalculator.missingRateCodes(expenses, converter: converter).isEmpty {
             SnapshotService.record(total: total, in: modelContext)
         }
-        WidgetSnapshotWriter.update(expenses: expenses, settings: settingsRows.first, converter: converter)
-
-        let enabled = settingsRows.first?.notificationsEnabled ?? false
-        let discreet = settingsRows.first?.requireAuthentication ?? false
-        await NotificationScheduler.shared.reschedule(for: expenses, enabled: enabled, discreet: discreet)
+        // With the lock on, widgets and reminders hide names and amounts.
+        let discreet = lock.isEnabled
+        WidgetSnapshotWriter.update(expenses: expenses, discreet: discreet, converter: converter)
+        await NotificationScheduler.shared.reschedule(for: expenses, enabled: remindersEnabled, discreet: discreet, hour: reminderHour)
     }
 }
 

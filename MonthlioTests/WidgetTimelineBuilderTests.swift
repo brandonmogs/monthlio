@@ -98,9 +98,8 @@ final class WidgetTimelineBuilderTests: XCTestCase {
             Expense(name: "Ticket", amount: 180, currencyCode: "USD", category: .entertainment, cadence: .oneTime, chargeDate: now),
             Expense(name: "Old", amount: 99, currencyCode: "USD", category: .other, cadence: .monthly, dueDay: 5, isActive: false),
         ]
-        let settings = AppSettings(requireAuthentication: true)
 
-        let snapshot = WidgetSnapshotWriter.snapshot(expenses: expenses, settings: settings, converter: CurrencyConverter(baseCode: "USD"), now: now, calendar: calendar)
+        let snapshot = WidgetSnapshotWriter.snapshot(expenses: expenses, discreet: true, converter: CurrencyConverter(baseCode: "USD"), now: now, calendar: calendar)
 
         XCTAssertEqual(snapshot.monthKey, "2026-09")
         XCTAssertEqual(snapshot.monthlyTotal, "2636.67", "1850 + 606.67 + 180")

@@ -7,10 +7,14 @@ import SwiftData
 @Model
 final class AppSettings {
     var monthlyIncome: Decimal = 0
+    /// Legacy: reminders are a device setting since 1.4 (`DeviceSettings`).
+    /// Kept for the CloudKit schema; read once to migrate, never written.
     var notificationsEnabled: Bool = false
     var createdAt: Date = Date.now
     /// Empty means "use the device locale's currency".
     var baseCurrencyCode: String = ""
+    /// Legacy: the lock is a device setting since 1.4 (`DeviceSettings`).
+    /// A lock synced from another device could lock out one without a passcode.
     var requireAuthentication: Bool = false
 
     init(

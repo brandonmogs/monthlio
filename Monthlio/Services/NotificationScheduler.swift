@@ -25,25 +25,25 @@ final class NotificationScheduler {
 
     /// Replaces all pending charge reminders. Pass `enabled: false` to clear.
     /// `discreet` hides names and amounts, for when the app lock is on.
-    func reschedule(for expenses: [Expense], enabled: Bool, discreet: Bool, calendar: Calendar = .current) async {
+    func reschedule(for expenses: [Expense], enabled: Bool, discreet: Bool, hour: Int = reminderHour, calendar: Calendar = .current) async {
         await removeAll()
         guard enabled else { return }
-        for request in NotificationScheduler.requests(for: expenses, discreet: discreet, calendar: calendar) {
+        for request in NotificationScheduler.requests(for: expenses, discreet: discreet, hour: hour, calendar: calendar) {
             try? await center.add(request)
         }
     }
 
     /// Pure: the requests that should be pending as of `now`. A reminder
-    /// fires at 9 AM the day before the charge; it's skipped only once that
-    /// moment has passed, not at midnight of that day.
-    static func requests(for expenses: [Expense], now: Date = .now, discreet: Bool, calendar: Calendar = .current) -> [UNNotificationRequest] {
+    /// fires at `hour` o'clock the day before the charge; it's skipped only
+    /// once that moment has passed, not at midnight of that day.
+    static func requests(for expenses: [Expense], now: Date = .now, discreet: Bool, hour: Int = reminderHour, calendar: Calendar = .current) -> [UNNotificationRequest] {
         let charges = UpcomingChargeCalculator.charges(for: expenses, from: now, days: lookaheadDays, calendar: calendar)
         var requests: [UNNotificationRequest] = []
 
         for charge in charges {
             guard let dayBefore = calendar.date(byAdding: .day, value: -1, to: charge.date) else { continue }
             var components = calendar.dateComponents([.year, .month, .day], from: dayBefore)
-            components.hour = reminderHour
+            components.hour = hour
             components.minute = 0
             guard let fireDate = calendar.date(from: components), fireDate > now else { continue }
 

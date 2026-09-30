@@ -148,3 +148,19 @@ schemes:
       config: Release
     archive:
       config: Release
+
+  # Same app, no local StoreKit configuration: the simulator asks Apple's
+  # real sandbox for the Pro product, which is what App Review sees. Use it
+  # to confirm the product loads before submitting.
+  MonthlioSandbox:
+    build:
+      targets:
+        Monthlio: all
+        MonthlioWidget: all
+        MonthlioUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - MonthlioUITests

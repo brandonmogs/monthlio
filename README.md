@@ -86,7 +86,14 @@ Things App Store Connect needs that the code can't do for you:
   `Product.products(for:)`, the paywall says "Monthlio Pro isn't available
   right now", and the review fails under guideline 2.1(b). The
   `Scripts/asc.py check` command prints a reminder because the API can't
-  read the agreement.
+  read the agreement. To see what App Review will see, run the app on a
+  simulator without the local StoreKit configuration (the `MonthlioSandbox`
+  scheme, or `xcrun simctl launch <udid> com.monthlio.app` on an installed
+  build): StoreKit then asks Apple's sandbox catalog, and the app logs the
+  answer under subsystem `com.monthlio.app`, category `store`
+  (`xcrun simctl spawn <udid> log show --info --last 5m --predicate
+  'subsystem == "com.monthlio.app" AND category == "store"'`). A newly
+  activated agreement takes a while to reach that catalog.
 - **App Group**: automatic signing registers `group.com.monthlio.app` for
   the app and the widget; check it appears on both bundle IDs in the
   developer portal if a device build fails to sign.

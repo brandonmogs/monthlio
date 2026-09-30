@@ -12,7 +12,10 @@ final class ExpenseFormViewModel {
     var cadence: Cadence
     var hasDueDay: Bool
     var dueDay: Int
+    /// The charge date of a one-time expense, or the known next charge of
+    /// a weekly, biweekly, quarterly or yearly one (see `hasChargeDate`).
     var chargeDate: Date
+    var hasChargeDate: Bool
     var notes: String
     var isActive: Bool
 
@@ -26,9 +29,15 @@ final class ExpenseFormViewModel {
         currencyCode = expense?.currencyCode ?? CurrencyFormat.baseCode
         category = expense?.category ?? .subscriptions
         cadence = expense?.cadence ?? .monthly
-        hasDueDay = expense?.dueDay != nil
-        dueDay = expense?.dueDay ?? 1
-        chargeDate = expense?.oneTimeDate ?? .now
+        // A monthly expense imported with a charge date but no due day is
+        // edited as its day of month, so saving doesn't lose the schedule.
+        let importedDay = expense
+            .flatMap { $0.cadence == .monthly && $0.dueDay == nil ? $0.chargeDate : nil }
+            .map { Calendar.current.component(.day, from: $0) }
+        hasDueDay = expense?.dueDay != nil || importedDay != nil
+        dueDay = expense?.dueDay ?? importedDay ?? 1
+        chargeDate = expense?.chargeDate ?? .now
+        hasChargeDate = (expense?.cadence.isRecurring ?? false) && expense?.chargeDate != nil
         notes = expense?.notes ?? ""
         isActive = expense?.isActive ?? true
     }
@@ -62,6 +71,24 @@ final class ExpenseFormViewModel {
         return cadence.monthlyEquivalent(of: amount).rounded()
     }
 
+    /// What the schedule fields mean for `cadence`: monthly keeps a due
+    /// day, one-time its date, the other cadences an optional charge date.
+    var resolvedDueDay: Int? { cadence == .monthly && hasDueDay ? dueDay : nil }
+
+    var resolvedChargeDate: Date? {
+        switch cadence {
+        case .oneTime: chargeDate
+        case .monthly: nil
+        case .weekly, .biweekly, .quarterly, .yearly: hasChargeDate ? chargeDate : nil
+        }
+    }
+
+    /// The next date this schedule hits, for the form's footer.
+    var nextChargeDate: Date? {
+        guard cadence.isRecurring else { return nil }
+        return UpcomingChargeCalculator.nextCharge(cadence: cadence, dueDay: resolvedDueDay, anchor: resolvedChargeDate)
+    }
+
     /// Writes the form into the model context. Returns false if invalid.
     @discardableResult
     func save(in context: ModelContext) -> Bool {
@@ -74,8 +101,8 @@ final class ExpenseFormViewModel {
             existing.currencyCode = currencyCode
             existing.category = category
             existing.cadence = cadence
-            existing.dueDay = cadence == .oneTime ? nil : (hasDueDay ? dueDay : nil)
-            existing.chargeDate = cadence == .oneTime ? chargeDate : nil
+            existing.dueDay = resolvedDueDay
+            existing.chargeDate = resolvedChargeDate
             existing.notes = trimmedNotes.isEmpty ? nil : trimmedNotes
             existing.isActive = isActive
         } else {
@@ -85,8 +112,8 @@ final class ExpenseFormViewModel {
                 currencyCode: currencyCode,
                 category: category,
                 cadence: cadence,
-                dueDay: cadence == .oneTime ? nil : (hasDueDay ? dueDay : nil),
-                chargeDate: cadence == .oneTime ? chargeDate : nil,
+                dueDay: resolvedDueDay,
+                chargeDate: resolvedChargeDate,
                 isActive: isActive,
                 notes: trimmedNotes.isEmpty ? nil : trimmedNotes
             )

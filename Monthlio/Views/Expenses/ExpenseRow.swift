@@ -68,10 +68,13 @@ struct ExpenseRow: View {
         if showsCategory { parts.append(expense.category.title) }
         if let oneTimeDate = expense.oneTimeDate {
             parts.append(oneTimeDate.formatted(.dateTime.month(.abbreviated).day().year()))
-        } else if let dueDay = expense.dueDay {
+        } else if expense.cadence == .monthly, let dueDay = expense.dueDay {
             parts.append(String(localized: "Due on the \(OrdinalFormat.string(dueDay))"))
         } else if expense.cadence != .monthly {
             parts.append(expense.cadence.title)
+            if let next = UpcomingChargeCalculator.nextCharge(for: expense) {
+                parts.append(String(localized: "Next \(next.formatted(.dateTime.month(.abbreviated).day()))"))
+            }
         }
         return parts.joined(separator: " · ")
     }

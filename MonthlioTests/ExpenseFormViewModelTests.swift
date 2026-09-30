@@ -1,3 +1,4 @@
+import SwiftData
 import XCTest
 @testable import Monthlio
 
@@ -45,6 +46,35 @@ final class ExpenseFormViewModelTests: XCTestCase {
         let vm = viewModel(name: String(repeating: "a", count: 500), amount: 10)
         XCTAssertEqual(vm.trimmedName.count, MoneyLimits.maxNameLength)
         XCTAssertEqual(MoneyLimits.clampedNotes(String(repeating: "n", count: 5_000)).count, MoneyLimits.maxNotesLength)
+    }
+
+    @MainActor
+    func testDateSteppedCadencesKeepTheirChargeDate() throws {
+        let container = try TestContainer.make()
+        let vm = viewModel(amount: 10)
+        vm.cadence = .yearly
+        vm.hasDueDay = true
+        vm.hasChargeDate = true
+        vm.chargeDate = Date(timeIntervalSince1970: 1_800_000_000)
+        XCTAssertTrue(vm.save(in: container.mainContext))
+
+        let saved = try XCTUnwrap(try container.mainContext.fetch(FetchDescriptor<Expense>()).first)
+        XCTAssertEqual(saved.chargeDate, Date(timeIntervalSince1970: 1_800_000_000))
+        XCTAssertNil(saved.dueDay, "a yearly charge is placed by its date, not a day of month")
+        XCTAssertNotNil(vm.nextChargeDate)
+
+        vm.hasChargeDate = false
+        XCTAssertNil(vm.resolvedChargeDate)
+        XCTAssertNil(vm.nextChargeDate)
+    }
+
+    func testMonthlyEditAdoptsAnImportedChargeDateAsItsDueDay() {
+        let imported = Expense(name: "Netflix", amount: 15, category: .subscriptions, cadence: .monthly, chargeDate: Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 12)))
+        let vm = ExpenseFormViewModel(expense: imported)
+        XCTAssertTrue(vm.hasDueDay)
+        XCTAssertEqual(vm.dueDay, 12)
+        XCTAssertEqual(vm.resolvedDueDay, 12)
+        XCTAssertNil(vm.resolvedChargeDate)
     }
 
     func testRateBounds() {

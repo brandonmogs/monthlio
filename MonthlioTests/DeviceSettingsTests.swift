@@ -57,6 +57,6 @@ final class DeviceSettingsTests: XCTestCase {
     func testHourLabelUsesTheCalendar() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.locale = Locale(identifier: "en_US")
-        XCTAssertEqual(DeviceSettings.hourLabel(9, calendar: calendar).replacingOccurrences(of: "\u{202F}", with: " "), "9:00 AM")
+        XCTAssertEqual(DeviceSettings.hourLabel(9, calendar: calendar, locale: Locale(identifier: "en_US")).replacingOccurrences(of: "\u{202F}", with: " "), "9:00 AM")
     }
 }

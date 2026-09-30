@@ -12,7 +12,8 @@ struct ImportedExpense: Equatable {
     var isActive: Bool
     var notes: String?
     var createdAt: Date?
-    /// When a one-time expense hits; falls back to `createdAt` on commit.
+    /// When a one-time expense hits (falls back to `createdAt` on commit),
+    /// or a known charge date a recurring expense's schedule steps from.
     var chargeDate: Date?
 }
 
@@ -106,6 +107,9 @@ enum CSVImporter {
             var cadence = cell(.cadence).flatMap(parseCadence)
             var category = cell(.category).flatMap(parseCategory)
             var dueDay = cell(.dueDay).flatMap(parseDueDay)
+            // "Next payment 2026-10-15" is a full date: it anchors a recurring
+            // schedule and is the charge date of a one-time expense.
+            let dueDate = cell(.dueDay).flatMap(parseDate)
 
             if !hadHeader {
                 // Headerless files: classify whatever follows name and amount.
@@ -133,7 +137,7 @@ enum CSVImporter {
                 isActive: cell(.active).flatMap(parseActive) ?? true,
                 notes: cell(.notes).map(MoneyLimits.clampedNotes).flatMap { $0.isEmpty ? nil : $0 },
                 createdAt: cell(.created).flatMap(parseDate),
-                chargeDate: cell(.chargeDate).flatMap(parseDate)
+                chargeDate: cell(.chargeDate).flatMap(parseDate) ?? dueDate
             ))
         }
 
@@ -151,7 +155,7 @@ enum CSVImporter {
                 category: item.category,
                 cadence: item.cadence,
                 dueDay: item.dueDay,
-                chargeDate: item.cadence == .oneTime ? (item.chargeDate ?? item.createdAt ?? .now) : nil,
+                chargeDate: item.cadence == .oneTime ? (item.chargeDate ?? item.createdAt ?? .now) : item.chargeDate,
                 isActive: item.isActive,
                 notes: item.notes,
                 createdAt: item.createdAt ?? .now

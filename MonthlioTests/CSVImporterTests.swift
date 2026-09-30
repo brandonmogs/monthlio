@@ -75,6 +75,15 @@ final class CSVImporterTests: XCTestCase {
         XCTAssertEqual(preview.expenses[3].dueDay, 8)
     }
 
+    func testANextPaymentDateAnchorsRecurringCharges() throws {
+        let preview = try CSVImporter.preview("Name,Amount,Billing,Next Payment\nInsurance,420,quarterly,2026-10-15\nTicket,30,once,2026-10-20\n", baseCurrency: "USD")
+        XCTAssertEqual(preview.expenses[0].dueDay, 15)
+        let anchor = try XCTUnwrap(preview.expenses[0].chargeDate)
+        XCTAssertEqual(Calendar.current.dateComponents([.year, .month, .day], from: anchor).day, 15)
+        XCTAssertNil(preview.expenses[1].dueDay)
+        XCTAssertNotNil(preview.expenses[1].chargeDate)
+    }
+
     func testHeaderlessFileUsesNameThenAmountThenGuesses() throws {
         let preview = try CSVImporter.preview("Rent,1850,USD,monthly,housing\nSpotify,10.99\nBooks,25,yearly\n", baseCurrency: "GBP")
 

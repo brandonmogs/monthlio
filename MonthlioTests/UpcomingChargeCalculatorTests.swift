@@ -56,11 +56,75 @@ final class UpcomingChargeCalculatorTests: XCTestCase {
         XCTAssertTrue(october.isEmpty)
     }
 
-    func testUnsupportedCadencesProduceNothing() {
+    func testCadencesWithoutAChargeDateProduceNothing() {
         for cadence in [Cadence.weekly, .biweekly, .quarterly, .yearly, .oneTime] {
             let dates = UpcomingChargeCalculator.occurrences(dueDay: 10, cadence: cadence, from: date(2026, 9, 1), calendar: calendar)
-            XCTAssertTrue(dates.isEmpty, "\(cadence) should not be placed on the timeline")
+            XCTAssertTrue(dates.isEmpty, "\(cadence) needs a charge date to step from")
         }
+    }
+
+    func testWeeklyStepsFromItsChargeDate() {
+        let dates = UpcomingChargeCalculator.occurrences(cadence: .weekly, dueDay: nil, anchor: date(2026, 9, 3), from: date(2026, 9, 7), calendar: calendar)
+        XCTAssertEqual(dates, [date(2026, 9, 10), date(2026, 9, 17), date(2026, 9, 24), date(2026, 10, 1)])
+    }
+
+    func testBiweeklyChargeDateInTheFutureStartsThere() {
+        let dates = UpcomingChargeCalculator.occurrences(cadence: .biweekly, dueDay: nil, anchor: date(2026, 9, 20), from: date(2026, 9, 7), calendar: calendar)
+        XCTAssertEqual(dates, [date(2026, 9, 20), date(2026, 10, 4)])
+    }
+
+    func testWeeklyStepsAcrossADaylightSavingChange() {
+        var pacific = Calendar(identifier: .gregorian)
+        pacific.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+        func day(_ m: Int, _ d: Int) -> Date { pacific.date(from: DateComponents(year: 2026, month: m, day: d))! }
+        // Clocks go back on Nov 1, 2026; every step must stay on a Sunday at midnight.
+        let dates = UpcomingChargeCalculator.occurrences(cadence: .weekly, dueDay: nil, anchor: day(10, 25), from: day(10, 26), calendar: pacific)
+        XCTAssertEqual(dates, [day(11, 1), day(11, 8), day(11, 15), day(11, 22)])
+    }
+
+    func testQuarterlyClampsToShortMonths() {
+        let april = UpcomingChargeCalculator.occurrences(cadence: .quarterly, dueDay: nil, anchor: date(2026, 1, 31), from: date(2026, 4, 1), calendar: calendar)
+        XCTAssertEqual(april, [date(2026, 4, 30)])
+        let october = UpcomingChargeCalculator.occurrences(cadence: .quarterly, dueDay: nil, anchor: date(2026, 1, 31), from: date(2026, 10, 15), calendar: calendar)
+        XCTAssertEqual(october, [date(2026, 10, 31)])
+    }
+
+    func testYearlyFromALeapDayLandsOnTheTwentyEighth() {
+        let dates = UpcomingChargeCalculator.occurrences(cadence: .yearly, dueDay: nil, anchor: date(2024, 2, 29), from: date(2026, 2, 1), calendar: calendar)
+        XCTAssertEqual(dates, [date(2026, 2, 28)])
+    }
+
+    func testMonthlyWithoutADueDayUsesTheChargeDatesDay() {
+        let dates = UpcomingChargeCalculator.occurrences(cadence: .monthly, dueDay: nil, anchor: date(2026, 8, 12), from: date(2026, 9, 7), calendar: calendar)
+        XCTAssertEqual(dates, [date(2026, 9, 12)])
+    }
+
+    func testNextChargeLooksBeyondTheThirtyDayWindow() {
+        let next = UpcomingChargeCalculator.nextCharge(cadence: .yearly, dueDay: nil, anchor: date(2026, 3, 5), after: date(2026, 9, 7), calendar: calendar)
+        XCTAssertEqual(next, date(2027, 3, 5))
+        XCTAssertNil(UpcomingChargeCalculator.nextCharge(cadence: .weekly, dueDay: nil, anchor: nil, after: date(2026, 9, 7), calendar: calendar))
+    }
+
+    func testChargesIncludeEveryCadenceWithAChargeDate() {
+        let expenses = [
+            Expense(name: "Groceries", amount: 120, category: .food, cadence: .weekly, chargeDate: date(2026, 9, 5)),
+            Expense(name: "Insurance", amount: 420, category: .insurance, cadence: .quarterly, chargeDate: date(2026, 6, 15)),
+            Expense(name: "Domain", amount: 12, category: .subscriptions, cadence: .yearly, chargeDate: date(2025, 9, 20)),
+        ]
+        let charges = UpcomingChargeCalculator.charges(for: expenses, from: date(2026, 9, 7), calendar: calendar)
+        XCTAssertEqual(charges.map(\.expense.name), ["Groceries", "Insurance", "Groceries", "Domain", "Groceries", "Groceries"])
+        XCTAssertEqual(charges.map(\.date), [date(2026, 9, 12), date(2026, 9, 15), date(2026, 9, 19), date(2026, 9, 20), date(2026, 9, 26), date(2026, 10, 3)])
+    }
+
+    func testUnplaceableListsRecurringExpensesWithoutASchedule() {
+        let expenses = [
+            Expense(name: "No day", amount: 1, category: .other),
+            Expense(name: "Weekly, day only", amount: 1, category: .other, cadence: .weekly, dueDay: 3),
+            Expense(name: "Weekly, dated", amount: 1, category: .other, cadence: .weekly, chargeDate: date(2026, 9, 3)),
+            Expense(name: "Paused", amount: 1, category: .other, cadence: .yearly, isActive: false),
+            Expense(name: "Ticket", amount: 1, category: .other, cadence: .oneTime),
+        ]
+        XCTAssertEqual(UpcomingChargeCalculator.unplaceable(in: expenses).map(\.name), ["No day", "Weekly, day only"])
     }
 
     func testInvalidDueDayProducesNothing() {

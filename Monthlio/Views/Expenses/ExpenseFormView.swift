@@ -102,7 +102,7 @@ struct ExpenseFormView: View {
 
             if viewModel.cadence == .oneTime {
                 DatePicker("Charge date", selection: $viewModel.chargeDate, displayedComponents: .date)
-            } else {
+            } else if viewModel.cadence == .monthly {
                 Toggle("Due on a specific day", isOn: $viewModel.hasDueDay.animation())
 
                 if viewModel.hasDueDay {
@@ -112,14 +112,36 @@ struct ExpenseFormView: View {
                         }
                     }
                 }
+            } else {
+                Toggle("I know the next charge date", isOn: $viewModel.hasChargeDate.animation())
+
+                if viewModel.hasChargeDate {
+                    DatePicker("Next charge", selection: $viewModel.chargeDate, displayedComponents: .date)
+                }
             }
         } footer: {
-            if viewModel.cadence == .oneTime {
-                Text("Counts toward the month it's charged in, then drops out of your monthly total.")
-            } else if let preview = monthlyPreviewText {
-                Text(preview)
+            if !scheduleFooter.isEmpty {
+                Text(scheduleFooter)
             }
         }
+    }
+
+    /// Monthly-equivalent preview plus, for cadences that step from a
+    /// date, where the schedule lands next.
+    private var scheduleFooter: String {
+        if viewModel.cadence == .oneTime {
+            return String(localized: "Counts toward the month it's charged in, then drops out of your monthly total.")
+        }
+        var lines: [String] = []
+        if let preview = monthlyPreviewText { lines.append(preview) }
+        if viewModel.cadence != .monthly {
+            if let next = viewModel.nextChargeDate {
+                lines.append(String(localized: "Next charge \(next.formatted(.dateTime.month(.abbreviated).day())). Upcoming and reminders follow this date."))
+            } else {
+                lines.append(String(localized: "Add the next charge date to see it in Upcoming and get a reminder."))
+            }
+        }
+        return lines.joined(separator: " ")
     }
 
     private var notesSection: some View {

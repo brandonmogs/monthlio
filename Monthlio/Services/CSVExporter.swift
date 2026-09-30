@@ -20,7 +20,7 @@ enum CSVExporter {
                 expense.isActive ? "true" : "false",
                 expense.notes ?? "",
                 expense.createdAt.formatted(.iso8601),
-                expense.oneTimeDate.map(chargeDay) ?? "",
+                (expense.oneTimeDate ?? expense.chargeDate).map(chargeDay) ?? "",
             ]
             .map(escape)
             .joined(separator: ",")
@@ -43,7 +43,8 @@ enum CSVExporter {
         return "\"" + value.replacingOccurrences(of: "\"", with: "\"\"") + "\""
     }
 
-    /// The calendar day a one-time expense hits, in the user's time zone,
+    /// The calendar day a charge hits (a one-time expense's date, or the
+    /// known charge date of a recurring one), in the user's time zone,
     /// e.g. "2026-11-04". The importer reads it back in the same zone.
     private static func chargeDay(_ date: Date) -> String {
         date.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day().dateSeparator(.dash))

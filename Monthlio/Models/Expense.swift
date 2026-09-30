@@ -21,8 +21,11 @@ final class Expense {
     var cadenceRaw: String = Cadence.monthly.rawValue
     /// Day of month (1–31) the charge hits, if known. Unused for one-time.
     var dueDay: Int?
-    /// When a one-time expense hits. Nil (rows from before this field) means
-    /// `createdAt`. Ignored for recurring cadences.
+    /// A date this charge hits. For a one-time expense it is the only
+    /// charge (nil, on rows from before the field, means `createdAt`). For
+    /// recurring cadences it is a known charge date the timeline steps
+    /// from, which weekly, biweekly, quarterly and yearly need; monthly
+    /// uses `dueDay` instead.
     var chargeDate: Date?
     /// Paused or cancelled expenses stay in history but drop out of totals.
     var isActive: Bool = true

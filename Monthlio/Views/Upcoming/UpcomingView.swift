@@ -22,7 +22,7 @@ struct UpcomingView: View {
                     ContentUnavailableView(
                         "Nothing scheduled",
                         systemImage: "calendar.badge.clock",
-                        description: Text("Give your expenses a due day and they'll show up here.")
+                        description: Text("Give your expenses a due day or a charge date and they'll show up here.")
                     )
                     .listRowBackground(Color.clear)
                 }
@@ -91,9 +91,9 @@ struct UpcomingView: View {
                 .buttonStyle(.plain)
             }
         } header: {
-            Text("Not on the timeline")
+            Text("Needs a date")
         } footer: {
-            Text("Weekly, quarterly and yearly charges need more than a day of month to place on a date, so they're listed here instead.")
+            Text("Tap one to add a due day or the next charge date. That puts it on the timeline and gets it a reminder.")
         }
     }
 

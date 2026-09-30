@@ -81,9 +81,9 @@ enum DeviceSettings {
     }
 
     /// "9:00 AM" or "09:00", following the locale.
-    static func hourLabel(_ hour: Int, calendar: Calendar = .current) -> String {
+    static func hourLabel(_ hour: Int, calendar: Calendar = .current, locale: Locale = .current) -> String {
         let date = calendar.date(from: DateComponents(year: 2000, month: 1, day: 1, hour: hour, minute: 0)) ?? .now
-        return date.formatted(.dateTime.hour(.defaultDigits(amPM: .abbreviated)).minute())
+        return date.formatted(.dateTime.hour(.defaultDigits(amPM: .abbreviated)).minute().locale(locale))
     }
 
     // MARK: Migration

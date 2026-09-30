@@ -52,6 +52,15 @@ struct SubscriptionRow: View {
             }
         }
         .opacity(expense.isActive ? 1 : 0.6)
+        .contextMenu {
+            Button("Edit", systemImage: "pencil", action: onEdit)
+            if expense.hadPriceIncrease {
+                Button("Not a price increase", systemImage: "arrow.uturn.backward") {
+                    expense.clearPriceChange()
+                    try? modelContext.save()
+                }
+            }
+        }
     }
 
     private var priceIncreaseBadge: some View {

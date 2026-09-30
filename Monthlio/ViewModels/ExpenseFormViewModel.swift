@@ -97,7 +97,14 @@ final class ExpenseFormViewModel {
 
         if let existing {
             existing.name = trimmedName
-            existing.updateAmount(amount)
+            if existing.currencyCode != currencyCode || existing.cadence != cadence {
+                // A new billing basis: the old amount no longer compares, so
+                // "$15.49 monthly" becoming "$155.88 yearly" is not a price rise.
+                existing.amount = amount
+                existing.clearPriceChange()
+            } else {
+                existing.updateAmount(amount)
+            }
             existing.currencyCode = currencyCode
             existing.category = category
             existing.cadence = cadence

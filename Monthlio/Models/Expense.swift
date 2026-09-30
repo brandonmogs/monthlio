@@ -71,18 +71,40 @@ final class Expense {
         set { cadenceRaw = newValue.rawValue }
     }
 
-    /// True when the last amount edit raised the price.
-    var hadPriceIncrease: Bool {
-        guard let previousAmount else { return false }
-        return previousAmount < amount
+    /// Edits this soon after creation are typo fixes, not price changes.
+    static let correctionWindow: TimeInterval = 15 * 60
+    /// A "price up" badge fades after this long.
+    static let priceIncreaseWindowDays = 90
+
+    /// True when the last amount edit raised the price and is recent
+    /// enough to still matter.
+    var hadPriceIncrease: Bool { hasPriceIncrease() }
+
+    func hasPriceIncrease(asOf now: Date = .now, calendar: Calendar = .current) -> Bool {
+        guard let previousAmount, previousAmount < amount else { return false }
+        guard let amountChangedAt,
+              let expiry = calendar.date(byAdding: .day, value: Self.priceIncreaseWindowDays, to: amountChangedAt) else { return true }
+        return now < expiry
     }
 
     /// Records an amount change so subscriptions can flag price increases.
+    /// Within `correctionWindow` of creation the change leaves no trace.
     func updateAmount(_ newAmount: Decimal, at date: Date = .now) {
         guard newAmount != amount else { return }
+        if date.timeIntervalSince(createdAt) < Self.correctionWindow {
+            amount = newAmount
+            return
+        }
         previousAmount = amount
         amountChangedAt = date
         amount = newAmount
+    }
+
+    /// Forgets the last price change: the user says it wasn't one, or the
+    /// currency or cadence changed so the old amount no longer compares.
+    func clearPriceChange() {
+        previousAmount = nil
+        amountChangedAt = nil
     }
 }
 

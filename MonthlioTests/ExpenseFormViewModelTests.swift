@@ -68,6 +68,33 @@ final class ExpenseFormViewModelTests: XCTestCase {
         XCTAssertNil(vm.nextChargeDate)
     }
 
+    @MainActor
+    func testChangingCurrencyOrCadenceIsNotAPriceIncrease() throws {
+        let container = try TestContainer.make()
+        let context = container.mainContext
+        let netflix = Expense(name: "Netflix", amount: Decimal(string: "15.49")!, currencyCode: "USD", category: .subscriptions, createdAt: Date(timeIntervalSince1970: 1_700_000_000))
+        context.insert(netflix)
+
+        let annual = ExpenseFormViewModel(expense: netflix)
+        annual.cadence = .yearly
+        annual.amount = Decimal(string: "155.88")!
+        XCTAssertTrue(annual.save(in: context))
+        XCTAssertFalse(netflix.hadPriceIncrease, "switching to annual billing is not a price rise")
+        XCTAssertNil(netflix.previousAmount)
+
+        let yen = ExpenseFormViewModel(expense: netflix)
+        yen.currencyCode = "JPY"
+        yen.amount = 1500
+        XCTAssertTrue(yen.save(in: context))
+        XCTAssertFalse(netflix.hadPriceIncrease)
+
+        let raised = ExpenseFormViewModel(expense: netflix)
+        raised.amount = 1700
+        XCTAssertTrue(raised.save(in: context))
+        XCTAssertTrue(netflix.hadPriceIncrease)
+        XCTAssertEqual(netflix.previousAmount, 1500)
+    }
+
     func testMonthlyEditAdoptsAnImportedChargeDateAsItsDueDay() {
         let imported = Expense(name: "Netflix", amount: 15, category: .subscriptions, cadence: .monthly, chargeDate: Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 12)))
         let vm = ExpenseFormViewModel(expense: imported)

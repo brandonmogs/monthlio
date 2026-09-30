@@ -57,7 +57,7 @@ final class BackupServiceTests: XCTestCase {
 
         let rent = try XCTUnwrap(try target.fetch(FetchDescriptor<Expense>(predicate: #Predicate { $0.name == "Rent" })).first)
         XCTAssertEqual(rent.previousAmount, 1850)
-        XCTAssertTrue(rent.hadPriceIncrease)
+        XCTAssertTrue(rent.hasPriceIncrease(asOf: Date(timeIntervalSince1970: 1_751_000_000)))
         restored = try BackupService.document(from: target)
         XCTAssertEqual(restored.expenses.count, 3)
     }

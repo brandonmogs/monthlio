@@ -2,21 +2,25 @@ import Foundation
 import SwiftData
 
 /// Optional monthly cap for one category. Absence means "no budget".
-@Model
-final class CategoryBudget {
-    var categoryRaw: String = ExpenseCategory.other.rawValue
-    var cap: Decimal = 0
+extension MonthlioSchemaV1 {
+    @Model
+    final class CategoryBudget {
+        var categoryRaw: String = ExpenseCategory.other.rawValue
+        var cap: Decimal = 0
 
-    init(category: ExpenseCategory, cap: Decimal) {
-        self.categoryRaw = category.rawValue
-        self.cap = cap
-    }
+        init(category: ExpenseCategory, cap: Decimal) {
+            self.categoryRaw = category.rawValue
+            self.cap = cap
+        }
 
-    var category: ExpenseCategory {
-        get { ExpenseCategory(rawValue: categoryRaw) ?? .other }
-        set { categoryRaw = newValue.rawValue }
+        var category: ExpenseCategory {
+            get { ExpenseCategory(rawValue: categoryRaw) ?? .other }
+            set { categoryRaw = newValue.rawValue }
+        }
     }
 }
+
+typealias CategoryBudget = MonthlioSchemaV1.CategoryBudget
 
 extension Array where Element == CategoryBudget {
     /// Quick lookup keyed by category. Duplicates (possible after a sync

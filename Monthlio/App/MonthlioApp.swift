@@ -1,5 +1,8 @@
 import SwiftData
 import SwiftUI
+import os
+
+private let log = Logger(subsystem: "com.monthlio.app", category: "store")
 
 @main
 struct MonthlioApp: App {
@@ -7,16 +10,13 @@ struct MonthlioApp: App {
     @State private var lock: AppLockService
     @State private var pro: ProStore
 
-    static let schema = Schema([
-        Expense.self,
-        AppSettings.self,
-        CategoryBudget.self,
-        MonthSnapshot.self,
-        ExchangeRate.self,
-    ])
+    static let schema = Schema(versionedSchema: MonthlioSchemaV1.self)
 
     /// True when the store is CloudKit-backed. Settings shows sync status from this.
     private(set) static var isCloudSyncEnabled = false
+    /// Set when the store on disk couldn't be opened and was set aside;
+    /// RootTabView tells the user once.
+    private(set) static var storeRecoveryNotice: StoreRecoveryNotice?
 
     init() {
         var storeExists = MonthlioApp.defaultStoreExists
@@ -69,6 +69,8 @@ struct MonthlioApp: App {
 
     /// Opens the iCloud-backed store when sync is on, and a local store
     /// otherwise or if CloudKit isn't available, so the app always launches.
+    /// A store that can't be opened at all is set aside rather than left
+    /// to crash every launch.
     private static func makeContainer(cloud wantsCloud: Bool) -> ModelContainer {
         #if DEBUG
         // UI tests pass -MonthlioInMemory so nothing on the device is touched.
@@ -82,17 +84,51 @@ struct MonthlioApp: App {
         #endif
         if wantsCloud {
             let cloud = ModelConfiguration(schema: schema, cloudKitDatabase: .automatic)
-            if let container = try? ModelContainer(for: schema, configurations: cloud) {
+            if let container = try? ModelContainer(for: schema, migrationPlan: MonthlioMigrationPlan.self, configurations: [cloud]) {
                 isCloudSyncEnabled = true
                 return container
             }
         }
         let local = ModelConfiguration(schema: schema, cloudKitDatabase: .none)
         do {
-            return try ModelContainer(for: schema, configurations: local)
+            return try ModelContainer(for: schema, migrationPlan: MonthlioMigrationPlan.self, configurations: [local])
         } catch {
-            fatalError("Failed to create ModelContainer: \(error)")
+            log.fault("Couldn't open the store: \(error.localizedDescription, privacy: .public)")
         }
+        // Corrupt, or a migration this build can't perform. Keep the file
+        // for recovery and start fresh: a backup or iCloud sync brings the
+        // data back, a crash loop brings nothing back.
+        storeRecoveryNotice = setAsideStore(in: URL.applicationSupportDirectory)
+        if let container = try? ModelContainer(for: schema, migrationPlan: MonthlioMigrationPlan.self, configurations: [local]) {
+            return container
+        }
+        let memory = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
+        do {
+            return try ModelContainer(for: schema, configurations: memory)
+        } catch {
+            fatalError("Failed to create even an in-memory ModelContainer: \(error)")
+        }
+    }
+
+    /// Renames `default.store` and its journal files to a timestamped
+    /// `.broken` name so a fresh store can be created next to them.
+    static func setAsideStore(in directory: URL, now: Date = .now) -> StoreRecoveryNotice? {
+        let stamp = now.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day().time(includingFractionalSeconds: false).dateSeparator(.dash).timeSeparator(.omitted))
+        let files = FileManager.default
+        var kept: [String] = []
+        for suffix in ["", "-wal", "-shm"] {
+            let source = directory.appending(path: "default.store" + suffix)
+            guard files.fileExists(atPath: source.path) else { continue }
+            let target = directory.appending(path: "default.store.broken-\(stamp)" + suffix)
+            do {
+                try files.moveItem(at: source, to: target)
+                kept.append(target.lastPathComponent)
+            } catch {
+                log.fault("Couldn't set aside \(source.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                try? files.removeItem(at: source)
+            }
+        }
+        return kept.isEmpty ? StoreRecoveryNotice(keptFileName: nil) : StoreRecoveryNotice(keptFileName: kept[0])
     }
 
     var body: some Scene {

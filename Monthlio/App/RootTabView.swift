@@ -13,6 +13,7 @@ struct RootTabView: View {
     @State private var currencyStore = CurrencyStore()
     @State private var shield = PrivacyShield()
     @State private var selectedTab = Tab.initial
+    @State private var showingRecoveryNotice = MonthlioApp.storeRecoveryNotice != nil
     @AppStorage(DeviceSettings.remindersEnabledKey, store: SyncPreference.standard) private var remindersEnabled = false
     @AppStorage(DeviceSettings.reminderHourKey, store: SyncPreference.standard) private var reminderHour = DeviceSettings.defaultReminderHour
 
@@ -59,6 +60,11 @@ struct RootTabView: View {
             }
             .onOpenURL { url in
                 openDeepLink(url)
+            }
+            .alert("Monthlio couldn't open your data", isPresented: $showingRecoveryNotice) {
+                Button("OK") {}
+            } message: {
+                Text(MonthlioApp.storeRecoveryNotice?.message ?? "")
             }
     }
 

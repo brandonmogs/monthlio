@@ -10,6 +10,7 @@ struct CurrencySettingsView: View {
     @Query(sort: \ExchangeRate.code) private var rates: [ExchangeRate]
     @Query private var expenses: [Expense]
     @State private var pendingBaseWithoutPivot: String?
+    @State private var pendingConversion: PendingBaseConversion?
 
     var body: some View {
         let base = currencyStore.baseCode
@@ -50,6 +51,18 @@ struct CurrencySettingsView: View {
         } message: {
             Text("There was no \(pendingBaseWithoutPivot ?? "") rate to convert your existing rates from. They're kept for \(base), and other currencies count 1:1 in \(pendingBaseWithoutPivot ?? "") until you enter rates below.")
         }
+        .alert("Convert amounts to \(pendingConversion?.to ?? "")?", isPresented: Binding(
+            get: { pendingConversion != nil },
+            set: { if !$0 { pendingConversion = nil } }
+        ), presenting: pendingConversion) { conversion in
+            Button("Convert") {
+                BaseCurrencyConversion.convertStoredAmounts(in: modelContext, pivot: conversion.pivot)
+                Haptics.success()
+            }
+            Button("Keep the numbers", role: .cancel) {}
+        } message: { conversion in
+            Text("Your income, category budgets and history are numbers in the base currency. Convert them at 1 \(conversion.to) = \(conversion.pivot.formatted(.number.precision(.fractionLength(2...6)))) \(conversion.from), or keep the numbers as they are.")
+        }
     }
 
     private var baseBinding: Binding<String> {
@@ -66,7 +79,8 @@ struct CurrencySettingsView: View {
     private func changeBase(to newBase: String) {
         let oldBase = currencyStore.baseCode
         guard newBase != oldBase else { return }
-        let hadPivot = currencyStore.converter.hasRate(for: newBase)
+        let pivot = currencyStore.converter.rate(for: newBase)
+        let hadPivot = pivot != nil
         let rebased = currencyStore.converter.rebased(to: newBase)
 
         for (code, value) in rebased.rates where !rates.contains(where: { $0.code == code && $0.applies(to: newBase) }) {
@@ -78,7 +92,10 @@ struct CurrencySettingsView: View {
 
         let stillMissing = Set(expenses.map(\.currencyCode)).subtracting([newBase])
             .contains { code in !rates.contains { $0.code == code && $0.applies(to: newBase) } && rebased.rates[code] == nil }
-        if !hadPivot, stillMissing {
+        if let pivot {
+            // Rates followed automatically; stored amounts only on request.
+            pendingConversion = PendingBaseConversion(from: oldBase, to: newBase, pivot: pivot)
+        } else if stillMissing {
             pendingBaseWithoutPivot = newBase
         }
     }

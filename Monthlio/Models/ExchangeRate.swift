@@ -33,3 +33,12 @@ final class ExchangeRate {
         try? context.save()
     }
 }
+
+extension Array where Element == ExchangeRate {
+    /// Among duplicate rows for one code and base (possible after a sync
+    /// merge), the most recently edited one, which is the one the
+    /// converter uses (`CurrencyStore.update`).
+    var newest: ExchangeRate? {
+        self.max { $0.updatedAt < $1.updatedAt }
+    }
+}

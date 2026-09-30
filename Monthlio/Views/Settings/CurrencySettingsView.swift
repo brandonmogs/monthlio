@@ -32,7 +32,7 @@ struct CurrencySettingsView: View {
                         .foregroundStyle(.secondary)
                 }
                 ForEach(inUse, id: \.self) { code in
-                    RateRow(code: code, base: base, rate: rates.first { $0.code == code && $0.applies(to: base) })
+                    RateRow(code: code, base: base, rows: rates.filter { $0.code == code && $0.applies(to: base) })
                 }
             } header: {
                 Text("Exchange rates")
@@ -84,13 +84,27 @@ struct CurrencySettingsView: View {
     }
 }
 
+/// The field starts from the stored rate and writes only when the user
+/// changes it: an `onAppear` assignment would trigger `onChange`, re-stamp
+/// `updatedAt` (the tiebreaker between duplicate rows) and save on every
+/// visit. Duplicates appear after a sync merge; the newest is the one in
+/// use, so that's the one edited, and the others go on save.
 private struct RateRow: View {
     @Environment(\.modelContext) private var modelContext
     let code: String
     let base: String
-    let rate: ExchangeRate?
+    let rows: [ExchangeRate]
 
     @State private var value: Decimal?
+
+    init(code: String, base: String, rows: [ExchangeRate]) {
+        self.code = code
+        self.base = base
+        self.rows = rows
+        _value = State(initialValue: rows.newest?.rateToBase)
+    }
+
+    private var rate: ExchangeRate? { rows.newest }
 
     var body: some View {
         HStack {
@@ -110,7 +124,6 @@ private struct RateRow: View {
             Text(base)
                 .foregroundStyle(.secondary)
         }
-        .onAppear { value = rate?.rateToBase }
         .onChange(of: value) { _, newValue in commit(newValue) }
     }
 
@@ -119,15 +132,19 @@ private struct RateRow: View {
             value = rate?.rateToBase
             return
         }
-        if let newValue, newValue > 0 {
+        let target: Decimal? = (newValue ?? 0) > 0 ? newValue : nil
+        guard target != rate?.rateToBase else { return }
+        if let target {
             if let rate {
-                rate.rateToBase = newValue
+                rate.rateToBase = target
                 rate.updatedAt = .now
             } else {
-                modelContext.insert(ExchangeRate(code: code, rateToBase: newValue, baseCode: base))
+                modelContext.insert(ExchangeRate(code: code, rateToBase: target, baseCode: base))
             }
-        } else if let rate {
-            modelContext.delete(rate)
+        }
+        // Clearing removes every row for this currency; editing removes the duplicates.
+        for row in rows where target == nil || row !== rate {
+            modelContext.delete(row)
         }
         try? modelContext.save()
     }

@@ -18,7 +18,7 @@ struct BudgetEditorView: View {
                 ForEach(ExpenseCategory.allCases) { category in
                     BudgetRow(
                         category: category,
-                        budget: budgets.first { $0.category == category },
+                        rows: budgets.filter { $0.category == category },
                         spent: spending[category] ?? 0
                     )
                 }
@@ -31,13 +31,26 @@ struct BudgetEditorView: View {
     }
 }
 
+/// Starts from the stored cap and writes only on a real edit (see
+/// `RateRow` in CurrencySettingsView for why not `onAppear`). With
+/// duplicate rows from a sync merge it edits the one the dashboard uses,
+/// the largest cap, and removes the others on save.
 private struct BudgetRow: View {
     @Environment(\.modelContext) private var modelContext
     let category: ExpenseCategory
-    let budget: CategoryBudget?
+    let rows: [CategoryBudget]
     let spent: Decimal
 
     @State private var cap: Decimal?
+
+    init(category: ExpenseCategory, rows: [CategoryBudget], spent: Decimal) {
+        self.category = category
+        self.rows = rows
+        self.spent = spent
+        _cap = State(initialValue: rows.primary?.cap)
+    }
+
+    private var budget: CategoryBudget? { rows.primary }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -61,7 +74,6 @@ private struct BudgetRow: View {
                 .multilineTextAlignment(.trailing)
                 .frame(maxWidth: 120)
         }
-        .onAppear { cap = budget?.cap }
         .onChange(of: cap) { _, newValue in commit(newValue) }
     }
 
@@ -75,14 +87,18 @@ private struct BudgetRow: View {
             cap = budget?.cap
             return
         }
-        if let value, value > 0 {
+        let target: Decimal? = (value ?? 0) > 0 ? value : nil
+        guard target != budget?.cap else { return }
+        if let target {
             if let budget {
-                budget.cap = value
+                budget.cap = target
             } else {
-                modelContext.insert(CategoryBudget(category: category, cap: value))
+                modelContext.insert(CategoryBudget(category: category, cap: target))
             }
-        } else if let budget {
-            modelContext.delete(budget)
+        }
+        // Clearing removes every row for the category; editing removes the duplicates.
+        for row in rows where target == nil || row !== budget {
+            modelContext.delete(row)
         }
         try? modelContext.save()
     }

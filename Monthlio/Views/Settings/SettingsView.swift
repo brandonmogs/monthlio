@@ -101,7 +101,10 @@ struct SettingsView: View {
                     income = settings?.monthlyIncome
                     return
                 }
-                settings?.monthlyIncome = newValue ?? 0
+                // The appear-time assignment and retyping the same number are not edits.
+                let value = newValue ?? 0
+                guard value != (settings?.monthlyIncome ?? 0) else { return }
+                AppSettings.current(in: modelContext).monthlyIncome = value
                 try? modelContext.save()
             }
         } header: {

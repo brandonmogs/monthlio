@@ -24,4 +24,10 @@ extension Array where Element == CategoryBudget {
     var byCategory: [ExpenseCategory: Decimal] {
         Dictionary(map { ($0.category, $0.cap) }, uniquingKeysWith: { Swift.max($0, $1) })
     }
+
+    /// The row `byCategory` takes its cap from when duplicates exist, so
+    /// the editor edits what the dashboard shows.
+    var primary: CategoryBudget? {
+        self.max { $0.cap < $1.cap }
+    }
 }

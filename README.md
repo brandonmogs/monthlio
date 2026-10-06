@@ -102,12 +102,14 @@ Things App Store Connect needs that the code can't do for you:
 - **App Group**: automatic signing registers `group.com.monthlio.app` for
   the app and the widget; check it appears on both bundle IDs in the
   developer portal if a device build fails to sign.
-- **CloudKit**: deploy schema changes to Production in CloudKit Console
-  before submitting a build that adds fields (current fields include
-  `chargeDate` on expenses and `baseCode` on exchange rates). **1.4 adds
-  `colorHex` on expenses (schema version 2)**: run a development build once
-  so the field appears in the Development environment, then deploy it to
-  Production, or synced installs of 1.4 will fail to save colors.
+- **CloudKit**: the Production schema must contain every `CD_` record
+  type and field before a build ships, or every sync export fails. Core
+  Data creates the Development schema automatically when a Debug build
+  runs on a device or simulator signed in to iCloud; after a model change
+  run such a build once, confirm the new field (1.4: `CD_colorHex` on
+  `CD_Expense`) in CloudKit Console, and deploy Development to Production.
+  As of 2026-10-05 the container had never had a schema in either
+  environment, so this step is overdue, not routine.
 - **iPad**: the app now targets iPad, so the listing needs iPad screenshots.
 
 ## Layout

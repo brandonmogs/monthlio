@@ -88,15 +88,17 @@ struct MonthlioApp: App {
 
     /// A device that ran a 1.3 build wrote to the group store. When the
     /// pinned location has no store yet, that store and its journal move
-    /// over so nothing is lost. When both exist, the app's own store (the
-    /// 1.2 data) wins and the group store is left in place.
+    /// over so nothing is lost. When both exist (a 1.2 install that ran
+    /// 1.3 for a while), the rows only the group store has are merged into
+    /// the app's own store and the group store is set aside, so neither
+    /// the 1.2 data nor what was added since is lost.
+    @MainActor
     @discardableResult
     static func adoptGroupStoreIfNeeded(appURL: URL = storeURL, groupURL: URL? = groupStoreURL) -> Bool {
         let files = FileManager.default
         guard let groupURL, files.fileExists(atPath: groupURL.path) else { return false }
         guard !files.fileExists(atPath: appURL.path) else {
-            log.notice("Both the app store and a group store exist; keeping the app store")
-            return false
+            return mergeGroupStore(at: groupURL, into: appURL)
         }
         do {
             try files.createDirectory(at: appURL.deletingLastPathComponent(), withIntermediateDirectories: true)
@@ -157,16 +159,39 @@ struct MonthlioApp: App {
         }
     }
 
+    /// Copies every row the group store has and the app store lacks (same
+    /// UUID, category, rate or month) into the app store, then renames the
+    /// group store so this runs once. Both stores are opened without
+    /// CloudKit; the app store syncs the merged rows afterwards, and the
+    /// launch dedupe collapses any copy iCloud sends back.
+    @MainActor
+    private static func mergeGroupStore(at groupURL: URL, into appURL: URL) -> Bool {
+        do {
+            let source = try ModelContainer(for: schema, migrationPlan: MonthlioMigrationPlan.self, configurations: [ModelConfiguration(url: groupURL, cloudKitDatabase: .none)])
+            let document = try BackupService.document(from: source.mainContext)
+            let target = try ModelContainer(for: schema, migrationPlan: MonthlioMigrationPlan.self, configurations: [ModelConfiguration(url: appURL, cloudKitDatabase: .none)])
+            let summary = try BackupService.restore(document, into: target.mainContext, mode: .merge)
+            log.notice("Merged the group store into the app store: \(summary.expensesAdded) expenses, \(summary.budgetsAdded) budgets, \(summary.ratesAdded) rates, \(summary.snapshotsAdded) months")
+        } catch {
+            log.fault("Couldn't merge the group store: \(error.localizedDescription, privacy: .public)")
+            return false
+        }
+        setAsideStore(in: groupURL.deletingLastPathComponent(), label: "merged")
+        return true
+    }
+
     /// Renames `default.store` and its journal files to a timestamped
-    /// `.broken` name so a fresh store can be created next to them.
-    static func setAsideStore(in directory: URL, now: Date = .now) -> StoreRecoveryNotice? {
+    /// `.broken` (or other `label`) name so a fresh store can be created
+    /// next to them.
+    @discardableResult
+    static func setAsideStore(in directory: URL, label: String = "broken", now: Date = .now) -> StoreRecoveryNotice? {
         let stamp = now.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day().time(includingFractionalSeconds: false).dateSeparator(.dash).timeSeparator(.omitted))
         let files = FileManager.default
         var kept: [String] = []
         for suffix in ["", "-wal", "-shm"] {
             let source = directory.appending(path: "default.store" + suffix)
             guard files.fileExists(atPath: source.path) else { continue }
-            let target = directory.appending(path: "default.store.broken-\(stamp)" + suffix)
+            let target = directory.appending(path: "default.store.\(label)-\(stamp)" + suffix)
             do {
                 try files.moveItem(at: source, to: target)
                 kept.append(target.lastPathComponent)

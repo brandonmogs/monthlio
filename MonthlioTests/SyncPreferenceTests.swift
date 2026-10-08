@@ -69,7 +69,9 @@ final class SyncPreferenceTests: XCTestCase {
         XCTAssertFalse(SyncPreference.recordOriginalBuild("6", later))
         XCTAssertFalse(SyncPreference.isGrandfathered(later))
         XCTAssertFalse(SyncPreference.recordOriginalBuild("sandbox", later))
-        XCTAssertTrue(SyncPreference.hasRecordedOriginalBuild(later), "an unparseable answer is still an answer")
+        XCTAssertFalse(SyncPreference.hasRecordedOriginalBuild(later), "a sandbox answer is asked again: the App Store build on the same device can still answer for production")
+        XCTAssertFalse(SyncPreference.recordOriginalBuild("abc", later))
+        XCTAssertTrue(SyncPreference.hasRecordedOriginalBuild(later), "an unparseable production answer is still an answer")
     }
 
     func testLeadingIntegerParsing() {

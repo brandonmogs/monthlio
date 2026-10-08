@@ -56,8 +56,12 @@ enum SyncPreference {
         defaults.set(currentMigration, forKey: migrationKey)
     }
 
+    /// A sandbox answer (TestFlight, App Review, Xcode) is remembered but
+    /// not final: the same device may later run the App Store build, whose
+    /// production transaction is the one that can grandfather.
     static func hasRecordedOriginalBuild(_ defaults: UserDefaults = standard) -> Bool {
-        defaults.object(forKey: originalBuildKey) != nil
+        guard let recorded = defaults.string(forKey: originalBuildKey) else { return false }
+        return recorded != "sandbox"
     }
 
     /// Records the build the account first downloaded, as reported by the

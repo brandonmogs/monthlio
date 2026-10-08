@@ -330,7 +330,7 @@ final class ProStoreTests: XCTestCase {
         await store.recordOriginalBuildIfNeeded()
 
         XCTAssertFalse(store.isGrandfathered, "App Review and TestFlight must see the paywall")
-        XCTAssertEqual(client.originalBuildRequests, 1, "answered once, not retried")
+        XCTAssertEqual(client.originalBuildRequests, 2, "a sandbox answer is asked again: the App Store build on the same device answers for production")
     }
 
     func testRestorePurchasesAlsoRecoversAPreProDownload() async {

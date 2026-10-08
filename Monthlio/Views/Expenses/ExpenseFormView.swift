@@ -7,10 +7,13 @@ struct ExpenseFormView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(CurrencyStore.self) private var currencyStore
     @Environment(ProStore.self) private var pro
+    @Environment(DeletedExpenseBuffer.self) private var deleted
 
     @State private var viewModel: ExpenseFormViewModel
     @State private var showingDeleteConfirmation = false
     @State private var showingPaywall = false
+    /// A second tap on Save before the sheet is gone must not insert twice.
+    @State private var didSave = false
     @FocusState private var focusedField: Field?
 
     private enum Field { case name, amount, notes }
@@ -55,6 +58,7 @@ struct ExpenseFormView: View {
                 titleVisibility: .visible
             ) {
                 Button("Delete", role: .destructive) {
+                    if let existing = viewModel.existing { deleted.remember(existing) }
                     viewModel.delete(in: modelContext)
                     dismiss()
                 }
@@ -222,7 +226,9 @@ struct ExpenseFormView: View {
     }
 
     private func save() {
+        guard !didSave else { return }
         if viewModel.save(in: modelContext) {
+            didSave = true
             dismiss()
         } else {
             Haptics.warning()
@@ -235,6 +241,7 @@ struct ExpenseFormView: View {
         .modelContainer(PreviewContainer.empty)
         .environment(CurrencyStore())
         .environment(ProStore(defaults: UserDefaults(suiteName: "preview")!))
+        .environment(DeletedExpenseBuffer())
 }
 
 #Preview("Edit") {
@@ -242,4 +249,5 @@ struct ExpenseFormView: View {
         .modelContainer(PreviewContainer.shared)
         .environment(CurrencyStore())
         .environment(ProStore(defaults: UserDefaults(suiteName: "preview")!))
+        .environment(DeletedExpenseBuffer())
 }

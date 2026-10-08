@@ -14,6 +14,14 @@ final class ExpenseColorTests: XCTestCase {
         XCTAssertEqual(Set(ExpenseColor.palette.map(\.hex)).count, ExpenseColor.palette.count, "swatches are distinct")
     }
 
+    func testWideGamutPicksStillProduceAValidHex() throws {
+        let p3Red = Color(.displayP3, red: 1, green: 0, blue: 0)
+        let hex = try XCTUnwrap(p3Red.hexString)
+        XCTAssertEqual(hex.count, 7, hex)
+        XCTAssertNotNil(Color(hex: hex), "a Display P3 red must round-trip to a usable sRGB hex")
+        XCTAssertEqual(hex, "#FF0000")
+    }
+
     func testDisplayColorFallsBackToTheCategory() {
         let rent = Expense(name: "Rent", amount: 1850, category: .housing)
         XCTAssertEqual(rent.displayColor, ExpenseCategory.housing.color)

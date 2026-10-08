@@ -5,6 +5,9 @@ import SwiftUI
 struct EmptyStateView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var showingAddSheet = false
+    /// Starter rows insert on tap; the view only disappears once the query
+    /// updates, so a fast second tap must not add twice.
+    @State private var addedStarters: Set<UUID> = []
 
     private let starters = SampleData.starterExpenses()
 
@@ -78,6 +81,7 @@ struct EmptyStateView: View {
     }
 
     private func add(_ sample: Expense) {
+        guard addedStarters.insert(sample.id).inserted else { return }
         let expense = Expense(
             name: sample.name,
             amount: sample.amount,

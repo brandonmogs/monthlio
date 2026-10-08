@@ -17,11 +17,14 @@ extension Color {
         )
     }
 
-    /// "#RRGGBB" in sRGB, or nil if the color can't be resolved.
+    /// "#RRGGBB" in sRGB, or nil if the color can't be resolved. Components
+    /// come back in extended sRGB, outside 0...1 for Display P3 picks from
+    /// the system picker; they are clamped so every pick stores a valid hex.
     var hexString: String? {
         var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
         guard UIColor(self).getRed(&red, green: &green, blue: &blue, alpha: &alpha) else { return nil }
-        return String(format: "#%02X%02X%02X", Int((red * 255).rounded()), Int((green * 255).rounded()), Int((blue * 255).rounded()))
+        func byte(_ component: CGFloat) -> Int { Int((min(max(component, 0), 1) * 255).rounded()) }
+        return String(format: "#%02X%02X%02X", byte(red), byte(green), byte(blue))
     }
 }
 

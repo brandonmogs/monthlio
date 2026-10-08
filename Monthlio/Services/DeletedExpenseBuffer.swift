@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import SwiftData
+import UIKit
 import os
 
 private let log = Logger(subsystem: "com.monthlio.app", category: "undo")
@@ -66,7 +67,13 @@ final class DeletedExpenseBuffer {
         log.notice("Remembering \(expense.name, privacy: .public) for undo")
         pending = Snapshot(expense)
         expiry?.cancel()
-        let timeout = timeout
+        // The bar is an overlay a screen reader never lands on; say it, and
+        // leave it up long enough to find.
+        let voiceOver = UIAccessibility.isVoiceOverRunning
+        if voiceOver {
+            UIAccessibility.post(notification: .announcement, argument: String(localized: "Deleted \(expense.name). Undo is available at the bottom of the screen."))
+        }
+        let timeout = voiceOver ? timeout * 3 : timeout
         expiry = Task { [weak self] in
             try? await Task.sleep(for: timeout)
             guard !Task.isCancelled else { return }

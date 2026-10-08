@@ -4,6 +4,7 @@ import SwiftUI
 struct RootTabView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @Query private var expenses: [Expense]
     @Query(sort: \AppSettings.createdAt) private var settingsRows: [AppSettings]
     @Query private var rates: [ExchangeRate]
@@ -40,8 +41,8 @@ struct RootTabView: View {
             // or the undo bar can't find the buffer.
             .overlay(alignment: .bottom) {
                 UndoDeleteBar()
-                    // Above the tab bar, which the overlay's frame includes.
-                    .padding(.bottom, 60)
+                    // Above the bottom tab bar on iPhone; iPad draws it at the top.
+                    .padding(.bottom, sizeClass == .regular ? 16 : 60)
             }
             .animation(.snappy, value: deleted.pending)
             .environment(currencyStore)
@@ -124,7 +125,7 @@ struct RootTabView: View {
     /// Reading these properties in the body also subscribes to their updates.
     private var syncFingerprint: String {
         let expensePart = expenses.map {
-            "\($0.id.uuidString)|\($0.amount)|\($0.currencyCode)|\($0.cadenceRaw)|\($0.dueDay ?? 0)|\($0.chargeDate?.timeIntervalSince1970 ?? 0)|\($0.categoryRaw)|\($0.isActive)|\($0.name)"
+            "\($0.id.uuidString)|\($0.amount)|\($0.currencyCode)|\($0.cadenceRaw)|\($0.dueDay ?? 0)|\($0.chargeDate?.timeIntervalSince1970 ?? 0)|\($0.categoryRaw)|\($0.isActive)|\($0.name)|\($0.colorHex ?? "")"
         }
         .joined(separator: ";")
         return "\(remindersEnabled)|\(reminderHour)|\(lock.isEnabled)#\(currencyFingerprint)#\(expensePart)"

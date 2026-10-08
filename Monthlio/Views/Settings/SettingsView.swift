@@ -9,10 +9,16 @@ enum SettingsDestination: Hashable {
 
 /// Income, budgets, currency, security, reminders and export.
 struct SettingsView: View {
-    /// Pushed when the sheet appears, e.g. the dashboard's rates banner
-    /// opens the Currency screen.
-    var opening: SettingsDestination? = nil
-    @State private var path: [SettingsDestination] = []
+    /// Pushed once when the sheet opens, e.g. the dashboard's rates banner
+    /// opens the Currency screen. Seeded in `init`: an `onAppear` on the
+    /// root fires again after every pop and would push it back.
+    let opening: SettingsDestination?
+    @State private var path: [SettingsDestination]
+
+    init(opening: SettingsDestination? = nil) {
+        self.opening = opening
+        _path = State(initialValue: opening.map { [$0] } ?? [])
+    }
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Environment(CurrencyStore.self) private var currencyStore
@@ -89,7 +95,6 @@ struct SettingsView: View {
                 // synced device races the first iCloud import and leaves two.
                 let current = AppSettings.existing(in: modelContext)
                 income = (current?.hasIncome ?? false) ? current?.monthlyIncome : nil
-                if let opening, path.isEmpty { path = [opening] }
             }
             .task { await NotificationScheduler.shared.refreshAuthorization() }
         }

@@ -10,7 +10,7 @@ struct MonthlioApp: App {
     @State private var lock: AppLockService
     @State private var pro: ProStore
 
-    static let schema = Schema(versionedSchema: MonthlioSchemaV2.self)
+    static let schema = Schema(versionedSchema: MonthlioSchemaV3.self)
 
     /// True when the store is CloudKit-backed. Settings shows sync status from this.
     private(set) static var isCloudSyncEnabled = false

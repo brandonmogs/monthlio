@@ -40,6 +40,8 @@ struct BackupDocument: Codable, Equatable {
         var amountChangedAt: Date?
         /// "#RRGGBB"; absent in backups from before 1.4.
         var colorHex: String?
+        /// The expense's own notification; absent in backups from before 1.5.
+        var reminderDate: Date?
     }
 
     struct BudgetRecord: Codable, Equatable {

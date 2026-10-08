@@ -27,6 +27,7 @@ final class DeletedExpenseBuffer {
         var previousAmount: Decimal?
         var amountChangedAt: Date?
         var colorHex: String?
+        var reminderDate: Date?
 
         init(_ expense: Expense) {
             id = expense.id
@@ -43,13 +44,15 @@ final class DeletedExpenseBuffer {
             previousAmount = expense.previousAmount
             amountChangedAt = expense.amountChangedAt
             colorHex = expense.colorHex
+            reminderDate = expense.reminderDate
         }
 
         /// A new row with the original identity and every field.
         func restored() -> Expense {
             let expense = Expense(
                 id: id, name: name, amount: amount, currencyCode: currencyCode, category: category, cadence: cadence,
-                dueDay: dueDay, chargeDate: chargeDate, isActive: isActive, notes: notes, createdAt: createdAt, colorHex: colorHex
+                dueDay: dueDay, chargeDate: chargeDate, isActive: isActive, notes: notes, createdAt: createdAt, colorHex: colorHex,
+                reminderDate: reminderDate
             )
             expense.previousAmount = previousAmount
             expense.amountChangedAt = amountChangedAt

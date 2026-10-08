@@ -20,6 +20,17 @@ final class ExpenseFormViewModel {
     var isActive: Bool
     /// "#RRGGBB" or nil for the category color. Pro only; the form gates it.
     var colorHex: String?
+    /// The expense's own lock-screen notification. Turning it on for a row
+    /// that never had one offers the next charge at the reminder hour.
+    var reminderEnabled: Bool {
+        didSet {
+            if reminderEnabled, !oldValue, !reminderDateChosen { reminderDate = defaultReminderDate }
+        }
+    }
+    var reminderDate: Date
+    /// Set once the row has a stored date or the user picked one, so the
+    /// toggle doesn't overwrite it.
+    private var reminderDateChosen: Bool
 
     /// Non-nil when editing an existing expense.
     let existing: Expense?
@@ -54,7 +65,29 @@ final class ExpenseFormViewModel {
         notes = expense?.notes ?? ""
         isActive = expense?.isActive ?? true
         colorHex = expense?.colorHex
+        reminderEnabled = expense?.reminderDate != nil
+        reminderDate = expense?.reminderDate ?? .now
+        reminderDateChosen = expense?.reminderDate != nil
     }
+
+    /// The next charge at the device's reminder hour, or tomorrow at that
+    /// hour when the schedule can't say.
+    var defaultReminderDate: Date {
+        let calendar = Calendar.gregorianLocal
+        let hour = DeviceSettings.reminderHour()
+        let day = nextChargeDate ?? (cadence == .oneTime ? chargeDate : nil) ?? calendar.date(byAdding: .day, value: 1, to: .now) ?? .now
+        let candidate = calendar.date(bySettingHour: hour, minute: 0, second: 0, of: day) ?? day
+        if candidate > .now { return candidate }
+        return calendar.date(byAdding: .day, value: 1, to: calendar.date(bySettingHour: hour, minute: 0, second: 0, of: .now) ?? .now) ?? candidate
+    }
+
+    /// Called when the user picks a date, so a later cadence change keeps it.
+    func chooseReminderDate(_ date: Date) {
+        reminderDate = date
+        reminderDateChosen = true
+    }
+
+    var storedReminderDate: Date? { reminderEnabled ? reminderDate : nil }
 
     var isEditing: Bool { existing != nil }
     var title: String { isEditing ? String(localized: "Edit Expense") : String(localized: "New Expense") }
@@ -141,6 +174,7 @@ final class ExpenseFormViewModel {
             existing.notes = trimmedNotes.isEmpty ? nil : trimmedNotes
             existing.isActive = isActive
             existing.colorHex = colorHex
+            existing.reminderDate = storedReminderDate
         } else {
             let expense = Expense(
                 name: trimmedName,
@@ -152,7 +186,8 @@ final class ExpenseFormViewModel {
                 chargeDate: storedChargeDate,
                 isActive: isActive,
                 notes: trimmedNotes.isEmpty ? nil : trimmedNotes,
-                colorHex: colorHex
+                colorHex: colorHex,
+                reminderDate: storedReminderDate
             )
             context.insert(expense)
         }

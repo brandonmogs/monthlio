@@ -70,6 +70,37 @@ final class ExpenseFormViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testTheNotificationToggleStoresAndClearsTheDate() throws {
+        let container = try TestContainer.make()
+        let vm = viewModel(amount: 10)
+        vm.cadence = .monthly
+        vm.hasDueDay = true
+        vm.dueDay = 20
+        XCTAssertFalse(vm.reminderEnabled)
+
+        vm.reminderEnabled = true
+        let calendar = Calendar.gregorianLocal
+        XCTAssertEqual(calendar.component(.day, from: vm.reminderDate), 20, "offered on the next charge")
+        XCTAssertEqual(calendar.component(.hour, from: vm.reminderDate), DeviceSettings.reminderHour(), "at the reminder hour")
+        XCTAssertGreaterThan(vm.reminderDate, .now)
+        XCTAssertTrue(vm.save(in: container.mainContext))
+        let saved = try XCTUnwrap(try container.mainContext.fetch(FetchDescriptor<Expense>()).first)
+        XCTAssertEqual(saved.reminderDate, vm.reminderDate)
+
+        let editing = ExpenseFormViewModel(expense: saved)
+        XCTAssertTrue(editing.reminderEnabled)
+        XCTAssertEqual(editing.reminderDate, saved.reminderDate)
+        let picked = Date(timeIntervalSince1970: 1_800_000_000)
+        editing.chooseReminderDate(picked)
+        editing.reminderEnabled = false
+        editing.reminderEnabled = true
+        XCTAssertEqual(editing.reminderDate, picked, "toggling doesn't discard a chosen date")
+        editing.reminderEnabled = false
+        XCTAssertTrue(editing.save(in: container.mainContext))
+        XCTAssertNil(saved.reminderDate, "off clears it")
+    }
+
+    @MainActor
     func testEditingALegacyOneTimeExpenseKeepsItsDay() throws {
         // Rows from before charge dates existed hit on their creation day.
         let container = try TestContainer.make()

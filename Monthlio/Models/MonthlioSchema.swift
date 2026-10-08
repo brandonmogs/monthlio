@@ -27,13 +27,25 @@ enum MonthlioSchemaV2: VersionedSchema {
     }
 }
 
+/// V3 (1.5) adds `Expense.reminderDate`, the per-expense notification.
+enum MonthlioSchemaV3: VersionedSchema {
+    static let versionIdentifier = Schema.Version(3, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [Expense.self, MonthlioSchemaV1.AppSettings.self, MonthlioSchemaV1.CategoryBudget.self, MonthlioSchemaV1.MonthSnapshot.self, MonthlioSchemaV1.ExchangeRate.self]
+    }
+}
+
 enum MonthlioMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [MonthlioSchemaV1.self, MonthlioSchemaV2.self]
+        [MonthlioSchemaV1.self, MonthlioSchemaV2.self, MonthlioSchemaV3.self]
     }
 
     static var stages: [MigrationStage] {
-        [.lightweight(fromVersion: MonthlioSchemaV1.self, toVersion: MonthlioSchemaV2.self)]
+        [
+            .lightweight(fromVersion: MonthlioSchemaV1.self, toVersion: MonthlioSchemaV2.self),
+            .lightweight(fromVersion: MonthlioSchemaV2.self, toVersion: MonthlioSchemaV3.self),
+        ]
     }
 }
 

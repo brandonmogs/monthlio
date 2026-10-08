@@ -126,6 +126,46 @@ final class MonthlioUITests: XCTestCase {
         saveScreenshot(app, name: priced ? "paywall" : "paywall-no-storekit")
     }
 
+    func testAnExpenseCanNotifyOnItsOwnDate() {
+        // Through the add flow: XCUITest taps on plain-style list row buttons
+        // don't open the editor on the simulator, though fingers do.
+        let app = launch(["-MonthlioSkipSeed"])
+        let addButton = app.buttons["Add an expense"]
+        XCTAssertTrue(addButton.waitForExistence(timeout: 15))
+        addButton.tap()
+        let name = app.textFields["expense-name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5))
+        name.tap()
+        name.typeText("Gym")
+        let amount = app.textFields["expense-amount"]
+        amount.tap()
+        amount.typeText("40")
+        let done = app.toolbars.buttons["Done"]
+        if done.waitForExistence(timeout: 2) { done.tap() }
+
+        let toggle = app.switches["expense-reminder"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        let form = app.collectionViews.firstMatch
+        for _ in 0..<3 where !toggle.isHittable {
+            form.swipeUp()
+        }
+        // The identifier covers the whole row; only its trailing control flips it.
+        let control = toggle.switches.firstMatch
+        if control.exists {
+            control.tap()
+        } else {
+            toggle.coordinate(withNormalizedOffset: CGVector(dx: 0.92, dy: 0.5)).tap()
+        }
+        XCTAssertTrue(app.datePickers["expense-reminder-date"].waitForExistence(timeout: 5), "a date and time appear once it's on")
+        saveScreenshot(app, name: "expense-notification")
+        app.buttons["Save"].tap()
+
+        XCTAssertTrue(app.staticTexts["1 active expense"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Expenses"].tap()
+        let notifies = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Gym' AND label CONTAINS 'Notifies'"))
+        XCTAssertTrue(notifies.firstMatch.waitForExistence(timeout: 5), "the row says when it notifies")
+    }
+
     func testSwipeToDeleteCanBeUndone() {
         let app = launch(["-MonthlioTab", "expenses"])
         // Rows are single accessibility elements labelled "Rent, Due on the

@@ -78,6 +78,9 @@ struct ExpenseRow: View {
                 parts.append(String(localized: "Next \(next.formatted(.dateTime.month(.abbreviated).day()))"))
             }
         }
+        if let notifies = NotificationScheduler.reminderOccurrences(for: expense, limit: 1).first {
+            parts.append(String(localized: "Notifies \(notifies.formatted(.dateTime.month(.abbreviated).day()))"))
+        }
         return parts.joined(separator: " · ")
     }
 }

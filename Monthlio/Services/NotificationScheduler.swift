@@ -5,7 +5,9 @@ import os
 
 private let log = Logger(subsystem: "com.monthlio.app", category: "reminders")
 
-/// Schedules a local reminder the day before each upcoming charge.
+/// Schedules local notifications: a reminder the day before each upcoming
+/// charge when that setting is on, and the notification an expense asks
+/// for itself (`Expense.reminderDate`), which doesn't need the setting.
 /// All identifiers share a prefix so we only ever touch our own requests.
 @MainActor
 @Observable
@@ -25,6 +27,12 @@ final class NotificationScheduler {
     /// for an expense that no longer exists.
     private var generation = 0
     nonisolated static let identifierPrefix = "monthlio.charge."
+    nonisolated static let expensePrefix = "monthlio.expense."
+    /// How far ahead an expense's own notification is scheduled. A one-off
+    /// months away must not wait for a launch within the charge window.
+    nonisolated static let expenseLookaheadDays = 400
+    /// Pending requests per expense for a repeating notification.
+    nonisolated static let expenseRequestsEach = 2
     nonisolated static let lookaheadDays = 45
     nonisolated static let reminderHour = 9
     /// iOS keeps at most 64 pending requests per app; leave headroom.
@@ -37,6 +45,10 @@ final class NotificationScheduler {
     }
 
     func requestAuthorization() async -> Bool {
+        #if DEBUG
+        // UI tests can't answer the system prompt; treat it as granted.
+        if ProcessInfo.processInfo.arguments.contains("-MonthlioInMemory") { return true }
+        #endif
         let granted = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
         await refreshAuthorization()
         return granted
@@ -55,11 +67,11 @@ final class NotificationScheduler {
         generation += 1
         let mine = generation
         // Read the models now, on the main actor, before any await.
-        let requests = enabled ? NotificationScheduler.requests(for: expenses, discreet: discreet, hour: hour, calendar: calendar) : []
+        let requests = NotificationScheduler.allRequests(for: expenses, enabled: enabled, discreet: discreet, hour: hour, calendar: calendar)
         await refreshAuthorization()
         guard mine == generation else { return }
         await removeAll()
-        guard mine == generation, enabled, isAuthorized else { return }
+        guard mine == generation, !requests.isEmpty, isAuthorized else { return }
         for request in requests {
             guard mine == generation else { return }
             do {
@@ -68,6 +80,76 @@ final class NotificationScheduler {
                 log.error("Couldn't schedule \(request.identifier, privacy: .public): \(error.localizedDescription, privacy: .public)")
             }
         }
+    }
+
+    /// Everything that should be pending: the expenses' own notifications
+    /// first (they were asked for one by one), then the day-before
+    /// reminders when that setting is on, within the pending budget.
+    nonisolated static func allRequests(for expenses: [Expense], enabled: Bool, now: Date = .now, discreet: Bool, hour: Int = reminderHour, calendar: Calendar = .gregorianLocal) -> [UNNotificationRequest] {
+        let own = expenseRequests(for: expenses, now: now, discreet: discreet, calendar: calendar)
+        let dayBefore = enabled ? requests(for: expenses, now: now, discreet: discreet, hour: hour, calendar: calendar) : []
+        return Array((own + dayBefore).prefix(maxPending))
+    }
+
+    /// When an expense's own notification fires next: the chosen moment for
+    /// a one-time expense, and for a recurring one the chosen moment and
+    /// then its schedule stepping from that day at the same time.
+    nonisolated static func reminderOccurrences(for expense: Expense, from now: Date = .now, limit: Int = expenseRequestsEach, calendar: Calendar = .gregorianLocal) -> [Date] {
+        guard let reminderDate = expense.reminderDate, expense.isActive, limit > 0 else { return [] }
+        guard expense.cadence.isRecurring else { return reminderDate > now ? [reminderDate] : [] }
+        let time = calendar.dateComponents([.hour, .minute], from: reminderDate)
+        // Earlier occurrences of the same schedule aren't wanted: start at
+        // the chosen day, or today once that day has passed.
+        let start = max(calendar.startOfDay(for: reminderDate), calendar.startOfDay(for: now))
+        let days = UpcomingChargeCalculator.occurrences(
+            cadence: expense.cadence,
+            dueDay: expense.cadence == .monthly ? calendar.component(.day, from: reminderDate) : nil,
+            anchor: reminderDate,
+            from: start,
+            days: expenseLookaheadDays,
+            calendar: calendar
+        )
+        return Array(days
+            .compactMap { calendar.date(bySettingHour: time.hour ?? 0, minute: time.minute ?? 0, second: 0, of: $0) }
+            .filter { $0 > now }
+            .prefix(limit))
+    }
+
+    /// Pure: the notifications expenses asked for themselves.
+    nonisolated static func expenseRequests(for expenses: [Expense], now: Date = .now, discreet: Bool, calendar: Calendar = .gregorianLocal) -> [UNNotificationRequest] {
+        var requests: [UNNotificationRequest] = []
+        for expense in expenses where expense.reminderDate != nil {
+            for fireDate in reminderOccurrences(for: expense, from: now, calendar: calendar) {
+                var components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
+                components.calendar = calendar
+
+                let content = UNMutableNotificationContent()
+                let nextCharge = UpcomingChargeCalculator.nextCharge(for: expense, after: fireDate, calendar: calendar)
+                if discreet {
+                    content.title = String(localized: "A charge is coming up")
+                    content.body = String(localized: "Open Monthlio to see what's due.")
+                } else {
+                    let amount = expense.amount.currencyString(in: expense.currencyCode)
+                    content.title = expense.name
+                    if let nextCharge {
+                        let when = nextCharge.formatted(.dateTime.weekday(.wide).month().day())
+                        content.body = calendar.isDate(nextCharge, inSameDayAs: fireDate)
+                            ? String(localized: "\(amount) is due today.")
+                            : String(localized: "\(amount) hits on \(when).")
+                    } else {
+                        content.body = amount
+                    }
+                }
+                content.sound = .default
+
+                requests.append(UNNotificationRequest(
+                    identifier: expensePrefix + "\(expense.id.uuidString)-\(fireDate.timeIntervalSince1970)",
+                    content: content,
+                    trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+                ))
+            }
+        }
+        return requests
     }
 
     /// Pure: the requests that should be pending as of `now`. A reminder
@@ -112,7 +194,7 @@ final class NotificationScheduler {
 
     private func removeAll() async {
         let pending = await center.pendingNotificationRequests()
-        let ours = pending.map(\.identifier).filter { $0.hasPrefix(NotificationScheduler.identifierPrefix) }
+        let ours = pending.map(\.identifier).filter { $0.hasPrefix(NotificationScheduler.identifierPrefix) || $0.hasPrefix(NotificationScheduler.expensePrefix) }
         center.removePendingNotificationRequests(withIdentifiers: ours)
     }
 }

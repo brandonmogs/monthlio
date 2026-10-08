@@ -64,6 +64,55 @@ final class NotificationSchedulerTests: XCTestCase {
         XCTAssertNotNil(Calendar(identifier: .buddhist).date(from: trigger.dateComponents))
     }
 
+    func testAOneTimeExpenseNotifiesAtItsChosenMoment() throws {
+        let tickets = Expense(name: "Concert", amount: 180, currencyCode: "USD", category: .entertainment, cadence: .oneTime, chargeDate: date(2026, 10, 24), reminderDate: date(2026, 10, 23, 18, 30))
+        let requests = NotificationScheduler.expenseRequests(for: [tickets], now: date(2026, 10, 7), discreet: false, calendar: calendar)
+        XCTAssertEqual(requests.count, 1)
+        let trigger = try XCTUnwrap(requests.first?.trigger as? UNCalendarNotificationTrigger)
+        XCTAssertEqual([trigger.dateComponents.month, trigger.dateComponents.day, trigger.dateComponents.hour, trigger.dateComponents.minute], [10, 23, 18, 30])
+        XCTAssertEqual(trigger.dateComponents.calendar?.identifier, .gregorian)
+        XCTAssertEqual(requests.first?.content.title, "Concert")
+        XCTAssertTrue(requests.first?.content.body.contains("$180.00") ?? false, requests.first?.content.body ?? "")
+        XCTAssertTrue(requests.first?.identifier.hasPrefix(NotificationScheduler.expensePrefix) ?? false)
+
+        XCTAssertTrue(NotificationScheduler.expenseRequests(for: [tickets], now: date(2026, 10, 23, 19), discreet: false, calendar: calendar).isEmpty, "a moment that has passed is not rescheduled")
+    }
+
+    func testARecurringExpenseRepeatsItsNotificationWithTheSchedule() {
+        let gym = Expense(name: "Gym", amount: 40, currencyCode: "USD", category: .health, cadence: .monthly, dueDay: 20, reminderDate: date(2026, 10, 20, 9, 30))
+        let dates = NotificationScheduler.reminderOccurrences(for: gym, from: date(2026, 10, 7), calendar: calendar)
+        XCTAssertEqual(dates, [date(2026, 10, 20, 9, 30), date(2026, 11, 20, 9, 30)])
+
+        let later = NotificationScheduler.reminderOccurrences(for: gym, from: date(2026, 12, 1), calendar: calendar)
+        XCTAssertEqual(later, [date(2026, 12, 20, 9, 30), date(2027, 1, 20, 9, 30)], "it keeps going after the chosen day")
+
+        let weekly = Expense(name: "Groceries", amount: 120, currencyCode: "USD", category: .food, cadence: .weekly, chargeDate: date(2026, 10, 9), reminderDate: date(2026, 10, 8, 20, 0))
+        XCTAssertEqual(NotificationScheduler.reminderOccurrences(for: weekly, from: date(2026, 10, 7), calendar: calendar), [date(2026, 10, 8, 20), date(2026, 10, 15, 20)])
+
+        let paused = Expense(name: "Gym", amount: 40, currencyCode: "USD", category: .health, cadence: .monthly, dueDay: 20, isActive: false, reminderDate: date(2026, 10, 20, 9, 30))
+        XCTAssertTrue(NotificationScheduler.reminderOccurrences(for: paused, from: date(2026, 10, 7), calendar: calendar).isEmpty, "a paused expense is quiet")
+    }
+
+    func testExpenseNotificationsDoNotNeedTheDayBeforeSetting() {
+        let gym = Expense(name: "Gym", amount: 40, currencyCode: "USD", category: .health, cadence: .monthly, dueDay: 20, reminderDate: date(2026, 10, 20, 9, 30))
+        let off = NotificationScheduler.allRequests(for: [gym, rent], enabled: false, now: date(2026, 10, 7), discreet: false, calendar: calendar)
+        XCTAssertEqual(off.count, 2, "only the gym's own notifications")
+        XCTAssertTrue(off.allSatisfy { $0.identifier.hasPrefix(NotificationScheduler.expensePrefix) })
+
+        let on = NotificationScheduler.allRequests(for: [gym, rent], enabled: true, now: date(2026, 10, 7), discreet: false, calendar: calendar)
+        XCTAssertGreaterThan(on.count, 2, "plus the day-before reminders")
+        XCTAssertTrue(on.prefix(2).allSatisfy { $0.identifier.hasPrefix(NotificationScheduler.expensePrefix) }, "the expense's own come first")
+        XCTAssertLessThanOrEqual(on.count, NotificationScheduler.maxPending)
+    }
+
+    func testDiscreetExpenseNotificationsHideTheDetails() {
+        let gym = Expense(name: "Gym", amount: 40, currencyCode: "USD", category: .health, cadence: .monthly, dueDay: 20, reminderDate: date(2026, 10, 20, 9, 30))
+        let requests = NotificationScheduler.expenseRequests(for: [gym], now: date(2026, 10, 7), discreet: true, calendar: calendar)
+        XCTAssertFalse(requests.isEmpty)
+        XCTAssertFalse(requests[0].content.title.contains("Gym"))
+        XCTAssertFalse(requests[0].content.body.contains("40"))
+    }
+
     func testPendingRequestsAreCapped() {
         let many: [Expense] = (1...31).map { (day: Int) -> Expense in
             Expense(name: "Bill \(String(day))", amount: 1, category: .other, dueDay: day)

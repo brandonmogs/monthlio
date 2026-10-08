@@ -5,6 +5,7 @@ import SwiftUI
 struct ExpenseFormView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @Environment(CurrencyStore.self) private var currencyStore
     @Environment(ProStore.self) private var pro
     @Environment(DeletedExpenseBuffer.self) private var deleted
@@ -14,6 +15,8 @@ struct ExpenseFormView: View {
     @State private var showingPaywall = false
     /// A second tap on Save before the sheet is gone must not insert twice.
     @State private var didSave = false
+    /// The system refused notifications when the toggle went on.
+    @State private var notificationsDenied = false
     @FocusState private var focusedField: Field?
 
     private enum Field { case name, amount, notes }
@@ -27,6 +30,7 @@ struct ExpenseFormView: View {
             Form {
                 detailsSection
                 scheduleSection
+                notificationSection
                 colorSection
                 notesSection
                 if viewModel.isEditing {
@@ -48,6 +52,10 @@ struct ExpenseFormView: View {
             }
             .onAppear {
                 if !viewModel.isEditing { focusedField = .name }
+            }
+            .onChange(of: viewModel.reminderEnabled) { _, enabled in
+                guard enabled else { notificationsDenied = false; return }
+                Task { notificationsDenied = !(await NotificationScheduler.shared.requestAuthorization()) }
             }
             .sheet(isPresented: $showingPaywall) {
                 PaywallView()
@@ -153,6 +161,50 @@ struct ExpenseFormView: View {
             }
         }
         return lines.joined(separator: " ")
+    }
+
+    /// The expense's own notification, independent of the day-before
+    /// reminders in Settings.
+    private var notificationSection: some View {
+        Section {
+            Toggle("Notify me on the lock screen", isOn: $viewModel.reminderEnabled.animation())
+                .accessibilityIdentifier("expense-reminder")
+            if viewModel.reminderEnabled {
+                DatePicker(
+                    "On",
+                    selection: Binding(get: { viewModel.reminderDate }, set: { viewModel.chooseReminderDate($0) }),
+                    in: Date.now...,
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                .accessibilityIdentifier("expense-reminder-date")
+            }
+            if notificationsDenied {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Notifications are turned off for Monthlio, so this can't be delivered.")
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                    Button("Open Settings") {
+                        if let url = URL(string: UIApplication.openNotificationSettingsURLString) { openURL(url) }
+                    }
+                    .font(.footnote.weight(.semibold))
+                }
+            }
+        } header: {
+            Text("Notification")
+        } footer: {
+            Text(notificationFooter)
+        }
+    }
+
+    private var notificationFooter: String {
+        guard viewModel.reminderEnabled else {
+            return String(localized: "A notification for this expense on a date and time you choose. Nothing leaves your device.")
+        }
+        let when = viewModel.reminderDate.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().hour().minute())
+        if viewModel.cadence.isRecurring {
+            return String(localized: "Delivered \(when), then with every \(viewModel.cadence.title.lowercased()) charge after that, until you turn this off.")
+        }
+        return String(localized: "Delivered \(when).")
     }
 
     /// Monthlio Pro perk: a color of the user's own for this expense.

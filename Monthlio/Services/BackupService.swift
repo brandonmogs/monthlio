@@ -47,7 +47,8 @@ enum BackupService {
                 createdAt: $0.createdAt,
                 previousAmount: $0.previousAmount?.backupString,
                 amountChangedAt: $0.amountChangedAt,
-                colorHex: $0.colorHex
+                colorHex: $0.colorHex,
+                reminderDate: $0.reminderDate
             )
         }
         let budgets = try context.fetch(FetchDescriptor<CategoryBudget>(sortBy: [SortDescriptor(\.categoryRaw)])).map {
@@ -142,6 +143,7 @@ enum BackupService {
             expense.previousAmount = record.previousAmount.flatMap(Decimal.init(backupString:))
             expense.amountChangedAt = record.amountChangedAt
             expense.colorHex = ExpenseColor.canonicalHex(record.colorHex)
+            expense.reminderDate = record.reminderDate
             context.insert(expense)
             summary.expensesAdded += 1
         }

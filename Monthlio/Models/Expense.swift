@@ -10,7 +10,7 @@ import SwiftUI
 ///
 /// Every property has a default and nothing is `.unique` because the store
 /// is CloudKit-backed; CloudKit can't enforce uniqueness across devices.
-extension MonthlioSchemaV2 {
+extension MonthlioSchemaV3 {
     @Model
     final class Expense {
         var id: UUID = UUID()
@@ -39,6 +39,10 @@ extension MonthlioSchemaV2 {
         /// "#RRGGBB" chosen by a Monthlio Pro user; nil shows the category's
         /// color. Added in schema version 2.
         var colorHex: String?
+        /// When set, a local notification for this expense is delivered at
+        /// this moment; a recurring expense repeats it with its schedule.
+        /// Added in schema version 3.
+        var reminderDate: Date?
 
         init(
             id: UUID = UUID(),
@@ -52,7 +56,8 @@ extension MonthlioSchemaV2 {
             isActive: Bool = true,
             notes: String? = nil,
             createdAt: Date = .now,
-            colorHex: String? = nil
+            colorHex: String? = nil,
+            reminderDate: Date? = nil
         ) {
             self.id = id
             self.name = name
@@ -66,6 +71,7 @@ extension MonthlioSchemaV2 {
             self.notes = notes
             self.createdAt = createdAt
             self.colorHex = colorHex
+            self.reminderDate = reminderDate
         }
 
         var category: ExpenseCategory {
@@ -121,7 +127,7 @@ extension MonthlioSchemaV2 {
     }
 }
 
-typealias Expense = MonthlioSchemaV2.Expense
+typealias Expense = MonthlioSchemaV3.Expense
 
 extension Expense: ExpenseCosting {}
 
@@ -132,6 +138,34 @@ extension Expense {
         guard let rows = try? context.fetch(descriptor), !rows.isEmpty else { return }
         for row in rows { row.currencyCode = base }
         try? context.save()
+    }
+}
+
+extension MonthlioSchemaV2 {
+    /// The expense as shipped in 1.4, kept only so a 1.4 store can migrate.
+    @Model
+    final class Expense {
+        var id: UUID = UUID()
+        var name: String = ""
+        var amount: Decimal = 0
+        var currencyCode: String = ""
+        var categoryRaw: String = ExpenseCategory.other.rawValue
+        var cadenceRaw: String = Cadence.monthly.rawValue
+        var dueDay: Int?
+        var chargeDate: Date?
+        var isActive: Bool = true
+        var notes: String?
+        var createdAt: Date = Date.now
+        var previousAmount: Decimal?
+        var amountChangedAt: Date?
+        var colorHex: String?
+
+        init(name: String, amount: Decimal, category: ExpenseCategory, colorHex: String? = nil) {
+            self.name = name
+            self.amount = amount
+            self.categoryRaw = category.rawValue
+            self.colorHex = colorHex
+        }
     }
 }
 

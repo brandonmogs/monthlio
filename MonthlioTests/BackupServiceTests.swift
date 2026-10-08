@@ -26,6 +26,7 @@ final class BackupServiceTests: XCTestCase {
         let rent = Expense(name: "Rent", amount: 1850, currencyCode: "USD", category: .housing, cadence: .monthly, dueDay: 1, createdAt: Date(timeIntervalSince1970: 1_700_000_000))
         rent.updateAmount(1900, at: Date(timeIntervalSince1970: 1_750_000_000))
         rent.colorHex = "#FF3B30"
+        rent.reminderDate = Date(timeIntervalSince1970: 1_800_000_000)
         context.insert(rent)
         context.insert(Expense(name: "VPN", amount: Decimal(string: "59.88")!, currencyCode: "EUR", category: .subscriptions, cadence: .yearly, dueDay: 14, notes: "renews May", createdAt: Date(timeIntervalSince1970: 1_700_000_100)))
         context.insert(Expense(name: "Ticket", amount: 180, currencyCode: "USD", category: .entertainment, cadence: .oneTime, chargeDate: Date(timeIntervalSince1970: 1_760_000_000), isActive: false, createdAt: Date(timeIntervalSince1970: 1_700_000_200)))
@@ -91,6 +92,7 @@ final class BackupServiceTests: XCTestCase {
         let rent = try XCTUnwrap(try target.fetch(FetchDescriptor<Expense>(predicate: #Predicate { $0.name == "Rent" })).first)
         XCTAssertEqual(rent.previousAmount, 1850)
         XCTAssertEqual(rent.colorHex, "#FF3B30")
+        XCTAssertEqual(rent.reminderDate, Date(timeIntervalSince1970: 1_800_000_000))
         XCTAssertTrue(rent.hasPriceIncrease(asOf: Date(timeIntervalSince1970: 1_751_000_000)))
         restored = try BackupService.document(from: target)
         XCTAssertEqual(restored.expenses.count, 3)

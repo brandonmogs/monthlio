@@ -4,14 +4,16 @@ import XCTest
 
 @MainActor
 final class MonthlioSchemaTests: XCTestCase {
-    func testTheCurrentModelsAreVersionTwo() {
+    func testTheCurrentModelsAreVersionThree() {
         XCTAssertEqual(MonthlioSchemaV1.versionIdentifier, Schema.Version(1, 0, 0))
         XCTAssertEqual(MonthlioSchemaV2.versionIdentifier, Schema.Version(2, 0, 0))
+        XCTAssertEqual(MonthlioSchemaV3.versionIdentifier, Schema.Version(3, 0, 0))
         XCTAssertEqual(MonthlioSchemaV1.models.count, 5)
         XCTAssertEqual(MonthlioSchemaV2.models.count, 5)
+        XCTAssertEqual(MonthlioSchemaV3.models.count, 5)
         XCTAssertTrue(MonthlioMigrationPlan.schemas.first == MonthlioSchemaV1.self)
-        XCTAssertTrue(MonthlioMigrationPlan.schemas.last == MonthlioSchemaV2.self)
-        XCTAssertEqual(MonthlioMigrationPlan.stages.count, 1)
+        XCTAssertTrue(MonthlioMigrationPlan.schemas.last == MonthlioSchemaV3.self)
+        XCTAssertEqual(MonthlioMigrationPlan.stages.count, 2)
     }
 
     /// V1's classes are the live models for everything but Expense, so an
@@ -19,7 +21,20 @@ final class MonthlioSchemaTests: XCTestCase {
     /// MonthSnapshot would silently change V1 and leave every pre-1.4 store
     /// matching no version. Any change must go into a new schema version.
     func testVersionOneShapeIsFrozen() {
-        let shape = Schema(versionedSchema: MonthlioSchemaV1.self).entities
+        XCTAssertEqual(MonthlioSchemaTests.shape(of: MonthlioSchemaV1.self), MonthlioSchemaTests.frozenV1Shape)
+    }
+
+    /// V2 shipped in 1.4: V1 plus `Expense.colorHex`.
+    func testVersionTwoShapeIsFrozen() {
+        let expected = MonthlioSchemaTests.frozenV1Shape.replacingOccurrences(
+            of: "chargeDate:Optional<Date>?,createdAt",
+            with: "chargeDate:Optional<Date>?,colorHex:Optional<String>?,createdAt"
+        )
+        XCTAssertEqual(MonthlioSchemaTests.shape(of: MonthlioSchemaV2.self), expected)
+    }
+
+    static func shape(of version: any VersionedSchema.Type) -> String {
+        Schema(versionedSchema: version).entities
             .sorted { $0.name < $1.name }
             .map { entity in
                 entity.name + "{" + entity.attributes.sorted { $0.name < $1.name }
@@ -27,12 +42,33 @@ final class MonthlioSchemaTests: XCTestCase {
                     .joined(separator: ",") + "}"
             }
             .joined(separator: ";")
-        XCTAssertEqual(shape, MonthlioSchemaTests.frozenV1Shape)
     }
 
     static let frozenV1Shape = "AppSettings{baseCurrencyCode:String,createdAt:Date,monthlyIncome:NSDecimal,notificationsEnabled:Bool,requireAuthentication:Bool};CategoryBudget{cap:NSDecimal,categoryRaw:String};ExchangeRate{baseCode:String,code:String,rateToBase:NSDecimal,updatedAt:Date};Expense{amount:NSDecimal,amountChangedAt:Optional<Date>?,cadenceRaw:String,categoryRaw:String,chargeDate:Optional<Date>?,createdAt:Date,currencyCode:String,dueDay:Optional<Int>?,id:UUID,isActive:Bool,name:String,notes:Optional<String>?,previousAmount:Optional<NSDecimal>?};MonthSnapshot{key:String,month:Int,total:NSDecimal,updatedAt:Date,year:Int}"
 
-    func testAVersionOneStoreMigratesToVersionTwo() throws {
+    func testAVersionTwoStoreMigratesToVersionThree() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "migrate-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appending(path: "default.store")
+
+        // A store written by 1.4 through its own plan.
+        let old = try ModelContainer(for: Schema(versionedSchema: MonthlioSchemaV2.self), configurations: [ModelConfiguration(url: url, cloudKitDatabase: .none)])
+        old.mainContext.insert(MonthlioSchemaV2.Expense(name: "Rent", amount: 1850, category: .housing, colorHex: "#FF3B30"))
+        try old.mainContext.save()
+
+        let current = try ModelContainer(for: MonthlioApp.schema, migrationPlan: MonthlioMigrationPlan.self, configurations: [ModelConfiguration(url: url, cloudKitDatabase: .none)])
+        let rows = try current.mainContext.fetch(FetchDescriptor<Expense>())
+        XCTAssertEqual(rows.map(\.name), ["Rent"])
+        XCTAssertEqual(rows.first?.colorHex, "#FF3B30", "the 1.4 color survives")
+        XCTAssertNil(rows.first?.reminderDate)
+        let reminder = Date(timeIntervalSince1970: 1_800_000_000)
+        rows.first?.reminderDate = reminder
+        try current.mainContext.save()
+        XCTAssertEqual(try current.mainContext.fetch(FetchDescriptor<Expense>()).first?.reminderDate, reminder)
+    }
+
+    func testAVersionOneStoreMigratesToTheCurrentVersion() throws {
         let directory = FileManager.default.temporaryDirectory.appending(path: "migrate-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }

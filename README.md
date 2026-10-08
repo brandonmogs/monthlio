@@ -27,6 +27,9 @@ cost broken down by category.
   reminders and in the widget once they have a next charge date
 - Undo after deleting an expense; a per-device app lock with a grace
   period; a reminder time of your choosing
+- A lock-screen notification per expense: toggle it in the expense form,
+  pick the date and time (the next charge is offered), and a recurring
+  expense repeats it with its schedule
 - English source strings in a String Catalog, ready for translation
 
 ## Build & run

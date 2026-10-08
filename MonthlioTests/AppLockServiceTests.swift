@@ -154,6 +154,25 @@ final class AppLockServiceTests: XCTestCase {
         XCTAssertFalse(lock.isLocked)
     }
 
+    func testLeavingWhileLockedGivesNoGracePeriod() async {
+        let auth = FakeAuthenticator()
+        auth.outcome = .cancelled
+        let lock = AppLockService(isEnabled: true, gracePeriod: 60, authenticator: auth)
+        var clock = Date(timeIntervalSince1970: 1_000)
+        lock.now = { clock }
+        lock.handleScenePhase(.active)
+        await waitForAttempts(1, on: auth)
+        XCTAssertTrue(lock.isLocked, "the prompt was cancelled")
+
+        lock.handleScenePhase(.background)
+        clock += 10
+        lock.handleScenePhase(.active)
+        await waitForAttempts(2, on: auth)
+
+        XCTAssertTrue(lock.isLocked, "a return within the grace period must not skip authentication when the app never unlocked")
+        XCTAssertEqual(auth.attempts, 2, "it prompts again instead")
+    }
+
     func testColdStartPromptsRegardlessOfGracePeriod() async {
         let auth = FakeAuthenticator()
         let lock = AppLockService(isEnabled: true, gracePeriod: 300, authenticator: auth)

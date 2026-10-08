@@ -138,10 +138,13 @@ final class AppLockService {
 
     func lockIfEnabled() {
         guard isEnabled else { return }
+        // The grace period is measured from an authenticated session only:
+        // leaving while still locked (a cancelled prompt) must not let a
+        // quick return in without authenticating.
+        backgroundedAt = isLocked ? nil : now()
         isLocked = true
         pendingAutoUnlock = true
         lastError = nil
-        backgroundedAt = now()
     }
 
     func unlock() async {

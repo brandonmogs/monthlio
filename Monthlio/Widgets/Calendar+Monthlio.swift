@@ -11,4 +11,11 @@ extension Calendar {
         calendar.locale = .current
         return calendar
     }
+
+    /// Noon of the day containing `date`. Charge dates are days, and a
+    /// day stored at midnight becomes the day before when the device
+    /// moves east; noon stays the same day in every time zone.
+    func noon(of date: Date) -> Date {
+        self.date(bySettingHour: 12, minute: 0, second: 0, of: date) ?? date
+    }
 }

@@ -328,7 +328,9 @@ enum CSVImporter {
         let text = raw.trimmingCharacters(in: .whitespaces)
         if let date = try? Date.ISO8601FormatStyle(includingFractionalSeconds: true).parse(text) { return date }
         if let date = try? Date.ISO8601FormatStyle().parse(text) { return date }
-        return dayFormatter.date(from: text)
+        // A bare day is stored at local noon, like the form does, so it stays
+        // the same day in every time zone.
+        return dayFormatter.date(from: text).map(Calendar.gregorianLocal.noon)
     }
 
     static func duplicateKey(name: String, amount: Decimal, cadence: Cadence) -> String {

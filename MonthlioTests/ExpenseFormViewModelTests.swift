@@ -59,13 +59,51 @@ final class ExpenseFormViewModelTests: XCTestCase {
         XCTAssertTrue(vm.save(in: container.mainContext))
 
         let saved = try XCTUnwrap(try container.mainContext.fetch(FetchDescriptor<Expense>()).first)
-        XCTAssertEqual(saved.chargeDate, Date(timeIntervalSince1970: 1_800_000_000))
+        let picked = Date(timeIntervalSince1970: 1_800_000_000)
+        XCTAssertEqual(saved.chargeDate, Calendar.gregorianLocal.noon(of: picked), "stored at local noon so the day holds in every time zone")
         XCTAssertNil(saved.dueDay, "a yearly charge is placed by its date, not a day of month")
         XCTAssertNotNil(vm.nextChargeDate)
 
         vm.hasChargeDate = false
         XCTAssertNil(vm.resolvedChargeDate)
         XCTAssertNil(vm.nextChargeDate)
+    }
+
+    @MainActor
+    func testEditingALegacyOneTimeExpenseKeepsItsDay() throws {
+        // Rows from before charge dates existed hit on their creation day.
+        let container = try TestContainer.make()
+        let created = Calendar.gregorianLocal.date(byAdding: .month, value: -3, to: .now)!
+        let tickets = Expense(name: "Concert", amount: 180, category: .entertainment, cadence: .oneTime, createdAt: created)
+        container.mainContext.insert(tickets)
+
+        let vm = ExpenseFormViewModel(expense: tickets)
+        vm.name = "Concert tickets"
+        XCTAssertTrue(vm.save(in: container.mainContext))
+
+        let day = try XCTUnwrap(tickets.chargeDate)
+        XCTAssertTrue(Calendar.gregorianLocal.isDate(day, inSameDayAs: created), "a name edit must not move the charge to today")
+        XCTAssertFalse(tickets.counts(inMonthOf: .now))
+    }
+
+    @MainActor
+    func testADayOnlyYearlyRowKeepsItsDayUntilADateReplacesIt() throws {
+        let container = try TestContainer.make()
+        let insurance = Expense(name: "Car insurance", amount: 840, category: .insurance, cadence: .yearly, dueDay: 20)
+        container.mainContext.insert(insurance)
+
+        let vm = ExpenseFormViewModel(expense: insurance)
+        XCTAssertFalse(vm.hasChargeDate, "no date is invented")
+        XCTAssertEqual(Calendar.gregorianLocal.component(.day, from: vm.chargeDate), 20, "the picker offers the next 20th")
+        vm.name = "Car insurance (Geico)"
+        XCTAssertTrue(vm.save(in: container.mainContext))
+        XCTAssertEqual(insurance.dueDay, 20, "the only scheduling hint survives an unrelated edit")
+        XCTAssertNil(insurance.chargeDate)
+
+        vm.hasChargeDate = true
+        XCTAssertTrue(vm.save(in: container.mainContext))
+        XCTAssertNil(insurance.dueDay, "a real date replaces the day")
+        XCTAssertNotNil(insurance.chargeDate)
     }
 
     @MainActor

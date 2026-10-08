@@ -3,13 +3,16 @@ import SwiftData
 
 /// Starter expenses for the empty state and a richer DEBUG-only seed.
 enum SampleData {
-    /// Four one-tap starters shown in the empty state.
-    static func starterExpenses() -> [Expense] {
-        [
+    /// Four one-tap starters shown in the empty state. Each can be placed
+    /// on the timeline as it is: a weekly or yearly charge needs a date.
+    static func starterExpenses(now: Date = .now) -> [Expense] {
+        let noon = Calendar.gregorianLocal.noon(of: now)
+        let twentieth = UpcomingChargeCalculator.nextCharge(cadence: .monthly, dueDay: 20, anchor: nil, after: now).map(Calendar.gregorianLocal.noon)
+        return [
             Expense(name: String(localized: "Rent"), amount: 1500, category: .housing, cadence: .monthly, dueDay: 1),
             Expense(name: "Netflix", amount: 15.49, category: .subscriptions, cadence: .monthly, dueDay: 12),
-            Expense(name: String(localized: "Groceries"), amount: 120, category: .food, cadence: .weekly),
-            Expense(name: String(localized: "Car insurance"), amount: 840, category: .insurance, cadence: .yearly, dueDay: 20),
+            Expense(name: String(localized: "Groceries"), amount: 120, category: .food, cadence: .weekly, chargeDate: noon),
+            Expense(name: String(localized: "Car insurance"), amount: 840, category: .insurance, cadence: .yearly, chargeDate: twentieth),
         ]
     }
 

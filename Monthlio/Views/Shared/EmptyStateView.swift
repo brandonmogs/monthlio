@@ -87,7 +87,8 @@ struct EmptyStateView: View {
             amount: sample.amount,
             category: sample.category,
             cadence: sample.cadence,
-            dueDay: sample.dueDay
+            dueDay: sample.dueDay,
+            chargeDate: sample.chargeDate
         )
         withAnimation {
             modelContext.insert(expense)

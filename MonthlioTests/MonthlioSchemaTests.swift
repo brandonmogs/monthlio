@@ -14,6 +14,24 @@ final class MonthlioSchemaTests: XCTestCase {
         XCTAssertEqual(MonthlioMigrationPlan.stages.count, 1)
     }
 
+    /// V1's classes are the live models for everything but Expense, so an
+    /// in-place edit to AppSettings, CategoryBudget, ExchangeRate or
+    /// MonthSnapshot would silently change V1 and leave every pre-1.4 store
+    /// matching no version. Any change must go into a new schema version.
+    func testVersionOneShapeIsFrozen() {
+        let shape = Schema(versionedSchema: MonthlioSchemaV1.self).entities
+            .sorted { $0.name < $1.name }
+            .map { entity in
+                entity.name + "{" + entity.attributes.sorted { $0.name < $1.name }
+                    .map { "\($0.name):\($0.valueType)\($0.isOptional ? "?" : "")" }
+                    .joined(separator: ",") + "}"
+            }
+            .joined(separator: ";")
+        XCTAssertEqual(shape, MonthlioSchemaTests.frozenV1Shape)
+    }
+
+    static let frozenV1Shape = "AppSettings{baseCurrencyCode:String,createdAt:Date,monthlyIncome:NSDecimal,notificationsEnabled:Bool,requireAuthentication:Bool};CategoryBudget{cap:NSDecimal,categoryRaw:String};ExchangeRate{baseCode:String,code:String,rateToBase:NSDecimal,updatedAt:Date};Expense{amount:NSDecimal,amountChangedAt:Optional<Date>?,cadenceRaw:String,categoryRaw:String,chargeDate:Optional<Date>?,createdAt:Date,currencyCode:String,dueDay:Optional<Int>?,id:UUID,isActive:Bool,name:String,notes:Optional<String>?,previousAmount:Optional<NSDecimal>?};MonthSnapshot{key:String,month:Int,total:NSDecimal,updatedAt:Date,year:Int}"
+
     func testAVersionOneStoreMigratesToVersionTwo() throws {
         let directory = FileManager.default.temporaryDirectory.appending(path: "migrate-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

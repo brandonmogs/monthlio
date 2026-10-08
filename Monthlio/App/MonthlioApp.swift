@@ -17,9 +17,17 @@ struct MonthlioApp: App {
     /// Set when the store on disk couldn't be opened and was set aside;
     /// RootTabView tells the user once.
     private(set) static var storeRecoveryNotice: StoreRecoveryNotice?
+    /// Lock and reminder flags found on a merged 1.3 group store, so a
+    /// setting turned on during 1.3 survives the move to device settings.
+    private(set) static var mergedLegacyFlags: (lock: Bool, reminders: Bool) = (false, false)
 
     init() {
-        MonthlioApp.adoptGroupStoreIfNeeded()
+        var touchesDisk = true
+        #if DEBUG
+        // UI tests pass -MonthlioInMemory and must leave the device's stores alone.
+        touchesDisk = !ProcessInfo.processInfo.arguments.contains("-MonthlioInMemory")
+        #endif
+        if touchesDisk { MonthlioApp.adoptGroupStoreIfNeeded() }
         var storeExists = MonthlioApp.defaultStoreExists
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-MonthlioFreshInstall") {
@@ -50,10 +58,11 @@ struct MonthlioApp: App {
         ExchangeRate.backfillBaseCodes(in: container.mainContext, base: baseCode)
 
         // The lock and reminders are device settings; adopt what the synced
-        // row carried, once, and only a lock this device can open.
+        // row carried (on either store, if a 1.3 group store was merged),
+        // once, and only a lock this device can open.
         DeviceSettings.migrateIfNeeded(
-            lockWasEnabled: settings?.requireAuthentication ?? false,
-            remindersWereEnabled: settings?.notificationsEnabled ?? false,
+            lockWasEnabled: (settings?.requireAuthentication ?? false) || MonthlioApp.mergedLegacyFlags.lock,
+            remindersWereEnabled: (settings?.notificationsEnabled ?? false) || MonthlioApp.mergedLegacyFlags.reminders,
             canAuthenticate: DeviceAuthenticator().canAuthenticate
         )
         var lockEnabled = DeviceSettings.isLockEnabled()
@@ -131,32 +140,50 @@ struct MonthlioApp: App {
         }
         #endif
         try? FileManager.default.createDirectory(at: storeURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if wantsCloud {
-            let cloud = ModelConfiguration(schema: schema, url: storeURL, cloudKitDatabase: .automatic)
-            if let container = try? ModelContainer(for: schema, migrationPlan: MonthlioMigrationPlan.self, configurations: [cloud]) {
-                isCloudSyncEnabled = true
-                return container
-            }
-        }
-        let local = ModelConfiguration(schema: schema, url: storeURL, cloudKitDatabase: .none)
-        do {
-            return try ModelContainer(for: schema, migrationPlan: MonthlioMigrationPlan.self, configurations: [local])
-        } catch {
-            log.fault("Couldn't open the store: \(error.localizedDescription, privacy: .public)")
+        if let container = openStore(cloud: wantsCloud) {
+            return container
         }
         // Corrupt, or a migration this build can't perform. Keep the file
         // for recovery and start fresh: a backup or iCloud sync brings the
         // data back, a crash loop brings nothing back.
         storeRecoveryNotice = setAsideStore(in: URL.applicationSupportDirectory)
-        if let container = try? ModelContainer(for: schema, migrationPlan: MonthlioMigrationPlan.self, configurations: [local]) {
+        if let container = openStore(cloud: wantsCloud) {
             return container
         }
+        let local = ModelConfiguration(schema: schema, url: storeURL, cloudKitDatabase: .none)
         let memory = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         do {
             return try ModelContainer(for: schema, configurations: memory)
         } catch {
             fatalError("Failed to create even an in-memory ModelContainer: \(error)")
         }
+    }
+
+    /// Opens the pinned store: CloudKit-backed when wanted, local otherwise
+    /// or when CloudKit refuses. A store whose version matches none in the
+    /// migration plan (a 1.0 build 1 file never opened since) is tried
+    /// once more without the plan, which is the automatic lightweight
+    /// migration every build before 1.4 relied on.
+    private static func openStore(cloud wantsCloud: Bool) -> ModelContainer? {
+        func attempt(_ configuration: ModelConfiguration, label: String, plan: Bool) -> ModelContainer? {
+            do {
+                return plan
+                    ? try ModelContainer(for: schema, migrationPlan: MonthlioMigrationPlan.self, configurations: [configuration])
+                    : try ModelContainer(for: schema, configurations: [configuration])
+            } catch {
+                log.error("Couldn't open the \(label, privacy: .public) store (plan \(plan)): \(error.localizedDescription, privacy: .public)")
+                return nil
+            }
+        }
+        if wantsCloud {
+            let cloud = ModelConfiguration(schema: schema, url: storeURL, cloudKitDatabase: .automatic)
+            if let container = attempt(cloud, label: "iCloud", plan: true) ?? attempt(cloud, label: "iCloud", plan: false) {
+                isCloudSyncEnabled = true
+                return container
+            }
+        }
+        let local = ModelConfiguration(schema: schema, url: storeURL, cloudKitDatabase: .none)
+        return attempt(local, label: "local", plan: true) ?? attempt(local, label: "local", plan: false)
     }
 
     /// Copies every row the group store has and the app store lacks (same
@@ -169,6 +196,9 @@ struct MonthlioApp: App {
         do {
             let source = try ModelContainer(for: schema, migrationPlan: MonthlioMigrationPlan.self, configurations: [ModelConfiguration(url: groupURL, cloudKitDatabase: .none)])
             let document = try BackupService.document(from: source.mainContext)
+            if let settings = document.settings {
+                mergedLegacyFlags = (settings.requireAuthentication, settings.notificationsEnabled)
+            }
             let target = try ModelContainer(for: schema, migrationPlan: MonthlioMigrationPlan.self, configurations: [ModelConfiguration(url: appURL, cloudKitDatabase: .none)])
             let summary = try BackupService.restore(document, into: target.mainContext, mode: .merge)
             log.notice("Merged the group store into the app store: \(summary.expensesAdded) expenses, \(summary.budgetsAdded) budgets, \(summary.ratesAdded) rates, \(summary.snapshotsAdded) months")
@@ -196,8 +226,9 @@ struct MonthlioApp: App {
                 try files.moveItem(at: source, to: target)
                 kept.append(target.lastPathComponent)
             } catch {
+                // Never delete: the file is the user's only copy. The open
+                // fails again and the app runs in memory until it is sorted out.
                 log.fault("Couldn't set aside \(source.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)")
-                try? files.removeItem(at: source)
             }
         }
         return kept.isEmpty ? StoreRecoveryNotice(keptFileName: nil) : StoreRecoveryNotice(keptFileName: kept[0])

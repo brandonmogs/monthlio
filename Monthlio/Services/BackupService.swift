@@ -95,8 +95,11 @@ enum BackupService {
         let expenses = (try? context.fetchCount(FetchDescriptor<Expense>())) ?? 0
         let budgets = (try? context.fetchCount(FetchDescriptor<CategoryBudget>())) ?? 0
         let rates = (try? context.fetchCount(FetchDescriptor<ExchangeRate>())) ?? 0
-        let income = AppSettings.existing(in: context)?.monthlyIncome ?? 0
-        return expenses == 0 && budgets == 0 && rates == 0 && income == 0
+        let snapshots = (try? context.fetchCount(FetchDescriptor<MonthSnapshot>())) ?? 0
+        let settings = AppSettings.existing(in: context)
+        let income = settings?.monthlyIncome ?? 0
+        let chosenBase = !(settings?.baseCurrencyCode.isEmpty ?? true)
+        return expenses == 0 && budgets == 0 && rates == 0 && snapshots == 0 && income == 0 && !chosenBase
     }
 
     @discardableResult

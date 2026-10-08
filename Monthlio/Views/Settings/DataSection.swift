@@ -171,6 +171,7 @@ struct DataSection: View {
             Haptics.success()
             notice = DataNotice(title: String(localized: "Import complete"), message: Text("Added ^[\(count) expense](inflect: true). Check their categories and due days in the Expenses tab."))
         } catch {
+            modelContext.rollback()
             Haptics.warning()
             notice = DataNotice(title: String(localized: "Couldn't import"), message: Text(error.localizedDescription))
         }

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Merge keys from Swift-emitted .stringsdata files into a String Catalog.
 
-Usage: sync-string-catalog.py <DerivedData> <catalog.xcstrings> <project> [--prune]
+Usage: sync-string-catalog.py <DerivedData> <catalog.xcstrings> <target[,target...]> [--prune]
 
 Xcode's IDE syncs catalogs during builds; xcodebuild only emits the
 .stringsdata sidecars. This adds any key missing from the catalog as a
@@ -11,8 +11,12 @@ whose English value is the key itself) and reports what changed.
 import glob, json, sys, os
 derived, catalog, target = sys.argv[1], sys.argv[2], sys.argv[3]
 prune = '--prune' in sys.argv[4:]
-pattern = os.path.join(derived, '**', f'{target}.build', '**', '*.stringsdata')
-files = glob.glob(pattern, recursive=True)
+# Every target that compiles the catalog contributes keys; pruning against
+# one target alone would drop the others' strings.
+files = []
+for name in target.split(','):
+    pattern = os.path.join(derived, '**', f'{name}.build', '**', '*.stringsdata')
+    files += glob.glob(pattern, recursive=True)
 keys = {}
 for f in files:
     try:

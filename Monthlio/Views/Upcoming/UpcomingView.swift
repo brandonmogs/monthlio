@@ -78,6 +78,7 @@ struct UpcomingView: View {
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
+                    MissingRatesNote(codes: currencyStore.converter.missingCodes(in: charges.map(\.expense.currencyCode)))
                 }
                 Spacer()
                 Text("^[\(charges.count) charge](inflect: true)")

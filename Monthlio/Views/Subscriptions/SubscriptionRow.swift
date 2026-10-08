@@ -76,6 +76,10 @@ struct SubscriptionRow: View {
 
     private var costLine: Text {
         let raw = Text(verbatim: expense.amount.currencyString(in: expense.currencyCode) + expense.cadence.shortSuffix)
+        guard currencyStore.converter.hasRate(for: expense.currencyCode) else {
+            // Converting 1:1 would show a made-up figure.
+            return raw + Text(verbatim: " · ") + Text("Rate needed").foregroundStyle(.orange)
+        }
         guard expense.cadence != .monthly || expense.currencyCode != currencyStore.baseCode else { return raw }
         return raw + Text(verbatim: " · ") + Text("≈ \(currencyStore.converter.monthlyCostInBase(of: expense).rounded().currencyString)/mo")
     }

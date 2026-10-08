@@ -63,6 +63,7 @@ struct SubscriptionsView: View {
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
+                    MissingRatesNote(codes: currencyStore.converter.missingCodes(in: active.map(\.currencyCode)))
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {

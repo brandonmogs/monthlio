@@ -161,23 +161,9 @@ struct ExpenseFormView: View {
             if pro.isEntitled {
                 ExpenseColorPicker(selection: $viewModel.colorHex, fallback: viewModel.category.color)
             } else {
-                Button {
+                ProLockedRow(title: "Color", systemImage: "paintpalette") {
                     showingPaywall = true
-                } label: {
-                    HStack {
-                        Label("Color", systemImage: "paintpalette")
-                        Spacer()
-                        Text("Pro")
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.accentColor.opacity(0.15), in: Capsule())
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.tertiary)
-                    }
                 }
-                .tint(.primary)
             }
         } header: {
             Text("Color")

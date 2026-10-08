@@ -142,7 +142,7 @@ struct SettingsView: View {
     }
 
     private var proPitch: String {
-        let pitch = String(localized: "iCloud sync, custom colors and Family Sharing.")
+        let pitch = String(localized: "iCloud sync, custom colors, CSV export and Family Sharing.")
         guard let product = pro.product else { return pitch }
         return pitch + " " + String(localized: "One-time purchase, \(product.displayPrice).")
     }

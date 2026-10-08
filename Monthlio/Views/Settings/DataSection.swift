@@ -2,15 +2,18 @@ import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The "Data" rows of Settings: CSV export, JSON backup and restore, and
-/// CSV import. Backups are built when tapped, not on every render.
+/// The "Data" rows of Settings: CSV export (Monthlio Pro), JSON backup and
+/// restore, and CSV import. Backups are built when tapped, not on every
+/// render.
 struct DataSection: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(CurrencyStore.self) private var currencyStore
+    @Environment(ProStore.self) private var pro
     @Query(sort: \Expense.createdAt) private var expenses: [Expense]
     /// Owned by the Form so the alert isn't tied to a list row.
     @Binding var notice: DataNotice?
 
+    @State private var showingPaywall = false
     @State private var backupFile: BackupFileDocument?
     @State private var showingRestorePicker = false
     @State private var showingImportPicker = false
@@ -19,16 +22,28 @@ struct DataSection: View {
 
     var body: some View {
         Section {
-            ShareLink(
-                item: CSVExport(
-                    csv: CSVExporter.csv(from: expenses, converter: currencyStore.converter),
-                    fileName: "monthlio-expenses.csv"
-                ),
-                preview: SharePreview("Monthlio expenses", image: Image(systemName: "tablecells"))
-            ) {
-                Label("Export CSV", systemImage: "square.and.arrow.up")
+            if pro.isEntitled {
+                ShareLink(
+                    item: CSVExport(
+                        csv: CSVExporter.csv(from: expenses, converter: currencyStore.converter),
+                        fileName: "monthlio-expenses.csv"
+                    ),
+                    preview: SharePreview("Monthlio expenses", image: Image(systemName: "tablecells"))
+                ) {
+                    Label("Export CSV", systemImage: "square.and.arrow.up")
+                }
+                .disabled(expenses.isEmpty)
+                .accessibilityIdentifier("data-export")
+            } else {
+                // Backups and import stay free, so the data is never locked in.
+                ProLockedRow(title: "Export CSV", systemImage: "square.and.arrow.up") {
+                    showingPaywall = true
+                }
+                .accessibilityIdentifier("data-export")
+                .sheet(isPresented: $showingPaywall) {
+                    PaywallView(purpose: .pro)
+                }
             }
-            .disabled(expenses.isEmpty)
 
             Button {
                 backUp()

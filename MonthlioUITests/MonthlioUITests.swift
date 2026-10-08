@@ -69,6 +69,23 @@ final class MonthlioUITests: XCTestCase {
         XCTAssertTrue(app.buttons["data-restore"].exists)
     }
 
+    func testCSVExportIsAProFeature() {
+        let app = launch(["-MonthlioSettings", "-MonthlioFreshInstall"])
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 15))
+        let form = app.collectionViews.firstMatch
+        let export = app.buttons["data-export"]
+        for _ in 0..<5 where !export.exists {
+            form.swipeUp()
+        }
+        XCTAssertTrue(export.waitForExistence(timeout: 5))
+        export.tap()
+
+        XCTAssertTrue(app.staticTexts["Monthlio Pro"].waitForExistence(timeout: 5), "a free user lands on the Pro page")
+        XCTAssertTrue(app.staticTexts["CSV export"].waitForExistence(timeout: 5), "and sees the export listed as a benefit")
+        saveScreenshot(app, name: "csv-export-pro")
+        app.buttons["Close"].firstMatch.tap()
+    }
+
     func testSettingsOffersTheProPageWithEveryBenefit() {
         let app = launch(["-MonthlioSettings", "-MonthlioFreshInstall"])
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 15))
@@ -77,7 +94,7 @@ final class MonthlioUITests: XCTestCase {
         upgrade.tap()
 
         XCTAssertTrue(app.staticTexts["Monthlio Pro"].waitForExistence(timeout: 10))
-        for benefit in ["iCloud sync", "Custom colors", "Family Sharing", "Private by design", "Buy once, keep forever"] {
+        for benefit in ["iCloud sync", "Custom colors", "CSV export", "Family Sharing", "Private by design", "Buy once, keep forever"] {
             XCTAssertTrue(app.staticTexts[benefit].waitForExistence(timeout: 5), "\(benefit) is listed")
         }
         XCTAssertTrue(app.buttons["Restore Purchases"].exists)

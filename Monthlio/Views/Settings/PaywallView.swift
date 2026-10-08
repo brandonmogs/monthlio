@@ -93,7 +93,7 @@ struct PaywallBody: View {
 
                     if purpose == .pro, pro.isGrandfathered, !pro.isEntitled {
                         Label {
-                            Text("iCloud sync is already yours for free as an early supporter. Pro adds custom colors and supports the app.")
+                            Text("iCloud sync is already yours for free as an early supporter. Pro adds custom colors and CSV export, and supports the app.")
                                 .font(.footnote)
                         } icon: {
                             Image(systemName: "heart.fill")
@@ -107,6 +107,7 @@ struct PaywallBody: View {
                     VStack(alignment: .leading, spacing: 16) {
                         benefit("icloud", title: "iCloud sync", detail: "Your expenses, budgets, exchange rates and history on every iPhone and iPad signed in to your Apple Account. A new phone picks up right where you left off.")
                         benefit("paintpalette", title: "Custom colors", detail: "Give any expense its own color: on every screen, in every list and in your widgets.")
+                        benefit("tablecells", title: "CSV export", detail: "Export every expense as a spreadsheet-ready CSV, with monthly equivalents in your base currency.")
                         benefit("person.2.fill", title: "Family Sharing", detail: "One purchase covers everyone in your Family Sharing group.")
                         benefit("lock.shield", title: "Private by design", detail: "Data syncs through your own iCloud. Monthlio has no servers, no accounts and no tracking.")
                         benefit("infinity", title: "Buy once, keep forever", detail: "One purchase, no subscription, no ads. Future Pro features are included, and it supports an independent app.")

@@ -56,6 +56,27 @@ final class StoreMaintenanceTests: XCTestCase {
         XCTAssertEqual(AppSettings.existing(in: context)?.monthlyIncome, 5200)
     }
 
+    func testExactTiesAreNeverDeleted() throws {
+        // Two devices restoring the same backup hold identical copies. A
+        // local tie-break would delete the other device's copy on each
+        // side, and the synced deletes would remove the row everywhere.
+        let context = try makeContext()
+        let id = UUID()
+        let created = Date(timeIntervalSince1970: 1_000)
+        context.insert(Expense(id: id, name: "Rent", amount: 1850, category: .housing, createdAt: created))
+        context.insert(Expense(id: id, name: "Rent", amount: 1850, category: .housing, createdAt: created))
+        context.insert(CategoryBudget(category: .food, cap: 500))
+        context.insert(CategoryBudget(category: .food, cap: 500))
+        context.insert(MonthSnapshot(year: 2026, month: 9, total: 3000, updatedAt: created))
+        context.insert(MonthSnapshot(year: 2026, month: 9, total: 3000, updatedAt: created))
+        try context.save()
+
+        XCTAssertTrue(StoreMaintenance.deduplicate(in: context).isEmpty)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Expense>()), 2)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<CategoryBudget>()), 2)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<MonthSnapshot>()), 2)
+    }
+
     func testACleanStoreIsLeftAlone() throws {
         let context = try makeContext()
         context.insert(Expense(name: "Gym", amount: 45, category: .health))

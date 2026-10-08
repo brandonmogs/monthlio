@@ -5,6 +5,12 @@ import SwiftData
 /// in a CloudKit-backed store, so two devices that insert before their
 /// first sync, or two devices restoring the same backup, leave two rows
 /// per identity. Runs at launch and whenever a row count changes.
+///
+/// Every rule is device-independent: the survivor is chosen by a synced
+/// value (older creation, larger cap, newer update), never by local row
+/// order, and exact ties are left alone. A local tie-break would make each
+/// device keep its own copy and delete the other's, and once both deletes
+/// sync the row is gone everywhere.
 @MainActor
 enum StoreMaintenance {
     struct Report: Equatable {
@@ -22,32 +28,35 @@ enum StoreMaintenance {
     static func deduplicate(in context: ModelContext) -> Report {
         var report = Report()
 
-        // Expenses: one row per UUID. Duplicates are copies of the same
-        // record, so the oldest (the original) stays.
-        if let expenses = try? context.fetch(FetchDescriptor<Expense>(sortBy: [SortDescriptor(\.createdAt)])) {
-            var seen = Set<UUID>()
-            for expense in expenses where !seen.insert(expense.id).inserted {
-                context.delete(expense)
-                report.expensesRemoved += 1
+        // Expenses: one row per UUID; the oldest creation (the original)
+        // stays and strictly newer copies go.
+        if let expenses = try? context.fetch(FetchDescriptor<Expense>()) {
+            for rows in Dictionary(grouping: expenses, by: \.id).values where rows.count > 1 {
+                let oldest = rows.map(\.createdAt).min()!
+                for row in rows where row.createdAt > oldest {
+                    context.delete(row)
+                    report.expensesRemoved += 1
+                }
             }
         }
 
-        // Budgets: one row per category, keeping the cap the dashboard shows.
+        // Budgets: one row per category, keeping the cap the dashboard
+        // shows; strictly smaller caps go.
         if let budgets = try? context.fetch(FetchDescriptor<CategoryBudget>()) {
             for rows in Dictionary(grouping: budgets, by: \.categoryRaw).values where rows.count > 1 {
-                let keep = rows.primary
-                for row in rows where row !== keep {
+                let largest = rows.map(\.cap).max()!
+                for row in rows where row.cap < largest {
                     context.delete(row)
                     report.budgetsRemoved += 1
                 }
             }
         }
 
-        // Snapshots: one row per month, keeping the most recently updated.
+        // Snapshots: one row per month; strictly older updates go.
         if let snapshots = try? context.fetch(FetchDescriptor<MonthSnapshot>()) {
             for rows in Dictionary(grouping: snapshots, by: \.key).values where rows.count > 1 {
-                let keep = rows.max { $0.updatedAt < $1.updatedAt }
-                for row in rows where row !== keep {
+                let newest = rows.map(\.updatedAt).max()!
+                for row in rows where row.updatedAt < newest {
                     context.delete(row)
                     report.snapshotsRemoved += 1
                 }

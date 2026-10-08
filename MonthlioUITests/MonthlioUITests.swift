@@ -69,6 +69,23 @@ final class MonthlioUITests: XCTestCase {
         XCTAssertTrue(app.buttons["data-restore"].exists)
     }
 
+    func testSettingsOffersTheProPageWithEveryBenefit() {
+        let app = launch(["-MonthlioSettings", "-MonthlioFreshInstall"])
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 15))
+        let upgrade = app.buttons["pro-upgrade"]
+        XCTAssertTrue(upgrade.waitForExistence(timeout: 5), "free users get a Pro entry at the top of Settings")
+        upgrade.tap()
+
+        XCTAssertTrue(app.staticTexts["Monthlio Pro"].waitForExistence(timeout: 10))
+        for benefit in ["iCloud sync", "Custom colors", "Family Sharing", "Private by design", "Buy once, keep forever"] {
+            XCTAssertTrue(app.staticTexts[benefit].waitForExistence(timeout: 5), "\(benefit) is listed")
+        }
+        XCTAssertTrue(app.buttons["Restore Purchases"].exists)
+        saveScreenshot(app, name: "pro-page")
+        app.buttons["Close"].tap()
+        XCTAssertTrue(upgrade.waitForExistence(timeout: 5))
+    }
+
     func testFreshInstallOffersProForSyncAndLoadsThePrice() {
         let app = launch(["-MonthlioSettings", "-MonthlioFreshInstall"])
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 15))

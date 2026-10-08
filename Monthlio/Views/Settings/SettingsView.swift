@@ -28,6 +28,7 @@ struct SettingsView: View {
     @AppStorage(DeviceSettings.lockGraceKey, store: SyncPreference.standard) private var lockGraceSeconds = DeviceSettings.LockGrace.default.rawValue
     @State private var syncEnabled = SyncPreference.isEnabled()
     @State private var showingPaywall = false
+    @State private var paywallPurpose: PaywallPurpose = .pro
     @State private var dataNotice: DataNotice?
 
     private var settings: AppSettings? { settingsRows.first }
@@ -35,6 +36,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack(path: $path) {
             Form {
+                proSection
                 incomeSection
                 Section("Budgets & currency") {
                     NavigationLink(value: SettingsDestination.budgets) {
@@ -69,9 +71,13 @@ struct SettingsView: View {
                 }
             }
             .sheet(isPresented: $showingPaywall) {
-                PaywallView {
-                    syncEnabled = true
-                    SyncPreference.setEnabled(true)
+                PaywallView(purpose: paywallPurpose) {
+                    // Buying Pro means wanting sync, unless an early supporter
+                    // who already had it free turned it off on purpose.
+                    if paywallPurpose == .sync || !pro.isGrandfathered {
+                        syncEnabled = true
+                        SyncPreference.setEnabled(true)
+                    }
                 }
             }
             .onChange(of: pro.isGrandfathered) { _, grandfathered in
@@ -88,6 +94,52 @@ struct SettingsView: View {
             .task { await NotificationScheduler.shared.refreshAuthorization() }
         }
         .presentationDragIndicator(.visible)
+    }
+
+    /// The designated way to Monthlio Pro: first thing behind the gear for
+    /// everyone who hasn't bought it, a thank-you for everyone who has.
+    private var proSection: some View {
+        Section {
+            if pro.isEntitled {
+                Label("Monthlio Pro is unlocked", systemImage: "checkmark.seal.fill")
+                    .accessibilityIdentifier("pro-unlocked")
+            } else {
+                Button {
+                    paywallPurpose = .pro
+                    showingPaywall = true
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "sparkles")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 32, height: 32)
+                            .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 8))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Get Monthlio Pro")
+                                .font(.headline)
+                            Text(proPitch)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .tint(.primary)
+                .accessibilityIdentifier("pro-upgrade")
+            }
+        } footer: {
+            Text(pro.isEntitled ? String(localized: "Thanks for supporting Monthlio.") : String(localized: "Everything else in Monthlio is free."))
+        }
+    }
+
+    private var proPitch: String {
+        let pitch = String(localized: "iCloud sync, custom colors and Family Sharing.")
+        guard let product = pro.product else { return pitch }
+        return pitch + " " + String(localized: "One-time purchase, \(product.displayPrice).")
     }
 
     private var incomeSection: some View {
@@ -190,6 +242,7 @@ struct SettingsView: View {
                     }
             } else {
                 Button {
+                    paywallPurpose = .sync
                     showingPaywall = true
                 } label: {
                     HStack {

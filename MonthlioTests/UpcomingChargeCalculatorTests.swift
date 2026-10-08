@@ -99,6 +99,33 @@ final class UpcomingChargeCalculatorTests: XCTestCase {
         XCTAssertEqual(dates, [date(2026, 9, 12)])
     }
 
+    func testADayWithoutMidnightDoesNotLeakAnExtraCharge() throws {
+        // Chile springs forward at midnight on 2026-09-06; that day starts at 01:00.
+        var santiago = Calendar(identifier: .gregorian)
+        santiago.timeZone = try XCTUnwrap(TimeZone(identifier: "America/Santiago"))
+        let opened = try XCTUnwrap(santiago.date(from: DateComponents(year: 2026, month: 9, day: 6, hour: 9, minute: 15)))
+        try XCTSkipUnless(santiago.component(.hour, from: santiago.startOfDay(for: opened)) == 1, "needs the Chilean DST rule")
+
+        let monthly = UpcomingChargeCalculator.occurrences(dueDay: 6, cadence: .monthly, from: opened, calendar: santiago)
+        XCTAssertEqual(monthly.map { santiago.component(.day, from: $0) }, [6], "October 6 is the 31st day and stays out")
+        XCTAssertEqual(monthly.map { santiago.component(.month, from: $0) }, [9])
+
+        // A weekly anchor picked that day lands at the start of every later day.
+        let november = try XCTUnwrap(santiago.date(from: DateComponents(year: 2026, month: 11, day: 1)))
+        let weekly = UpcomingChargeCalculator.occurrences(cadence: .weekly, dueDay: nil, anchor: opened, from: november, calendar: santiago)
+        XCTAssertEqual(weekly.first, november)
+        XCTAssertTrue(weekly.allSatisfy { santiago.startOfDay(for: $0) == $0 })
+    }
+
+    func testAChargeDateBeyondTheLookaheadIsStillTheNextCharge() {
+        let next = UpcomingChargeCalculator.nextCharge(cadence: .yearly, dueDay: nil, anchor: date(2028, 1, 15), after: date(2026, 10, 7), calendar: calendar)
+        XCTAssertEqual(next, date(2028, 1, 15), "a prepaid renewal two years out has a next charge")
+        let weekly = UpcomingChargeCalculator.nextCharge(cadence: .weekly, dueDay: nil, anchor: date(2026, 10, 9), after: date(2026, 10, 7), calendar: calendar)
+        XCTAssertEqual(weekly, date(2026, 10, 9))
+        let passed = UpcomingChargeCalculator.nextCharge(cadence: .weekly, dueDay: nil, anchor: date(2026, 10, 1), after: date(2026, 10, 7), calendar: calendar)
+        XCTAssertEqual(passed, date(2026, 10, 8), "an anchor in the past steps forward as before")
+    }
+
     func testNextChargeLooksBeyondTheThirtyDayWindow() {
         let next = UpcomingChargeCalculator.nextCharge(cadence: .yearly, dueDay: nil, anchor: date(2026, 3, 5), after: date(2026, 9, 7), calendar: calendar)
         XCTAssertEqual(next, date(2027, 3, 5))

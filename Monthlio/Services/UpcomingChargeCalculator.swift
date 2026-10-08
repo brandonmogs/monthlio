@@ -42,7 +42,7 @@ enum UpcomingChargeCalculator {
     /// (inclusive of the start day, exclusive of the end).
     static func occurrences(cadence: Cadence, dueDay: Int?, anchor: Date?, from start: Date, days: Int = windowDays, calendar: Calendar = .gregorianLocal) -> [Date] {
         let startDay = calendar.startOfDay(for: start)
-        guard days > 0, let end = calendar.date(byAdding: .day, value: days, to: startDay) else { return [] }
+        guard days > 0, let end = windowEnd(after: startDay, days: days, calendar: calendar) else { return [] }
         switch cadence {
         case .oneTime:
             guard let anchor else { return [] }
@@ -74,14 +74,28 @@ enum UpcomingChargeCalculator {
     static func oneTimeOccurrence(chargeDate: Date, from start: Date, days: Int = windowDays, calendar: Calendar = .gregorianLocal) -> [Date] {
         let startDay = calendar.startOfDay(for: start)
         let chargeDay = calendar.startOfDay(for: chargeDate)
-        guard let end = calendar.date(byAdding: .day, value: days, to: startDay) else { return [] }
+        guard let end = windowEnd(after: startDay, days: days, calendar: calendar) else { return [] }
         return chargeDay >= startDay && chargeDay < end ? [chargeDay] : []
     }
 
+    /// The exclusive end of a `days`-day window, at the start of that day.
+    /// Adding days keeps the wall-clock time, and on a day that springs
+    /// forward at midnight (Chile, Cuba, Egypt) the start is 01:00; left
+    /// as is, the end would sit an hour into an extra day and let one more
+    /// charge in.
+    private static func windowEnd(after startDay: Date, days: Int, calendar: Calendar) -> Date? {
+        calendar.date(byAdding: .day, value: days, to: startDay).map { calendar.startOfDay(for: $0) }
+    }
+
     /// The next date a charge hits on or after `start`, looking far enough
-    /// ahead for a yearly charge.
+    /// ahead for a yearly charge. A schedule whose charge date is further
+    /// out than that starts there.
     static func nextCharge(cadence: Cadence, dueDay: Int?, anchor: Date?, after start: Date = .now, lookaheadDays: Int = 400, calendar: Calendar = .gregorianLocal) -> Date? {
-        occurrences(cadence: cadence, dueDay: dueDay, anchor: anchor, from: start, days: lookaheadDays, calendar: calendar).first
+        if let anchor, cadence != .monthly {
+            let anchorDay = calendar.startOfDay(for: anchor)
+            if anchorDay >= calendar.startOfDay(for: start) { return anchorDay }
+        }
+        return occurrences(cadence: cadence, dueDay: dueDay, anchor: anchor, from: start, days: lookaheadDays, calendar: calendar).first
     }
 
     static func nextCharge(for expense: Expense, after start: Date = .now, calendar: Calendar = .gregorianLocal) -> Date? {
@@ -142,7 +156,11 @@ enum UpcomingChargeCalculator {
         let elapsed = calendar.dateComponents([.day], from: anchorDay, to: start).day ?? 0
         var step = elapsed > 0 ? elapsed / everyDays : 0
         var results: [Date] = []
-        while let date = calendar.date(byAdding: .day, value: step * everyDays, to: anchorDay), date < end {
+        while let stepped = calendar.date(byAdding: .day, value: step * everyDays, to: anchorDay), stepped < end {
+            // An anchor picked on a day that starts at 01:00 would otherwise
+            // keep that hour on every later day and split the timeline's
+            // day groups.
+            let date = calendar.startOfDay(for: stepped)
             if date >= start { results.append(date) }
             step += 1
         }

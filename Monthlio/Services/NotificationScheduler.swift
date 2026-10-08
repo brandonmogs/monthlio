@@ -82,6 +82,10 @@ final class NotificationScheduler {
             var components = calendar.dateComponents([.year, .month, .day], from: dayBefore)
             components.hour = hour
             components.minute = 0
+            // The trigger reads bare components in the device calendar: on a
+            // Buddhist-calendar iPhone a Gregorian 2026 is a past year and
+            // the reminder never fires. Carry the calendar they were made in.
+            components.calendar = calendar
             guard let fireDate = calendar.date(from: components), fireDate > now else { continue }
 
             let content = UNMutableNotificationContent()

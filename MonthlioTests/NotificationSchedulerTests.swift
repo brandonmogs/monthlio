@@ -53,6 +53,17 @@ final class NotificationSchedulerTests: XCTestCase {
         XCTAssertEqual(evening.count, 1, "6 PM on the reminder day has passed")
     }
 
+    func testTriggersCarryTheirCalendar() throws {
+        // Without one, the device calendar reads the components: 2026 is a
+        // past year in the Buddhist era, and nothing ever fires.
+        let requests = NotificationScheduler.requests(for: [rent], now: date(2026, 9, 1), discreet: false, calendar: calendar)
+        let trigger = try XCTUnwrap(requests.first?.trigger as? UNCalendarNotificationTrigger)
+        XCTAssertEqual(trigger.dateComponents.calendar?.identifier, .gregorian)
+        XCTAssertEqual(trigger.dateComponents.calendar?.timeZone, calendar.timeZone)
+        XCTAssertEqual(trigger.dateComponents.year, 2026)
+        XCTAssertNotNil(Calendar(identifier: .buddhist).date(from: trigger.dateComponents))
+    }
+
     func testPendingRequestsAreCapped() {
         let many: [Expense] = (1...31).map { (day: Int) -> Expense in
             Expense(name: "Bill \(String(day))", amount: 1, category: .other, dueDay: day)

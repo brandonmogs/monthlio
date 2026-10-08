@@ -72,8 +72,12 @@ enum DeviceSettings {
 
     static func reminderHour(_ defaults: UserDefaults = standard) -> Int {
         guard defaults.object(forKey: reminderHourKey) != nil else { return defaultReminderHour }
-        let hour = defaults.integer(forKey: reminderHourKey)
-        return (0...23).contains(hour) ? hour : defaultReminderHour
+        return validReminderHour(defaults.integer(forKey: reminderHourKey))
+    }
+
+    /// Views read the hour through `@AppStorage`, which skips the check above.
+    static func validReminderHour(_ hour: Int) -> Int {
+        (0...23).contains(hour) ? hour : defaultReminderHour
     }
 
     static func setReminderHour(_ hour: Int, _ defaults: UserDefaults = standard) {

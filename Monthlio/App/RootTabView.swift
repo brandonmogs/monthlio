@@ -145,7 +145,7 @@ struct RootTabView: View {
         // With the lock on, widgets and reminders hide names and amounts.
         let discreet = lock.isEnabled
         WidgetSnapshotWriter.update(expenses: expenses, discreet: discreet, converter: converter)
-        await NotificationScheduler.shared.reschedule(for: expenses, enabled: remindersEnabled, discreet: discreet, hour: reminderHour)
+        await NotificationScheduler.shared.reschedule(for: expenses, enabled: remindersEnabled, discreet: discreet, hour: DeviceSettings.validReminderHour(reminderHour))
     }
 }
 

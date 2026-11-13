@@ -100,6 +100,60 @@ final class ExpenseFormViewModelTests: XCTestCase {
         XCTAssertNil(saved.reminderDate, "off clears it")
     }
 
+    func testADefaultReminderNeverLandsTheDayAfterACharge() {
+        let calendar = Calendar.gregorianLocal
+        let now = Date.now
+        let today = min(calendar.component(.day, from: now), 28)
+
+        let vm = viewModel(amount: 10)
+        vm.cadence = .monthly
+        vm.hasDueDay = true
+        vm.dueDay = today
+        vm.reminderEnabled = true
+        XCTAssertGreaterThan(vm.reminderDate, now)
+        XCTAssertEqual(calendar.component(.day, from: vm.reminderDate), today, "today's charge before the reminder hour, or the next charge; never tomorrow")
+        XCTAssertEqual(calendar.component(.hour, from: vm.reminderDate), DeviceSettings.reminderHour())
+
+        let oneOff = viewModel(amount: 10)
+        oneOff.cadence = .oneTime
+        oneOff.chargeDate = now
+        oneOff.reminderEnabled = true
+        XCTAssertGreaterThan(oneOff.reminderDate, now)
+        XCTAssertLessThanOrEqual(oneOff.reminderDate.timeIntervalSince(now), 24 * 3600, "a charge today is reminded today, or at the next whole hour")
+    }
+
+    @MainActor
+    func testEditingTheDueDayMovesTheReminderWithIt() throws {
+        // Reminded the day before the 20th; the due day moves to the 25th,
+        // so the reminder moves to the 24th. A date the user picked in the
+        // same edit is left alone.
+        let container = try TestContainer.make()
+        let calendar = Calendar.gregorianLocal
+        let nextMonth = calendar.dateComponents([.year, .month], from: calendar.date(byAdding: .month, value: 1, to: .now)!)
+        func day(_ d: Int, _ hour: Int = 9, _ minute: Int = 30) -> Date {
+            calendar.date(from: DateComponents(year: nextMonth.year, month: nextMonth.month, day: d, hour: hour, minute: minute))!
+        }
+        let gym = Expense(name: "Gym", amount: 40, category: .health, cadence: .monthly, dueDay: 20, reminderDate: day(19))
+        container.mainContext.insert(gym)
+
+        let vm = ExpenseFormViewModel(expense: gym)
+        vm.dueDay = 25
+        XCTAssertTrue(try vm.save(in: container.mainContext))
+        XCTAssertEqual(gym.reminderDate, day(24), "a day before the charge, still")
+        XCTAssertEqual(NotificationScheduler.reminderOccurrences(for: gym, limit: 1).first, day(24))
+
+        let picked = ExpenseFormViewModel(expense: gym)
+        picked.dueDay = 28
+        picked.chooseReminderDate(day(10))
+        XCTAssertTrue(try picked.save(in: container.mainContext))
+        XCTAssertEqual(gym.reminderDate, day(10), "an explicit pick wins over the moved schedule")
+
+        let renamed = ExpenseFormViewModel(expense: gym)
+        renamed.name = "Gym (annual)"
+        XCTAssertTrue(try renamed.save(in: container.mainContext))
+        XCTAssertEqual(gym.reminderDate, day(10), "an unrelated edit leaves the reminder alone")
+    }
+
     @MainActor
     func testEditingAfterARecurringNotificationFiredShowsTheNextDelivery() throws {
         let container = try TestContainer.make()

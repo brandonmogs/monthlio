@@ -33,6 +33,9 @@ final class NotificationScheduler {
     nonisolated static let expenseLookaheadDays = 400
     /// Pending requests per expense for a repeating notification.
     nonisolated static let expenseRequestsEach = 2
+    /// How far ahead of its charge a reminder may sit and still mean "this
+    /// many days before each charge" rather than a schedule of its own.
+    nonisolated static let maxReminderLeadDays = 14
     nonisolated static let lookaheadDays = 45
     nonisolated static let reminderHour = 9
     /// iOS keeps at most 64 pending requests per app; leave headroom.
@@ -92,27 +95,56 @@ final class NotificationScheduler {
     }
 
     /// When an expense's own notification fires next: the chosen moment for
-    /// a one-time expense, and for a recurring one the chosen moment and
-    /// then its schedule stepping from that day at the same time.
+    /// a one-time expense; for a recurring one, the chosen moment and then
+    /// the same lead before each later charge at the same time of day.
+    ///
+    /// The reminder belongs to the first charge on or after its day. Within
+    /// `maxReminderLeadDays` of that charge it means "this many days before
+    /// the charge" and follows the schedule, so a due day moved from the
+    /// 12th to the 20th moves the reminder too. Further away, or with no
+    /// schedule to follow (a weekly expense without a charge date), it
+    /// repeats with the cadence from the chosen day, as before.
     nonisolated static func reminderOccurrences(for expense: Expense, from now: Date = .now, limit: Int = expenseRequestsEach, calendar: Calendar = .gregorianLocal) -> [Date] {
         guard let reminderDate = expense.reminderDate, expense.isActive, limit > 0 else { return [] }
         guard expense.cadence.isRecurring else { return reminderDate > now ? [reminderDate] : [] }
         let time = calendar.dateComponents([.hour, .minute], from: reminderDate)
-        // Earlier occurrences of the same schedule aren't wanted: start at
-        // the chosen day, or today once that day has passed.
-        let start = max(calendar.startOfDay(for: reminderDate), calendar.startOfDay(for: now))
-        let days = UpcomingChargeCalculator.occurrences(
-            cadence: expense.cadence,
-            dueDay: expense.cadence == .monthly ? calendar.component(.day, from: reminderDate) : nil,
-            anchor: reminderDate,
-            from: start,
-            days: expenseLookaheadDays,
-            calendar: calendar
-        )
+        let reminderDay = calendar.startOfDay(for: reminderDate)
+        // Earlier occurrences aren't wanted: start at the chosen day, or
+        // today once that day has passed.
+        let start = max(reminderDay, calendar.startOfDay(for: now))
+
+        let days: [Date]
+        if let lead = reminderLead(for: expense, calendar: calendar) {
+            days = UpcomingChargeCalculator
+                .occurrences(for: expense, from: start, days: expenseLookaheadDays + maxReminderLeadDays, calendar: calendar)
+                .compactMap { calendar.date(byAdding: .day, value: -lead, to: $0) }
+        } else {
+            days = UpcomingChargeCalculator.occurrences(
+                cadence: expense.cadence,
+                dueDay: expense.cadence == .monthly ? calendar.component(.day, from: reminderDate) : nil,
+                anchor: reminderDate,
+                from: start,
+                days: expenseLookaheadDays,
+                calendar: calendar
+            )
+        }
         return Array(days
             .compactMap { calendar.date(bySettingHour: time.hour ?? 0, minute: time.minute ?? 0, second: 0, of: $0) }
             .filter { $0 > now }
             .prefix(limit))
+    }
+
+    /// Days between the reminder's day and the first charge on or after it,
+    /// when that is within `maxReminderLeadDays`: the reminder then means
+    /// "this many days before each charge". Nil when the reminder is far
+    /// from any charge or the expense has no schedule to follow.
+    nonisolated static func reminderLead(for expense: Expense, calendar: Calendar = .gregorianLocal) -> Int? {
+        guard let reminderDate = expense.reminderDate, expense.cadence.isRecurring else { return nil }
+        let reminderDay = calendar.startOfDay(for: reminderDate)
+        guard let charge = UpcomingChargeCalculator.nextCharge(for: expense, after: reminderDay, calendar: calendar),
+              let lead = calendar.dateComponents([.day], from: reminderDay, to: calendar.startOfDay(for: charge)).day,
+              (0...maxReminderLeadDays).contains(lead) else { return nil }
+        return lead
     }
 
     /// Pure: the notifications expenses asked for themselves.

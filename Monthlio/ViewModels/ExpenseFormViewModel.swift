@@ -31,6 +31,9 @@ final class ExpenseFormViewModel {
     /// Set once the row has a stored date or the user picked one, so the
     /// toggle doesn't overwrite it.
     private var reminderDateChosen: Bool
+    /// Set when the user picked a date in this session: a schedule edit
+    /// then leaves the pick alone instead of moving it with the charge.
+    private var reminderDatePicked = false
 
     /// Non-nil when editing an existing expense.
     let existing: Expense?
@@ -75,21 +78,38 @@ final class ExpenseFormViewModel {
         reminderDateChosen = expense?.reminderDate != nil
     }
 
-    /// The next charge at the device's reminder hour, or tomorrow at that
-    /// hour when the schedule can't say.
+    /// The next charge at the device's reminder hour. When that moment has
+    /// passed (the charge is today and it's afternoon) it is the charge
+    /// after it, never the day after a charge; a one-time charge already
+    /// today gets the next whole hour; a schedule that can't say gets
+    /// tomorrow at the reminder hour.
     var defaultReminderDate: Date {
         let calendar = Calendar.gregorianLocal
         let hour = DeviceSettings.reminderHour()
-        let day = nextChargeDate ?? (cadence == .oneTime ? chargeDate : nil) ?? calendar.date(byAdding: .day, value: 1, to: .now) ?? .now
-        let candidate = calendar.date(bySettingHour: hour, minute: 0, second: 0, of: day) ?? day
-        if candidate > .now { return candidate }
-        return calendar.date(byAdding: .day, value: 1, to: calendar.date(bySettingHour: hour, minute: 0, second: 0, of: .now) ?? .now) ?? candidate
+        let now = Date.now
+        func atReminderHour(_ day: Date) -> Date { calendar.date(bySettingHour: hour, minute: 0, second: 0, of: day) ?? day }
+
+        if cadence.isRecurring, let next = nextChargeDate {
+            let candidate = atReminderHour(next)
+            if candidate > now { return candidate }
+            if let tomorrow = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now)),
+               let following = UpcomingChargeCalculator.nextCharge(cadence: cadence, dueDay: resolvedDueDay, anchor: resolvedChargeDate, after: tomorrow) {
+                return atReminderHour(following)
+            }
+        } else if cadence == .oneTime {
+            let candidate = atReminderHour(chargeDate)
+            if candidate > now { return candidate }
+            let thisHour = calendar.date(from: calendar.dateComponents([.year, .month, .day, .hour], from: now)) ?? now
+            return calendar.date(byAdding: .hour, value: 1, to: thisHour) ?? now
+        }
+        return atReminderHour(calendar.date(byAdding: .day, value: 1, to: now) ?? now)
     }
 
     /// Called when the user picks a date, so a later cadence change keeps it.
     func chooseReminderDate(_ date: Date) {
         reminderDate = date
         reminderDateChosen = true
+        reminderDatePicked = true
     }
 
     var storedReminderDate: Date? { reminderEnabled ? reminderDate : nil }
@@ -162,6 +182,10 @@ final class ExpenseFormViewModel {
         let trimmedNotes = MoneyLimits.clampedNotes(notes)
 
         if let existing {
+            // The lead a reminder had under the old schedule ("a day before
+            // the charge"), so a moved due day or charge date moves it too.
+            let previousLead = NotificationScheduler.reminderLead(for: existing)
+            let scheduleChanged = existing.cadence != cadence || existing.dueDay != resolvedDueDay || existing.chargeDate != storedChargeDate
             existing.name = trimmedName
             if existing.currencyCode != currencyCode || existing.cadence != cadence {
                 // A new billing basis: the old amount no longer compares, so
@@ -180,6 +204,16 @@ final class ExpenseFormViewModel {
             existing.isActive = isActive
             existing.colorHex = colorHex
             existing.reminderDate = storedReminderDate
+            // Re-anchored on the first charge of the new schedule on or after
+            // the reminder's own day, so a reminder that starts next month
+            // stays in next month.
+            let calendar = Calendar.gregorianLocal
+            if scheduleChanged, reminderEnabled, !reminderDatePicked, let previousLead,
+               let next = UpcomingChargeCalculator.nextCharge(for: existing, after: calendar.startOfDay(for: reminderDate)),
+               let day = calendar.date(byAdding: .day, value: -previousLead, to: next) {
+                let time = calendar.dateComponents([.hour, .minute], from: reminderDate)
+                existing.reminderDate = calendar.date(bySettingHour: time.hour ?? 0, minute: time.minute ?? 0, second: 0, of: day)
+            }
         } else {
             let expense = Expense(
                 name: trimmedName,

@@ -93,6 +93,29 @@ final class NotificationSchedulerTests: XCTestCase {
         XCTAssertTrue(NotificationScheduler.reminderOccurrences(for: paused, from: date(2026, 10, 7), calendar: calendar).isEmpty, "a paused expense is quiet")
     }
 
+    func testAReminderMeansDaysBeforeEachCharge() {
+        // Set for the day before a charge on the 20th, the reminder means
+        // "a day before each charge" (the form moves it when the schedule
+        // is edited; see ExpenseFormViewModelTests).
+        let gym = Expense(name: "Gym", amount: 40, currencyCode: "USD", category: .health, cadence: .monthly, dueDay: 20, reminderDate: date(2026, 10, 19, 9, 30))
+        XCTAssertEqual(NotificationScheduler.reminderLead(for: gym, calendar: calendar), 1)
+        XCTAssertEqual(NotificationScheduler.reminderOccurrences(for: gym, from: date(2026, 10, 7), calendar: calendar), [date(2026, 10, 19, 9, 30), date(2026, 11, 19, 9, 30)])
+
+        // Day 31 clamps in short months and the lead still holds.
+        let rent = Expense(name: "Rent", amount: 1500, currencyCode: "USD", category: .housing, cadence: .monthly, dueDay: 31, reminderDate: date(2026, 10, 30, 8))
+        XCTAssertEqual(NotificationScheduler.reminderOccurrences(for: rent, from: date(2026, 10, 7), calendar: calendar), [date(2026, 10, 30, 8), date(2026, 11, 29, 8)], "Nov 30 is the charge, so the 29th is the day before")
+
+        // A weekly expense charged on Fridays, reminded on Thursdays.
+        let groceries = Expense(name: "Groceries", amount: 120, currencyCode: "USD", category: .food, cadence: .weekly, chargeDate: date(2026, 10, 9), reminderDate: date(2026, 10, 8, 20))
+        XCTAssertEqual(NotificationScheduler.reminderLead(for: groceries, calendar: calendar), 1)
+        XCTAssertEqual(NotificationScheduler.reminderOccurrences(for: groceries, from: date(2026, 10, 7), calendar: calendar), [date(2026, 10, 8, 20), date(2026, 10, 15, 20)])
+
+        // Far from any charge the reminder is its own schedule, as before.
+        let loose = Expense(name: "Gym", amount: 40, currencyCode: "USD", category: .health, cadence: .monthly, dueDay: 20, reminderDate: date(2026, 10, 1, 9, 30))
+        XCTAssertEqual(NotificationScheduler.reminderOccurrences(for: loose, from: date(2026, 9, 7), calendar: calendar), [date(2026, 10, 1, 9, 30), date(2026, 11, 1, 9, 30)])
+        XCTAssertNil(NotificationScheduler.reminderLead(for: loose, calendar: calendar))
+    }
+
     func testExpenseNotificationsDoNotNeedTheDayBeforeSetting() {
         let gym = Expense(name: "Gym", amount: 40, currencyCode: "USD", category: .health, cadence: .monthly, dueDay: 20, reminderDate: date(2026, 10, 20, 9, 30))
         let off = NotificationScheduler.allRequests(for: [gym, rent], enabled: false, now: date(2026, 10, 7), discreet: false, calendar: calendar)

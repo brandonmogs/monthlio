@@ -40,8 +40,15 @@ final class StoreKitIntegrationTests: XCTestCase {
 
         let transaction = try XCTUnwrap(session.allTransactions().first)
         try session.refundTransaction(identifier: UInt(transaction.identifier))
-        let stillEntitled = await client.hasEntitlement(for: ProStore.productID)
-        XCTAssertFalse(stillEntitled)
+        // The revocation reaches Transaction.currentEntitlements a moment
+        // after the refund (seen on the iOS 17.5 runtime, where the local
+        // configuration does run from the command line).
+        var stillEntitled = true
+        for _ in 0..<50 where stillEntitled {
+            stillEntitled = await client.hasEntitlement(for: ProStore.productID)
+            if stillEntitled { try await Task.sleep(for: .milliseconds(100)) }
+        }
+        XCTAssertFalse(stillEntitled, "a refund takes the entitlement away")
         session.clearTransactions()
     }
 }

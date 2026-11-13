@@ -102,10 +102,13 @@ final class AppLockService {
     private var backgroundedAt: Date?
     private let authenticator: Authenticating
 
-    init(isEnabled: Bool, gracePeriod: TimeInterval = 0, authenticator: Authenticating = DeviceAuthenticator()) {
+    /// `startsLocked` false begins an enabled lock in the unlocked state, as
+    /// after a successful unlock; the UI tests use it to exercise the leave
+    /// and return path without a biometric prompt.
+    init(isEnabled: Bool, gracePeriod: TimeInterval = 0, startsLocked: Bool = true, authenticator: Authenticating = DeviceAuthenticator()) {
         self.isEnabled = isEnabled
-        self.isLocked = isEnabled
-        self.pendingAutoUnlock = isEnabled
+        self.isLocked = isEnabled && startsLocked
+        self.pendingAutoUnlock = isEnabled && startsLocked
         self.gracePeriod = gracePeriod
         self.authenticator = authenticator
     }

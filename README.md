@@ -67,6 +67,7 @@ months of history on first launch. Launch arguments (DEBUG only):
 - `-MonthlioSkipSeed` — start empty to see the first-run state
 - `-MonthlioTab upcoming` — open on a tab (`dashboard`, `expenses`, `subscriptions`, `upcoming`)
 - `-MonthlioLocked` — start with the Face ID / passcode lock engaged
+- `-MonthlioLockEnabled` — the lock is on but starts unlocked; `-MonthlioLockGrace <seconds>` sets its grace period (the lock round-trip UI tests)
 - `-MonthlioSettings` — open Settings on launch
 - `-MonthlioInMemory` — use a throwaway in-memory store and a throwaway preference store, and leave the widget snapshot and pending notifications alone (the UI tests do this)
 - `-MonthlioFreshInstall` — a throwaway preference store with no grandfathering, so the paywall shows as it does for a new download

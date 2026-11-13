@@ -85,10 +85,23 @@ struct MonthlioApp: App {
         let lockState = DeviceSettings.resolveLock(canAuthenticate: canAuthenticate)
         MonthlioApp.lockTurnedOffForMissingPasscode = lockState.turnedOffForMissingPasscode
         var lockEnabled = lockState.enabled
+        var startsLocked = true
+        var grace = DeviceSettings.lockGrace().seconds
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-MonthlioLocked") { lockEnabled = true }
+        // -MonthlioLocked starts locked; -MonthlioLockEnabled starts unlocked
+        // with the lock on, and -MonthlioLockGrace <seconds> sets its grace,
+        // so a UI test can leave and return without a biometric prompt.
+        let launch = ProcessInfo.processInfo.arguments
+        if launch.contains("-MonthlioLocked") { lockEnabled = true }
+        if launch.contains("-MonthlioLockEnabled") {
+            lockEnabled = true
+            startsLocked = false
+        }
+        if let index = launch.firstIndex(of: "-MonthlioLockGrace"), index + 1 < launch.count, let seconds = TimeInterval(launch[index + 1]) {
+            grace = seconds
+        }
         #endif
-        _lock = State(initialValue: AppLockService(isEnabled: lockEnabled, gracePeriod: DeviceSettings.lockGrace().seconds))
+        _lock = State(initialValue: AppLockService(isEnabled: lockEnabled, gracePeriod: grace, startsLocked: startsLocked))
     }
 
     /// The store's location: the app's own Application Support folder, as in

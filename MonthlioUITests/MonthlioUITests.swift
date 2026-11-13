@@ -337,6 +337,26 @@ final class MonthlioUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Settings"].waitForNonExistence(timeout: 5), "the Settings sheet is gone")
     }
 
+    func testLeavingAndReturningWithinTheGraceAsksForNothing() {
+        // The state machine is unit-tested; this drives the real scene phases.
+        let app = launch(["-MonthlioLockEnabled", "-MonthlioLockGrace", "60"])
+        XCTAssertTrue(app.staticTexts["$3,459.29"].waitForExistence(timeout: 15))
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        XCTAssertTrue(app.staticTexts["$3,459.29"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.staticTexts["Monthlio is locked"].exists, "a quick hop to another app and back skips the prompt")
+    }
+
+    func testLeavingAfterTheGraceLocksAndHidesAmounts() {
+        let app = launch(["-MonthlioLockEnabled", "-MonthlioLockGrace", "0"])
+        XCTAssertTrue(app.staticTexts["$3,459.29"].waitForExistence(timeout: 15))
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        XCTAssertTrue(app.staticTexts["Monthlio is locked"].waitForExistence(timeout: 10), "with no grace the return is locked")
+        XCTAssertFalse(app.staticTexts["$3,459.29"].isHittable, "amounts sit behind the shield")
+        saveScreenshot(app, name: "locked-after-return")
+    }
+
     func testDeepLinkOpensTheUpcomingTab() {
         let app = launch()
         XCTAssertTrue(app.staticTexts["$3,459.29"].waitForExistence(timeout: 15))

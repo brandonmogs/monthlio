@@ -93,6 +93,20 @@ catalog rather than in code.
 
 ## Shipping checklist
 
+Before every submission, in this order:
+
+1. `xcodebuild test` on the newest iOS simulator and on an iOS 17.5 one
+   (CI does both; `Scripts/sync-string-catalog.py` after a command-line build).
+2. `Scripts/sandbox-check.sh` — builds the `MonthlioSandbox` scheme (no
+   local StoreKit configuration) and confirms Apple's sandbox serves the Pro
+   product, which is what App Review sees. The 1.3 (7) rejection was exactly
+   this check failing.
+3. Archive and upload with the API key, then install the build from
+   TestFlight (internal group "Monthlio team", every build is available to
+   it) on a real phone and walk: the paywall and Restore Purchases, the Pro
+   code field, an expense notification, both widgets, the app lock.
+4. `Scripts/asc.py build` and `submit --confirm`.
+
 Things App Store Connect needs that the code can't do for you:
 
 - **Privacy policy**: published at https://brandonmogs.github.io/monthlio-privacy/

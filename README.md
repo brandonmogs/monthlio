@@ -23,9 +23,12 @@ cost broken down by category.
 - iCloud sync (Monthlio Pro, a one-time purchase; free on every device
   for anyone who downloaded Monthlio before Pro existed)
 - Custom expense colors (Monthlio Pro), shown on every screen and in widgets
-- A code from the developer, entered on the Pro page ("Have a code?"),
-  unlocks Pro on that device; accepted codes live as SHA-256 digests in
-  `ProStore.promoCodeDigests`
+- A code from the developer unlocks Pro on that device: on the Pro page,
+  tap the "Monthlio Pro" title five times or hold it for a second and a
+  code field appears (VoiceOver: the "Enter a code" action). It is not
+  advertised because App Review guideline 3.1.1 bars unlocking features
+  with anything but in-app purchase. Accepted codes live as SHA-256
+  digests in `ProStore.promoCodeDigests`
 - Weekly, biweekly, quarterly and yearly charges on the timeline, in
   reminders and in the widget once they have a next charge date
 - Undo after deleting an expense; a per-device app lock with a grace

@@ -80,6 +80,16 @@ struct PaywallBody: View {
                             .padding(.top, 24)
                         Text("Monthlio Pro")
                             .font(.title.bold())
+                            // Code entry is deliberately not advertised: App
+                            // Review guideline 3.1.1 bars unlocking features
+                            // with anything but in-app purchase, and a visible
+                            // code field reads as exactly that. Five quick taps
+                            // or a long press on the title reveal the field;
+                            // VoiceOver gets it as a custom action.
+                            .onTapGesture(count: 5) { revealCodeField() }
+                            .onLongPressGesture(minimumDuration: 1.5) { revealCodeField() }
+                            .accessibilityAction(named: Text("Enter a code")) { revealCodeField() }
+                            .accessibilityIdentifier("paywall-title")
                         Text("Everything Monthlio can do, on every device you own.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
@@ -168,8 +178,14 @@ struct PaywallBody: View {
                 }
     }
 
-    /// A code from the developer unlocks Pro without a purchase. Hidden
-    /// behind a question so the page still reads as a purchase page.
+    private func revealCodeField() {
+        guard !showingCodeField else { return }
+        withAnimation(.snappy) { showingCodeField = true }
+        Haptics.selection()
+    }
+
+    /// A code from the developer unlocks Pro without a purchase. Shown
+    /// only after the gesture on the title (see there for why).
     @ViewBuilder
     private var codeSection: some View {
         if showingCodeField {
@@ -189,12 +205,6 @@ struct PaywallBody: View {
                     .accessibilityIdentifier("paywall-redeem")
             }
             .frame(maxWidth: 320)
-        } else {
-            Button("Have a code?") {
-                withAnimation(.snappy) { showingCodeField = true }
-            }
-            .font(.subheadline)
-            .accessibilityIdentifier("paywall-have-code")
         }
     }
 

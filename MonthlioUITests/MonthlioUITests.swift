@@ -161,17 +161,17 @@ final class MonthlioUITests: XCTestCase {
         let upgrade = app.buttons["pro-upgrade"]
         XCTAssertTrue(upgrade.waitForExistence(timeout: 5))
         upgrade.tap()
-        XCTAssertTrue(app.staticTexts["Monthlio Pro"].waitForExistence(timeout: 10))
-
-        let haveCode = app.buttons["paywall-have-code"]
-        let page = app.scrollViews.firstMatch
-        for _ in 0..<5 where !haveCode.isHittable {
-            page.swipeUp()
-        }
-        XCTAssertTrue(haveCode.waitForExistence(timeout: 5))
-        haveCode.tap()
+        let title = app.staticTexts["paywall-title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.textFields["paywall-code"].exists, "the code field is not shown until the title gesture")
+        // A long press on the title reveals the field (five quick taps do too).
+        title.press(forDuration: 2)
         let field = app.textFields["paywall-code"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
+        let page = app.scrollViews.firstMatch
+        for _ in 0..<5 where !field.isHittable {
+            page.swipeUp()
+        }
         field.tap()
         field.typeText("nope")
         app.buttons["paywall-redeem"].tap()

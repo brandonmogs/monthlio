@@ -231,6 +231,7 @@ struct MonthlioApp: App {
                 .environment(pro)
                 .task {
                     SyncStatusMonitor.shared.start()
+                    DiagnosticsLog.shared.start()
                     await pro.start()
                 }
         }

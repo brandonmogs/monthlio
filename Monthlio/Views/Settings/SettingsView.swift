@@ -39,6 +39,8 @@ struct SettingsView: View {
     /// is up; without this the knob flips on, snaps off, prompts, flips on.
     @State private var pendingLock: Bool?
     @State private var pendingReminders: Bool?
+    /// Crash and hang reports kept on this device, read when Settings opens.
+    @State private var diagnosticReports: [URL] = []
     /// What CloudKit has been doing; read in the body so the footer
     /// updates as imports and exports finish.
     private let syncStatus = SyncStatusMonitor.shared
@@ -198,11 +200,23 @@ struct SettingsView: View {
             Link(destination: SupportLinks.support) {
                 Label("Support", systemImage: "questionmark.circle")
             }
+            if !diagnosticReports.isEmpty {
+                ShareLink(items: diagnosticReports) {
+                    Label("Share ^[\(diagnosticReports.count) crash report](inflect: true)", systemImage: "ladybug")
+                }
+                Button("Delete crash reports", role: .destructive) {
+                    DiagnosticsLog.shared.clear()
+                    diagnosticReports = []
+                }
+            }
         } header: {
             Text("About")
         } footer: {
-            Text("Monthlio has no accounts and no servers. Your data stays on your devices and, with sync on, in your own iCloud.")
+            Text(diagnosticReports.isEmpty
+                ? String(localized: "Monthlio has no accounts and no servers. Your data stays on your devices and, with sync on, in your own iCloud.")
+                : String(localized: "iOS wrote crash or hang reports for Monthlio. They stay on this device until you share or delete them; sharing one with support helps fix the cause."))
         }
+        .onAppear { diagnosticReports = DiagnosticsLog.shared.reports() }
     }
 
     private func commitIncome() {

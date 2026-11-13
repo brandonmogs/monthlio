@@ -42,8 +42,7 @@ struct RootTabView: View {
             // or the undo bar can't find the buffer.
             .overlay(alignment: .bottom) {
                 UndoDeleteBar()
-                    // Above the bottom tab bar on iPhone; iPad draws it at the top.
-                    .padding(.bottom, sizeClass == .regular ? 16 : 60)
+                    .padding(.bottom, undoBarBottomPadding)
             }
             .motionAnimation(.snappy, value: deleted.pending)
             .environment(currencyStore)
@@ -84,6 +83,13 @@ struct RootTabView: View {
             } message: {
                 Text(MonthlioApp.storeRecoveryNotice?.message ?? "")
             }
+    }
+
+    /// Above the bottom tab bar; an iPad draws its tabs at the top only
+    /// from iOS 18, so on iOS 17 it needs the same room as an iPhone.
+    private var undoBarBottomPadding: CGFloat {
+        if #available(iOS 18, *), sizeClass == .regular { return 16 }
+        return 60
     }
 
     /// Widgets open `monthlio://upcoming` or `monthlio://dashboard`.

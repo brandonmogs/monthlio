@@ -16,6 +16,9 @@ enum SyncPreference {
     /// DEBUG: set with `-MonthlioFreshInstall` so the App Store record can't
     /// grandfather a UI test run.
     static var ignoresAppTransaction = false
+    /// DEBUG: a UI test or fresh-install run. Nothing the device keeps
+    /// (preferences, the widget snapshot, pending notifications) is touched.
+    static var isThrowawayRun = false
 
     static let enabledKey = "sync.enabled"
     static let grandfatheredKey = "sync.grandfathered"

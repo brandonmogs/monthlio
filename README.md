@@ -68,7 +68,7 @@ months of history on first launch. Launch arguments (DEBUG only):
 - `-MonthlioTab upcoming` — open on a tab (`dashboard`, `expenses`, `subscriptions`, `upcoming`)
 - `-MonthlioLocked` — start with the Face ID / passcode lock engaged
 - `-MonthlioSettings` — open Settings on launch
-- `-MonthlioInMemory` — use a throwaway in-memory store (the UI tests do this)
+- `-MonthlioInMemory` — use a throwaway in-memory store and a throwaway preference store, and leave the widget snapshot and pending notifications alone (the UI tests do this)
 - `-MonthlioFreshInstall` — a throwaway preference store with no grandfathering, so the paywall shows as it does for a new download
 - `-MonthlioGrandfathered` — with `-MonthlioFreshInstall`: an install from before Pro existed (free iCloud sync, no Pro)
 

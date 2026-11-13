@@ -34,18 +34,22 @@ struct MonthlioApp: App {
         if touchesDisk { MonthlioApp.adoptGroupStoreIfNeeded() }
         var storeExists = MonthlioApp.defaultStoreExists
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-MonthlioFreshInstall") {
-            // A throwaway preference store, and no "existing install"
-            // grandfathering, so UI tests see a brand-new install.
-            let suite = "monthlio.fresh-install"
+        // -MonthlioInMemory (every UI test) and -MonthlioFreshInstall both get
+        // a throwaway preference store, so a test run never writes the
+        // device's sync, lock or Pro flags, its widget snapshot or its
+        // pending notifications, and no "existing install" grandfathering
+        // unless -MonthlioGrandfathered asks for it.
+        let arguments = ProcessInfo.processInfo.arguments
+        if arguments.contains("-MonthlioInMemory") || arguments.contains("-MonthlioFreshInstall") {
+            let suite = arguments.contains("-MonthlioFreshInstall") ? "monthlio.fresh-install" : "monthlio.in-memory"
             let defaults = UserDefaults(suiteName: suite)!
             defaults.removePersistentDomain(forName: suite)
             SyncPreference.standard = defaults
             SyncPreference.ignoresAppTransaction = true
+            SyncPreference.isThrowawayRun = true
+            WidgetSnapshotWriter.storeURL = FileManager.default.temporaryDirectory.appending(path: "monthlio-test-widget-snapshot.json")
             storeExists = false
-            // -MonthlioGrandfathered: a download from before Pro existed,
-            // so sync is free and Pro is not owned.
-            if ProcessInfo.processInfo.arguments.contains("-MonthlioGrandfathered") {
+            if arguments.contains("-MonthlioGrandfathered") {
                 defaults.set(true, forKey: SyncPreference.grandfatheredKey)
             }
         }
@@ -141,7 +145,6 @@ struct MonthlioApp: App {
         #if DEBUG
         // UI tests pass -MonthlioInMemory so nothing on the device is touched.
         if ProcessInfo.processInfo.arguments.contains("-MonthlioInMemory") {
-            SyncPreference.ignoresAppTransaction = true
             let memory = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
             if let container = try? ModelContainer(for: schema, configurations: memory) {
                 return container

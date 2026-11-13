@@ -67,6 +67,8 @@ final class NotificationScheduler {
     /// Nothing is scheduled while the permission is missing: iOS would
     /// drop the requests anyway, and the UI shows the denied state.
     func reschedule(for expenses: [Expense], enabled: Bool, discreet: Bool, hour: Int = reminderHour, calendar: Calendar = .gregorianLocal) async {
+        // A UI test run leaves the simulator's real notifications alone.
+        if SyncPreference.isThrowawayRun { return }
         generation += 1
         let mine = generation
         // Read the models now, on the main actor, before any await.

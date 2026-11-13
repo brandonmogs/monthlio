@@ -264,8 +264,12 @@ private struct RectangularWidgetView: View {
                     content.nameText(next)
                         .lineLimit(1)
                         .privacySensitive()
+                    // Keeps "in 12 days" on the headline line next to a
+                    // long name, so the total below still fits the 72 pt.
                     content.whenText(next)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .layoutPriority(1)
                 }
                 .font(.headline)
                 if content.isDiscreet {

@@ -34,7 +34,10 @@ final class WidgetViewRenderTests: XCTestCase {
         var discreet = WidgetEntryContent.placeholder()
         discreet.isDiscreet = true
         let empty = WidgetTimelineBuilder.content(from: nil, at: .now)
-        let variants: [(String, WidgetEntryContent)] = [("placeholder", .placeholder()), ("discreet", discreet), ("empty", empty)]
+        var longName = WidgetEntryContent.placeholder()
+        longName.nextCharge = .init(id: "long", name: "Northwestern Mutual term life insurance premium", amount: "1850", currencyCode: "USD", date: longName.nextCharge!.date, category: ExpenseCategory.insurance.rawValue)
+        longName.daysUntilNext = 12
+        let variants: [(String, WidgetEntryContent)] = [("placeholder", .placeholder()), ("discreet", discreet), ("empty", empty), ("long-name", longName)]
 
         for (family, size, name) in Self.sizes {
             for (variant, content) in variants {

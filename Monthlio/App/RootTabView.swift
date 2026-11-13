@@ -1,3 +1,4 @@
+import Combine
 import SwiftData
 import SwiftUI
 
@@ -80,6 +81,11 @@ struct RootTabView: View {
             }
             .onOpenURL { url in
                 openDeepLink(url)
+            }
+            // Reminder triggers carry the time zone they were made in; after
+            // a move they are rebuilt in the new one as soon as the app runs.
+            .onReceive(NotificationCenter.default.publisher(for: .NSSystemTimeZoneDidChange)) { _ in
+                Task { await sync() }
             }
             .alert("Monthlio couldn't open your data", isPresented: $showingRecoveryNotice) {
                 Button("OK") {}

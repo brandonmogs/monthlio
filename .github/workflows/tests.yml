@@ -55,3 +55,38 @@ jobs:
           xcodebuild test -project Monthlio.xcodeproj -scheme Monthlio \
             -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
             -only-testing:MonthlioUITests 2>&1 | tail -n 120
+
+  # The deployment target is iOS 17, but the simulators above are the newest
+  # iOS. SwiftData, Charts and StoreKit changed between 17 and 26, so the
+  # unit tests also run on the oldest supported OS. The runtime download is
+  # a few gigabytes; it is cached by the runner image only when Apple ships
+  # it, so this job is slower than the one above.
+  tests-ios17:
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select the newest Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$XCODE" ]; then sudo xcode-select -s "$XCODE"; fi
+          xcodebuild -version
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Generate the project
+        run: xcodegen generate
+
+      - name: Install the iOS 17.5 simulator runtime
+        run: |
+          xcrun simctl list runtimes | grep -q "iOS 17.5" || xcodebuild -downloadPlatform iOS -buildVersion 17.5
+          xcrun simctl create "iPhone 15 (iOS 17.5)" "com.apple.CoreSimulator.SimDeviceType.iPhone-15" "com.apple.CoreSimulator.SimRuntime.iOS-17-5"
+
+      - name: Unit tests on iOS 17.5
+        run: |
+          set -o pipefail
+          xcodebuild test -project Monthlio.xcodeproj -scheme Monthlio \
+            -destination "platform=iOS Simulator,name=iPhone 15 (iOS 17.5)" \
+            -only-testing:MonthlioTests 2>&1 | tail -n 120

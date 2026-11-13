@@ -78,7 +78,7 @@ enum StoreMaintenance {
         let settingsRows = (try? context.fetchCount(FetchDescriptor<AppSettings>())) ?? 0
         if settingsRows > 1 {
             AppSettings.deduplicate(in: context)
-            report.settingsRemoved = settingsRows - 1
+            report.settingsRemoved = settingsRows - ((try? context.fetchCount(FetchDescriptor<AppSettings>())) ?? settingsRows)
         }
 
         if !report.isEmpty { context.saveReporting("the duplicate clean-up") }

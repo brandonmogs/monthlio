@@ -64,6 +64,16 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(try context.fetchCount(FetchDescriptor<AppSettings>()), 1)
     }
 
+    func testDeduplicateKeepsExactTies() throws {
+        let context = try makeContext()
+        let created = Date(timeIntervalSince1970: 1_000)
+        context.insert(AppSettings(monthlyIncome: 3000, createdAt: created))
+        context.insert(AppSettings(monthlyIncome: 4000, createdAt: created))
+        XCTAssertNotNil(AppSettings.deduplicate(in: context))
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<AppSettings>()), 2, "a tie is never broken locally")
+        XCTAssertEqual(StoreMaintenance.deduplicate(in: context).settingsRemoved, 0)
+    }
+
     func testDeduplicateWithSingleRowIsNoOp() throws {
         let context = try makeContext()
         context.insert(AppSettings(monthlyIncome: 42))

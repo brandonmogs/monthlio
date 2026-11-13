@@ -58,14 +58,17 @@ extension MonthlioSchemaV1 {
 
         /// Collapses duplicate rows (two devices each created one before their
         /// first sync) into the oldest. Non-default values from newer rows win
-        /// where the oldest is still at its default. Returns the survivor.
+        /// where the oldest is still at its default. Rows created within a
+        /// millisecond of the oldest are ties and stay, as every other dedupe
+        /// rule keeps ties: a local tie-break would delete the other device's
+        /// row on each side. Returns the survivor.
         @discardableResult
         static func deduplicate(in context: ModelContext) -> AppSettings? {
             let descriptor = FetchDescriptor<AppSettings>(sortBy: [SortDescriptor(\.createdAt)])
             guard let rows = try? context.fetch(descriptor), let primary = rows.first else { return nil }
             guard rows.count > 1 else { return primary }
 
-            for other in rows.dropFirst() {
+            for other in rows.dropFirst() where other.createdAt.timeIntervalSince(primary.createdAt) > StoreMaintenance.timestampTolerance {
                 if primary.monthlyIncome == 0 { primary.monthlyIncome = other.monthlyIncome }
                 if primary.baseCurrencyCode.isEmpty { primary.baseCurrencyCode = other.baseCurrencyCode }
                 primary.notificationsEnabled = primary.notificationsEnabled || other.notificationsEnabled

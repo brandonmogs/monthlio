@@ -72,6 +72,7 @@ struct SettingsView: View {
                     paywallPurpose = .pro
                     showingPaywall = true
                 }
+                aboutSection
             }
             .navigationDestination(for: SettingsDestination.self) { destination in
                 switch destination {
@@ -183,6 +184,24 @@ struct SettingsView: View {
             Text("Income")
         } footer: {
             Text("After-tax income per month in \(currencyStore.baseCode). Used to show what's left after expenses.")
+        }
+    }
+
+    /// The version, the policy and a way to reach the developer: until now
+    /// none of them was reachable from inside the app.
+    private var aboutSection: some View {
+        Section {
+            LabeledContent("Version", value: SupportLinks.versionText)
+            Link(destination: SupportLinks.privacyPolicy) {
+                Label("Privacy Policy", systemImage: "hand.raised")
+            }
+            Link(destination: SupportLinks.support) {
+                Label("Support", systemImage: "questionmark.circle")
+            }
+        } header: {
+            Text("About")
+        } footer: {
+            Text("Monthlio has no accounts and no servers. Your data stays on your devices and, with sync on, in your own iCloud.")
         }
     }
 

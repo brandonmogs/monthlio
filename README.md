@@ -98,6 +98,10 @@ Things App Store Connect needs that the code can't do for you:
   from the public `monthlio-privacy` repository; keep its `index.html` in
   step with `PRIVACY.md` here (the paywall link and the App Store Connect
   privacy URL both point there).
+- **Support**: Settings > About and `SupportLinks.support` point at the
+  issues page of that public repository, so Issues must be enabled on it
+  (Settings > Features on GitHub), and the App Store listing's support
+  URL should point there too instead of at this private repository.
 
 - **Monthlio Pro**: create a non-consumable in-app purchase with product ID
   `com.monthlio.app.pro`, and get the Paid Apps Agreement to **Active**

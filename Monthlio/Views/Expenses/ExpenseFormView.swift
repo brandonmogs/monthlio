@@ -17,6 +17,7 @@ struct ExpenseFormView: View {
     @State private var didSave = false
     /// The system refused notifications when the toggle went on.
     @State private var notificationsDenied = false
+    private let scheduler = NotificationScheduler.shared
     /// The store refused a save or a delete.
     @State private var storeNotice: DataNotice?
     @FocusState private var focusedField: Field?
@@ -58,6 +59,9 @@ struct ExpenseFormView: View {
             .onChange(of: viewModel.reminderEnabled) { _, enabled in
                 guard enabled else { notificationsDenied = false; return }
                 Task { notificationsDenied = !(await NotificationScheduler.shared.requestAuthorization()) }
+            }
+            .onChange(of: scheduler.authorization) { _, status in
+                if status != .denied { notificationsDenied = false }
             }
             .sheet(isPresented: $showingPaywall) {
                 PaywallView()

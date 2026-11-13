@@ -30,6 +30,7 @@ struct SettingsView: View {
     @State private var income: Decimal?
     @FocusState private var incomeFocused: Bool
     @State private var notificationsDenied = false
+    private let scheduler = NotificationScheduler.shared
     @AppStorage(DeviceSettings.remindersEnabledKey, store: SyncPreference.standard) private var remindersEnabled = false
     @AppStorage(DeviceSettings.reminderHourKey, store: SyncPreference.standard) private var reminderHour = DeviceSettings.defaultReminderHour
     @AppStorage(DeviceSettings.lockGraceKey, store: SyncPreference.standard) private var lockGraceSeconds = DeviceSettings.LockGrace.default.rawValue
@@ -104,6 +105,11 @@ struct SettingsView: View {
                 income = (current?.hasIncome ?? false) ? current?.monthlyIncome : nil
             }
             .task { await NotificationScheduler.shared.refreshAuthorization() }
+            // Coming back from iOS Settings refreshes the permission; the
+            // red notice must go with it, not wait for the toggle.
+            .onChange(of: scheduler.authorization) { _, status in
+                if status != .denied { notificationsDenied = false }
+            }
         }
         .presentationDragIndicator(.visible)
     }

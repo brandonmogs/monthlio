@@ -82,7 +82,7 @@ private struct CategoryTile: View {
     var body: some View {
         Image(systemName: category.symbol)
             .font(.system(size: size * 0.5, weight: .semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle((color ?? category.color).glyphColor)
             .frame(width: size, height: size)
             .background(color ?? category.color, in: RoundedRectangle(cornerRadius: size * 0.28))
             .accessibilityHidden(true)

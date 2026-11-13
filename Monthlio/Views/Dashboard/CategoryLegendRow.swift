@@ -9,7 +9,7 @@ struct CategoryLegendRow: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: slice.category.symbol)
                 .font(.subheadline)
-                .foregroundStyle(.white)
+                .foregroundStyle(slice.category.color.glyphColor)
                 .frame(width: 32, height: 32)
                 .background(slice.category.color, in: RoundedRectangle(cornerRadius: 8))
                 .accessibilityHidden(true)

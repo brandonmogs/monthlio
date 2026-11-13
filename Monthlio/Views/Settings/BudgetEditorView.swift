@@ -58,7 +58,7 @@ private struct BudgetRow: View {
         HStack(spacing: 12) {
             Image(systemName: category.symbol)
                 .font(.subheadline)
-                .foregroundStyle(.white)
+                .foregroundStyle(category.color.glyphColor)
                 .frame(width: 32, height: 32)
                 .background(category.color, in: RoundedRectangle(cornerRadius: 8))
                 .accessibilityHidden(true)

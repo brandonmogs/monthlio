@@ -128,7 +128,7 @@ private struct UpcomingChargeRow: View {
         HStack(spacing: 12) {
             Image(systemName: charge.expense.category.symbol)
                 .font(.subheadline)
-                .foregroundStyle(.white)
+                .foregroundStyle(charge.expense.displayColor.glyphColor)
                 .frame(width: 32, height: 32)
                 .background(charge.expense.displayColor, in: RoundedRectangle(cornerRadius: 8))
                 .accessibilityHidden(true)

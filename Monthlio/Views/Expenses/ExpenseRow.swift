@@ -12,7 +12,7 @@ struct ExpenseRow: View {
             if showsCategory {
                 Image(systemName: expense.category.symbol)
                     .font(.subheadline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(expense.displayColor.glyphColor)
                     .frame(width: 32, height: 32)
                     .background(expense.displayColor, in: RoundedRectangle(cornerRadius: 8))
                     .accessibilityHidden(true)

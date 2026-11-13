@@ -35,11 +35,11 @@ struct ExpenseColorPicker: View {
                 if isSelected {
                     Image(systemName: "checkmark")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(color.glyphColor)
                 } else if hex == nil {
                     Text(verbatim: "A")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(color.glyphColor)
                 }
             }
             .overlay(Circle().strokeBorder(Color.primary.opacity(isSelected ? 0.5 : 0), lineWidth: 2))

@@ -28,6 +28,26 @@ extension Color {
     }
 }
 
+extension Color {
+    /// Relative luminance in sRGB, 0 for black to 1 for white.
+    var relativeLuminance: Double {
+        var red: CGFloat = 0, green: CGFloat = 0, blue: CGFloat = 0, alpha: CGFloat = 0
+        guard UIColor(self).getRed(&red, green: &green, blue: &blue, alpha: &alpha) else { return 0 }
+        func linear(_ component: CGFloat) -> Double {
+            let value = Double(min(max(component, 0), 1))
+            return value <= 0.03928 ? value / 12.92 : pow((value + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
+    }
+
+    /// White glyphs fall below the 3:1 icons need on light tiles (yellow,
+    /// lime, mint, a pastel custom color); those take a dark glyph.
+    var prefersDarkGlyph: Bool { relativeLuminance > 0.3 }
+
+    /// What to draw a symbol in on a tile of this color.
+    var glyphColor: Color { prefersDarkGlyph ? Color.black.opacity(0.8) : .white }
+}
+
 /// The preset swatches offered in the expense form.
 struct ExpenseColor: Identifiable, Equatable {
     let name: String

@@ -22,6 +22,17 @@ final class ExpenseColorTests: XCTestCase {
         XCTAssertEqual(hex, "#FF0000")
     }
 
+    func testLightTilesTakeADarkGlyph() {
+        XCTAssertTrue(Color(hex: "#FFCC00")!.prefersDarkGlyph, "white on yellow is 1.4:1")
+        XCTAssertTrue(ExpenseCategory.utilities.color.prefersDarkGlyph)
+        XCTAssertTrue(ExpenseCategory.pets.color.prefersDarkGlyph)
+        XCTAssertFalse(Color(hex: "#007AFF")!.prefersDarkGlyph)
+        XCTAssertFalse(ExpenseCategory.housing.color.prefersDarkGlyph)
+        XCTAssertFalse(ExpenseCategory.debt.color.prefersDarkGlyph)
+        XCTAssertGreaterThan(Color.white.relativeLuminance, 0.99)
+        XCTAssertLessThan(Color.black.relativeLuminance, 0.01)
+    }
+
     func testDisplayColorFallsBackToTheCategory() {
         let rent = Expense(name: "Rent", amount: 1850, category: .housing)
         XCTAssertEqual(rent.displayColor, ExpenseCategory.housing.color)

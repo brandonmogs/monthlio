@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import Observation
 import StoreKit
@@ -134,7 +135,8 @@ final class StoreKitProClient: ProStoreClient {
     }
 }
 
-/// Monthlio Pro is a one-time purchase that unlocks iCloud sync. The
+/// Monthlio Pro is a one-time purchase that unlocks iCloud sync, custom
+/// colors and CSV export; a code from the developer unlocks it too. The
 /// entitlement is cached locally so launch can pick the store configuration
 /// before StoreKit has answered.
 @MainActor
@@ -142,6 +144,14 @@ final class StoreKitProClient: ProStoreClient {
 final class ProStore {
     nonisolated static let productID = "com.monthlio.app.pro"
     nonisolated static let entitlementKey = "pro.entitled"
+    /// The code this device redeemed, if any.
+    nonisolated static let promoCodeKey = "pro.promoCode"
+    /// SHA-256 digests of the accepted codes (trimmed, upper-cased), so the
+    /// codes themselves can't be read out of the binary. To add one:
+    /// `printf 'CODE' | shasum -a 256`.
+    nonisolated static let promoCodeDigests: Set<String> = [
+        "5e196d55be6b6efe368b469ac4c0f6d342854a0077e8d35e836c48a39b8e8b25",
+    ]
 
     private(set) var product: ProProductInfo?
     private(set) var isEntitled: Bool
@@ -163,7 +173,7 @@ final class ProStore {
     init(client: ProStoreClient = StoreKitProClient(), defaults: UserDefaults = SyncPreference.standard) {
         self.client = client
         self.defaults = defaults
-        isEntitled = defaults.bool(forKey: Self.entitlementKey)
+        isEntitled = defaults.bool(forKey: Self.entitlementKey) || Self.hasRedeemedCode(defaults)
         isGrandfathered = SyncPreference.isGrandfathered(defaults)
     }
 
@@ -260,6 +270,38 @@ final class ProStore {
         return false
     }
 
+    /// Trimmed and upper-cased, so "mogz " and "MOGZ" are the same code.
+    nonisolated static func normalizedCode(_ text: String) -> String {
+        text.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    }
+
+    nonisolated static func isPromoCode(_ text: String) -> Bool {
+        let normalized = normalizedCode(text)
+        guard !normalized.isEmpty else { return false }
+        let digest = SHA256.hash(data: Data(normalized.utf8)).map { String(format: "%02x", $0) }.joined()
+        return promoCodeDigests.contains(digest)
+    }
+
+    nonisolated static func hasRedeemedCode(_ defaults: UserDefaults) -> Bool {
+        defaults.string(forKey: promoCodeKey) != nil
+    }
+
+    /// A code from the developer (a gift, a review copy) unlocks Pro on this
+    /// device without a purchase. The code is remembered so a refund or an
+    /// empty App Store answer never takes Pro away again. Returns false,
+    /// with `lastError` set, for a code that isn't accepted.
+    @discardableResult
+    func redeem(code: String) -> Bool {
+        lastError = nil
+        guard Self.isPromoCode(code) else {
+            lastError = String(localized: "That code didn't work. Check it and try again.")
+            return false
+        }
+        defaults.set(Self.normalizedCode(code), forKey: Self.promoCodeKey)
+        setEntitled(true)
+        return true
+    }
+
     func restore() async {
         lastError = nil
         do {
@@ -276,9 +318,14 @@ final class ProStore {
 
     /// A cached entitlement survives an empty answer (signed-out App Store
     /// account, StoreKit cache not yet restored); only a refund or
-    /// revocation on record takes it away.
+    /// revocation on record takes it away. A redeemed code is Pro on this
+    /// device whatever the App Store says.
     func refreshEntitlement() async {
         if await client.hasEntitlement(for: Self.productID) {
+            setEntitled(true)
+            return
+        }
+        if Self.hasRedeemedCode(defaults) {
             setEntitled(true)
             return
         }

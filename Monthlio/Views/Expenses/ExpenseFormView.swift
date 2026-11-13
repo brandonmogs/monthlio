@@ -216,6 +216,7 @@ struct ExpenseFormView: View {
                 ProLockedRow(title: "Color", systemImage: "paintpalette") {
                     showingPaywall = true
                 }
+                .accessibilityIdentifier("expense-color")
             }
         } header: {
             Text("Color")

@@ -126,6 +126,65 @@ final class MonthlioUITests: XCTestCase {
         saveScreenshot(app, name: priced ? "paywall" : "paywall-no-storekit")
     }
 
+    func testColorRowOpensTheProPageAndItStaysOpenForAnEarlySupporter() {
+        // The 1.4 paywall closed itself for anyone whose iCloud sync was
+        // already free, so the Color row flashed the Pro page and lost it.
+        let app = launch(["-MonthlioSkipSeed", "-MonthlioFreshInstall", "-MonthlioGrandfathered"])
+        let addButton = app.buttons["Add an expense"]
+        XCTAssertTrue(addButton.waitForExistence(timeout: 15))
+        addButton.tap()
+        XCTAssertTrue(app.textFields["expense-name"].waitForExistence(timeout: 5))
+        let done = app.toolbars.buttons["Done"]
+        if done.waitForExistence(timeout: 2) { done.tap() }
+
+        let color = app.buttons["expense-color"]
+        let form = app.collectionViews.firstMatch
+        for _ in 0..<5 where !color.isHittable {
+            form.swipeUp()
+        }
+        XCTAssertTrue(color.waitForExistence(timeout: 5))
+        color.tap()
+
+        let title = app.staticTexts["Monthlio Pro"]
+        XCTAssertTrue(title.waitForExistence(timeout: 10), "the Color row opens the Pro page")
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'iCloud sync is already yours'")).firstMatch.waitForExistence(timeout: 5), "an early supporter is told sync is free")
+        XCTAssertFalse(title.waitForNonExistence(timeout: 3), "the Pro page stays open for an early supporter")
+        XCTAssertTrue(app.staticTexts["Custom colors"].exists)
+        saveScreenshot(app, name: "color-pro-page")
+        app.buttons["Close"].firstMatch.tap()
+        XCTAssertTrue(color.waitForExistence(timeout: 5), "back on the form")
+    }
+
+    func testACodeUnlocksMonthlioPro() {
+        let app = launch(["-MonthlioSettings", "-MonthlioFreshInstall"])
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 15))
+        let upgrade = app.buttons["pro-upgrade"]
+        XCTAssertTrue(upgrade.waitForExistence(timeout: 5))
+        upgrade.tap()
+        XCTAssertTrue(app.staticTexts["Monthlio Pro"].waitForExistence(timeout: 10))
+
+        let haveCode = app.buttons["paywall-have-code"]
+        let page = app.scrollViews.firstMatch
+        for _ in 0..<5 where !haveCode.isHittable {
+            page.swipeUp()
+        }
+        XCTAssertTrue(haveCode.waitForExistence(timeout: 5))
+        haveCode.tap()
+        let field = app.textFields["paywall-code"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("nope")
+        app.buttons["paywall-redeem"].tap()
+        XCTAssertTrue(app.staticTexts["That code didn't work. Check it and try again."].waitForExistence(timeout: 5), "a wrong code is explained")
+        saveScreenshot(app, name: "paywall-wrong-code")
+
+        field.tap()
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 4) + "mogz")
+        app.buttons["paywall-redeem"].tap()
+        XCTAssertTrue(app.staticTexts["pro-unlocked"].waitForExistence(timeout: 10), "the right code closes the page and Settings shows Pro as unlocked")
+        saveScreenshot(app, name: "pro-unlocked-by-code")
+    }
+
     func testAnExpenseCanNotifyOnItsOwnDate() {
         // Through the add flow: XCUITest taps on plain-style list row buttons
         // don't open the editor on the simulator, though fingers do.

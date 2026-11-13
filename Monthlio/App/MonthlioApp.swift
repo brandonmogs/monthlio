@@ -39,6 +39,11 @@ struct MonthlioApp: App {
             SyncPreference.standard = defaults
             SyncPreference.ignoresAppTransaction = true
             storeExists = false
+            // -MonthlioGrandfathered: a download from before Pro existed,
+            // so sync is free and Pro is not owned.
+            if ProcessInfo.processInfo.arguments.contains("-MonthlioGrandfathered") {
+                defaults.set(true, forKey: SyncPreference.grandfatheredKey)
+            }
         }
         #endif
         SyncPreference.migrateIfNeeded(storeExists: storeExists)

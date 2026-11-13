@@ -67,6 +67,9 @@ struct PaywallBody: View {
     @Environment(\.dismiss) private var dismiss
     var purpose: PaywallPurpose = .pro
     var onUnlocked: () -> Void = {}
+    @State private var showingCodeField = false
+    @State private var code = ""
+    @FocusState private var codeFocused: Bool
 
     var body: some View {
                 VStack(spacing: 28) {
@@ -147,6 +150,10 @@ struct PaywallBody: View {
                         .font(.subheadline)
                         .disabled(pro.isPurchasing)
 
+                        if !pro.isEntitled {
+                            codeSection
+                        }
+
                         if let error = pro.lastError {
                             Text(error)
                                 .font(.footnote)
@@ -159,6 +166,46 @@ struct PaywallBody: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+    }
+
+    /// A code from the developer unlocks Pro without a purchase. Hidden
+    /// behind a question so the page still reads as a purchase page.
+    @ViewBuilder
+    private var codeSection: some View {
+        if showingCodeField {
+            HStack(spacing: 10) {
+                TextField("Code", text: $code)
+                    .textFieldStyle(.roundedBorder)
+                    .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled()
+                    .submitLabel(.go)
+                    .focused($codeFocused)
+                    .onSubmit(redeemCode)
+                    .onAppear { codeFocused = true }
+                    .accessibilityIdentifier("paywall-code")
+                Button("Redeem", action: redeemCode)
+                    .buttonStyle(.bordered)
+                    .disabled(ProStore.normalizedCode(code).isEmpty)
+                    .accessibilityIdentifier("paywall-redeem")
+            }
+            .frame(maxWidth: 320)
+        } else {
+            Button("Have a code?") {
+                withAnimation(.snappy) { showingCodeField = true }
+            }
+            .font(.subheadline)
+            .accessibilityIdentifier("paywall-have-code")
+        }
+    }
+
+    private func redeemCode() {
+        guard pro.redeem(code: code) else {
+            Haptics.warning()
+            return
+        }
+        Haptics.success()
+        onUnlocked()
+        dismiss()
     }
 
     private func benefit(_ symbol: String, title: LocalizedStringKey, detail: LocalizedStringKey) -> some View {

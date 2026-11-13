@@ -23,6 +23,9 @@ cost broken down by category.
 - iCloud sync (Monthlio Pro, a one-time purchase; free on every device
   for anyone who downloaded Monthlio before Pro existed)
 - Custom expense colors (Monthlio Pro), shown on every screen and in widgets
+- A code from the developer, entered on the Pro page ("Have a code?"),
+  unlocks Pro on that device; accepted codes live as SHA-256 digests in
+  `ProStore.promoCodeDigests`
 - Weekly, biweekly, quarterly and yearly charges on the timeline, in
   reminders and in the widget once they have a next charge date
 - Undo after deleting an expense; a per-device app lock with a grace
@@ -63,6 +66,8 @@ months of history on first launch. Launch arguments (DEBUG only):
 - `-MonthlioLocked` — start with the Face ID / passcode lock engaged
 - `-MonthlioSettings` — open Settings on launch
 - `-MonthlioInMemory` — use a throwaway in-memory store (the UI tests do this)
+- `-MonthlioFreshInstall` — a throwaway preference store with no grandfathering, so the paywall shows as it does for a new download
+- `-MonthlioGrandfathered` — with `-MonthlioFreshInstall`: an install from before Pro existed (free iCloud sync, no Pro)
 
 The app also opens `monthlio://dashboard` and `monthlio://upcoming`, which
 the widgets use as deep links.

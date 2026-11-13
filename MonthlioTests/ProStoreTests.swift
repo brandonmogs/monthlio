@@ -361,6 +361,46 @@ final class ProStoreTests: XCTestCase {
         XCTAssertTrue(store.isGrandfathered, "build 5 never shipped but is still before Pro")
     }
 
+    func testPromoCodeIsTrimmedCaseInsensitiveAndExact() {
+        XCTAssertTrue(ProStore.isPromoCode("MOGZ"))
+        XCTAssertTrue(ProStore.isPromoCode(" mogz\n"))
+        XCTAssertFalse(ProStore.isPromoCode(""))
+        XCTAssertFalse(ProStore.isPromoCode("MOGS"))
+        XCTAssertFalse(ProStore.isPromoCode("MOGZ1"))
+    }
+
+    func testACodeUnlocksProAndOutlastsWhatTheAppStoreSays() async {
+        let client = FakeProClient()
+        let store = ProStore(client: client, defaults: defaults)
+        await store.start()
+        XCTAssertFalse(store.isEntitled)
+
+        XCTAssertFalse(store.redeem(code: "MOGS"))
+        XCTAssertEqual(store.lastError, "That code didn't work. Check it and try again.")
+        XCTAssertFalse(store.isEntitled)
+
+        XCTAssertTrue(store.redeem(code: " mogz "))
+        XCTAssertTrue(store.isEntitled)
+        XCTAssertNil(store.lastError)
+        XCTAssertTrue(store.canSync)
+        XCTAssertEqual(client.purchases, 0, "no purchase happened")
+        XCTAssertEqual(defaults.string(forKey: ProStore.promoCodeKey), "MOGZ")
+
+        // The App Store knows nothing about the code: no entitlement, and
+        // even a refund on record from an earlier purchase changes nothing.
+        client.revoked = true
+        await store.refreshEntitlement()
+        XCTAssertTrue(store.isEntitled, "a redeemed code is Pro whatever the App Store says")
+
+        await store.restore()
+        XCTAssertNil(store.lastError, "Restore Purchases doesn't complain to a code holder")
+
+        let fresh = ProStore(client: client, defaults: defaults)
+        XCTAssertTrue(fresh.isEntitled, "remembered across launches")
+        await fresh.start()
+        XCTAssertTrue(fresh.isEntitled)
+    }
+
     func testGrandfatheredDeviceKeepsSyncAfterRefund() async {
         SyncPreference.migrateIfNeeded(storeExists: true, UserDefaults(suiteName: suite + "-legacy")!)
         let legacy = UserDefaults(suiteName: suite + "-legacy")!

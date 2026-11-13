@@ -145,7 +145,9 @@ final class NotificationSchedulerTests: XCTestCase {
         XCTAssertEqual(requests.count, NotificationScheduler.maxPending)
         XCTAssertTrue(requests.contains { $0.content.title == "Soon" }, "the soonest notification survives the cap")
         XCTAssertTrue(requests.contains { $0.identifier.hasPrefix(NotificationScheduler.identifierPrefix) }, "day-before reminders this month beat notifications next summer")
-        XCTAssertFalse(requests.contains { $0.content.title.hasPrefix("Far") }, "next summer's notifications are the ones dropped")
+        let years = requests.compactMap { ($0.trigger as? UNCalendarNotificationTrigger)?.dateComponents.year }
+        XCTAssertEqual(years.count, requests.count)
+        XCTAssertTrue(years.allSatisfy { $0 == 2026 }, "next summer's notifications are the ones dropped (the Far expenses' day-before reminders this month stay)")
     }
 
     func testDiscreetExpenseNotificationsHideTheDetails() {

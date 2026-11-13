@@ -1,0 +1,9 @@
+A notification for any expense: turn on "Notify me on the lock screen" in the expense form, pick the date and time (the next charge is offered), and a recurring expense repeats it with its schedule.
+
+Monthlio Pro has its own page at the top of Settings, with everything it includes. CSV export is now part of Pro; backups and CSV import stay free.
+
+Fixed: opening Monthlio Pro from an expense's Color section closed the page straight away if your iCloud sync was already free as an early supporter. It stays open now.
+
+Fixed: reminders never fired on devices using a non-Gregorian calendar, a yearly or quarterly expense that only knew its day of month lost it when edited, and a currency without an exchange rate now says "Rate needed" everywhere instead of counting 1:1.
+
+Plus: undo works from the edit sheet, widgets pick up a changed color at once, VoiceOver announces undo, and many smaller fixes.

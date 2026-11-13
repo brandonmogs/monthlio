@@ -99,6 +99,10 @@ Things App Store Connect needs that the code can't do for you:
   from the public `monthlio-privacy` repository; keep its `index.html` in
   step with `PRIVACY.md` here (the paywall link and the App Store Connect
   privacy URL both point there).
+- **Privacy wording**: `PRIVACY.md` states the on-device protection class
+  (data protection until first unlock, the widget summary holds nothing
+  under the lock, crash reports stay on the device); the public page must
+  say the same, so regenerate `index.html` from it after an edit.
 - **Support**: Settings > About and `SupportLinks.support` point at the
   issues page of that public repository, so Issues must be enabled on it
   (Settings > Features on GitHub), and the App Store listing's support

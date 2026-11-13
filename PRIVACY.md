@@ -21,7 +21,15 @@ backup (Settings → Data → Back Up to File) before changing accounts.
 
 **Widgets.** The Home Screen and Lock Screen widgets read a small summary
 that the app keeps on your device. Nothing leaves the device. When the
-app lock is on, widgets hide names and amounts.
+app lock is on, that summary holds no names or amounts at all.
+
+**On-device protection.** Monthlio's data files are covered by iOS data
+protection: they are encrypted on disk with keys tied to your passcode and
+become readable after the first unlock of the device, which is what lets
+iCloud sync and reminders work in the background. The app lock adds
+Face ID, Touch ID or your passcode in front of the app itself. iOS crash
+and hang reports for Monthlio stay on your device (Settings > About) until
+you choose to share or delete them.
 
 **Backups and exports.** Backup files, CSV exports and CSV imports are
 plain files that you choose where to save or open. They contain your

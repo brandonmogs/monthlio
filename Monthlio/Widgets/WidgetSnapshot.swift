@@ -84,7 +84,9 @@ enum WidgetSnapshotStore {
         guard let url else { throw CocoaError(.fileNoSuchFile) }
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        try encoder.encode(snapshot).write(to: url, options: .atomic)
+        // Readable only after the device's first unlock, which is when the
+        // widget runs; the file is encrypted at rest like the store.
+        try encoder.encode(snapshot).write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 }
 

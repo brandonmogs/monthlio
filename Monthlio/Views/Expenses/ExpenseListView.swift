@@ -100,12 +100,12 @@ struct ExpenseListView: View {
         }
         .listStyle(.insetGrouped)
         .searchable(text: $viewModel.searchText, prompt: "Search by name, category or notes")
-        .animation(.default, value: viewModel.sort)
+        .motionAnimation(.default, value: viewModel.sort)
     }
 
     private func delete(_ expense: Expense) {
         deleted.remember(expense)
-        withAnimation {
+        withAnimation(Motion.animation()) {
             modelContext.delete(expense)
         }
         if let error = modelContext.saveReporting("the expense deletion") {

@@ -83,7 +83,7 @@ struct DashboardView: View {
 
     private func delete(_ expense: Expense) {
         deleted.remember(expense)
-        withAnimation {
+        withAnimation(Motion.animation()) {
             modelContext.delete(expense)
         }
         if let error = modelContext.saveReporting("the expense deletion") {

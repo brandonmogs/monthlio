@@ -31,7 +31,7 @@ struct MonthlyTotalHeader: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
-        .animation(.snappy, value: selectedSlice)
+        .motionAnimation(.snappy, value: selectedSlice)
         .accessibilityElement(children: .combine)
     }
 

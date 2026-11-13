@@ -182,7 +182,7 @@ struct PaywallBody: View {
 
     private func revealCodeField() {
         guard !showingCodeField else { return }
-        withAnimation(.snappy) { showingCodeField = true }
+        withAnimation(Motion.animation(.snappy)) { showingCodeField = true }
         Haptics.selection()
     }
 

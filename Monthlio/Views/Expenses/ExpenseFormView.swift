@@ -131,7 +131,7 @@ struct ExpenseFormView: View {
             if viewModel.cadence == .oneTime {
                 DatePicker("Charge date", selection: $viewModel.chargeDate, displayedComponents: .date)
             } else if viewModel.cadence == .monthly {
-                Toggle("Due on a specific day", isOn: $viewModel.hasDueDay.animation())
+                Toggle("Due on a specific day", isOn: $viewModel.hasDueDay.animation(Motion.animation()))
 
                 if viewModel.hasDueDay {
                     Picker("Day of month", selection: $viewModel.dueDay) {
@@ -141,7 +141,7 @@ struct ExpenseFormView: View {
                     }
                 }
             } else {
-                Toggle("I know the next charge date", isOn: $viewModel.hasChargeDate.animation())
+                Toggle("I know the next charge date", isOn: $viewModel.hasChargeDate.animation(Motion.animation()))
 
                 if viewModel.hasChargeDate {
                     DatePicker("Next charge", selection: $viewModel.chargeDate, displayedComponents: .date)
@@ -176,7 +176,7 @@ struct ExpenseFormView: View {
     /// reminders in Settings.
     private var notificationSection: some View {
         Section {
-            Toggle("Notify me on the lock screen", isOn: $viewModel.reminderEnabled.animation())
+            Toggle("Notify me on the lock screen", isOn: $viewModel.reminderEnabled.animation(Motion.animation()))
                 .accessibilityIdentifier("expense-reminder")
             if viewModel.reminderEnabled {
                 DatePicker(

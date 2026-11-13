@@ -44,7 +44,7 @@ struct DashboardExpenseList: View {
                 .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
             }
         }
-        .animation(.snappy, value: selectedCategory)
+        .motionAnimation(.snappy, value: selectedCategory)
     }
 
     private var heading: Text {

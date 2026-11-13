@@ -28,7 +28,7 @@ struct CategoryLegend: View {
         }
         .padding(.horizontal, 12)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
-        .animation(.snappy, value: selectedCategory)
+        .motionAnimation(.snappy, value: selectedCategory)
     }
 
     private func isDimmed(_ slice: CategorySlice) -> Bool {

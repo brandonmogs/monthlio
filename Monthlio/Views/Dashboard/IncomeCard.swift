@@ -70,7 +70,7 @@ struct IncomeCard: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
-        .animation(.snappy, value: expenses)
+        .motionAnimation(.snappy, value: expenses)
         .accessibilityElement(children: .combine)
     }
 

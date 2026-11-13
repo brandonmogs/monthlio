@@ -90,7 +90,7 @@ struct EmptyStateView: View {
             dueDay: sample.dueDay,
             chargeDate: sample.chargeDate
         )
-        withAnimation {
+        withAnimation(Motion.animation()) {
             modelContext.insert(expense)
         }
         if modelContext.saveReporting("the starter expense") != nil {

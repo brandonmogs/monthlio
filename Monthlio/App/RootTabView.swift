@@ -45,7 +45,7 @@ struct RootTabView: View {
                     // Above the bottom tab bar on iPhone; iPad draws it at the top.
                     .padding(.bottom, sizeClass == .regular ? 16 : 60)
             }
-            .animation(.snappy, value: deleted.pending)
+            .motionAnimation(.snappy, value: deleted.pending)
             .environment(currencyStore)
             .environment(deleted)
             // The shield window covers the screen, but assistive tech and

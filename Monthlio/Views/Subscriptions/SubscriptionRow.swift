@@ -96,7 +96,7 @@ struct SubscriptionRow: View {
         Binding(
             get: { !expense.isActive },
             set: { cancelled in
-                withAnimation { expense.isActive = !cancelled }
+                withAnimation(Motion.animation()) { expense.isActive = !cancelled }
                 // A refused save rolls the flag back, so the switch follows.
                 if modelContext.saveReporting("the cancel toggle") != nil {
                     Haptics.warning()

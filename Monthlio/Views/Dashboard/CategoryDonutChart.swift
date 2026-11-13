@@ -34,8 +34,8 @@ struct CategoryDonutChart: View {
                 }
             }
         }
-        .animation(.snappy, value: selectedCategory)
-        .animation(.snappy, value: slices)
+        .motionAnimation(.snappy, value: selectedCategory)
+        .motionAnimation(.snappy, value: slices)
     }
 
     private var centerLabel: some View {

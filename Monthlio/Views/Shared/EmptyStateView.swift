@@ -9,7 +9,9 @@ struct EmptyStateView: View {
     /// updates, so a fast second tap must not add twice.
     @State private var addedStarters: Set<UUID> = []
 
-    private let starters = SampleData.starterExpenses()
+    /// Made once: a `let` would mint four new unmanaged rows with new ids
+    /// on every parent render.
+    @State private var starters = SampleData.starterExpenses()
 
     var body: some View {
         ScrollView {

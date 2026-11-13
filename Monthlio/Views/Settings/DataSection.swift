@@ -28,8 +28,8 @@ struct DataSection: View {
             if pro.isEntitled {
                 ShareLink(
                     item: CSVExport(
-                        csv: CSVExporter.csv(from: expenses, converter: currencyStore.converter),
-                        fileName: "monthlio-expenses.csv"
+                        fileName: "monthlio-expenses.csv",
+                        build: { CSVExporter.csv(from: expenses, converter: currencyStore.converter) }
                     ),
                     preview: SharePreview("Monthlio expenses", image: Image(systemName: "tablecells"))
                 ) {

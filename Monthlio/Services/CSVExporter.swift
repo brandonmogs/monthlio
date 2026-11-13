@@ -59,14 +59,15 @@ enum CSVExporter {
     }
 }
 
-/// Wraps pre-rendered CSV so `ShareLink` can offer it as a file.
+/// Lets `ShareLink` offer the CSV as a file. The text is built when the
+/// share actually happens, not on every render of the Settings form.
 struct CSVExport: Transferable {
-    let csv: String
     let fileName: String
+    let build: () -> String
 
     static var transferRepresentation: some TransferRepresentation {
         DataRepresentation(exportedContentType: .commaSeparatedText) { export in
-            Data(export.csv.utf8)
+            Data(export.build().utf8)
         }
         .suggestedFileName { $0.fileName }
     }

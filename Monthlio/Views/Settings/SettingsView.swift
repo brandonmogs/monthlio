@@ -62,7 +62,10 @@ struct SettingsView: View {
                 securitySection
                 remindersSection
                 syncSection
-                DataSection(notice: $dataNotice)
+                DataSection(notice: $dataNotice) {
+                    paywallPurpose = .pro
+                    showingPaywall = true
+                }
             }
             .navigationDestination(for: SettingsDestination.self) { destination in
                 switch destination {

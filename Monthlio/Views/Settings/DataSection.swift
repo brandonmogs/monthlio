@@ -12,8 +12,11 @@ struct DataSection: View {
     @Query(sort: \Expense.createdAt) private var expenses: [Expense]
     /// Owned by the Form so the alert isn't tied to a list row.
     @Binding var notice: DataNotice?
+    /// Opens the Pro page. The Form presents it: a sheet hung off the
+    /// locked row would lose its presenter the moment Pro unlocks and the
+    /// row is replaced by the share link.
+    var onUnlockPro: () -> Void = {}
 
-    @State private var showingPaywall = false
     @State private var backupFile: BackupFileDocument?
     @State private var showingRestorePicker = false
     @State private var showingImportPicker = false
@@ -36,13 +39,8 @@ struct DataSection: View {
                 .accessibilityIdentifier("data-export")
             } else {
                 // Backups and import stay free, so the data is never locked in.
-                ProLockedRow(title: "Export CSV", systemImage: "square.and.arrow.up") {
-                    showingPaywall = true
-                }
-                .accessibilityIdentifier("data-export")
-                .sheet(isPresented: $showingPaywall) {
-                    PaywallView(purpose: .pro)
-                }
+                ProLockedRow(title: "Export CSV", systemImage: "square.and.arrow.up", action: onUnlockPro)
+                    .accessibilityIdentifier("data-export")
             }
 
             Button {

@@ -140,7 +140,8 @@ private struct RateRow: View {
                 }
             }
             Spacer()
-            TextField("0.00", value: $value, format: .number.precision(.fractionLength(2...6)))
+            // Up to ten places: 1 VND is 0.0000385 USD, and six would round it.
+            TextField("0.00", value: $value, format: .number.precision(.fractionLength(2...10)))
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
                 .frame(maxWidth: 120)

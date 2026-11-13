@@ -1,3 +1,4 @@
+import SwiftData
 import XCTest
 @testable import Monthlio
 
@@ -37,6 +38,43 @@ final class SnapshotServiceTests: XCTestCase {
         let foreignPrevious = [MonthSnapshot(year: 2026, month: 8, total: 3300, currencyCode: "EUR")]
         XCTAssertNil(SnapshotService.delta(currentTotal: 3453, snapshots: foreignPrevious, now: date(2026, 9), calendar: calendar, base: "USD"))
         XCTAssertNotNil(SnapshotService.delta(currentTotal: 3453, snapshots: foreignPrevious, now: date(2026, 9), calendar: calendar, base: "EUR"))
+    }
+
+    @MainActor
+    func testRecordKeepsOneRowPerMonthAndTouchesItOnlyOnChange() throws {
+        let container = try TestContainer.make()
+        let context = container.mainContext
+        let now = date(2026, 9, 20)
+
+        SnapshotService.record(total: 3000, currencyCode: "USD", in: context, now: now, calendar: calendar)
+        var rows = try context.fetch(FetchDescriptor<MonthSnapshot>())
+        XCTAssertEqual(rows.map(\.key), ["2026-09"])
+        XCTAssertEqual(rows.first?.total, 3000)
+        XCTAssertEqual(rows.first?.currencyCode, "USD")
+        XCTAssertEqual(rows.first?.updatedAt, now)
+
+        SnapshotService.record(total: 3000, currencyCode: "USD", in: context, now: now.addingTimeInterval(3600), calendar: calendar)
+        rows = try context.fetch(FetchDescriptor<MonthSnapshot>())
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows.first?.updatedAt, now, "an unchanged total is a no-op")
+
+        let later = now.addingTimeInterval(7200)
+        SnapshotService.record(total: 3100, currencyCode: "USD", in: context, now: later, calendar: calendar)
+        rows = try context.fetch(FetchDescriptor<MonthSnapshot>())
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows.first?.total, 3100)
+        XCTAssertEqual(rows.first?.updatedAt, later)
+
+        SnapshotService.record(total: 3300, currencyCode: "USD", in: context, now: date(2026, 10, 5), calendar: calendar)
+        XCTAssertEqual(Set(try context.fetch(FetchDescriptor<MonthSnapshot>()).map(\.key)), ["2026-09", "2026-10"], "a new month gets its own row")
+
+        // A duplicate key left by a sync merge doesn't break the upsert.
+        context.insert(MonthSnapshot(year: 2026, month: 10, total: 1, updatedAt: date(2026, 10, 1)))
+        try context.save()
+        SnapshotService.record(total: 3400, currencyCode: "USD", in: context, now: date(2026, 10, 6), calendar: calendar)
+        let october = try context.fetch(FetchDescriptor<MonthSnapshot>()).filter { $0.key == "2026-10" }
+        XCTAssertEqual(october.count, 2)
+        XCTAssertTrue(october.contains { $0.total == 3400 })
     }
 
     func testMonthSpanCountsTheWindowNotTheRows() {

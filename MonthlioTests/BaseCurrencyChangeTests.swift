@@ -33,7 +33,8 @@ final class BaseCurrencyChangeTests: XCTestCase {
         let eurRates = try context.fetch(FetchDescriptor<ExchangeRate>()).filter { $0.applies(to: "EUR") }
         XCTAssertEqual(Set(eurRates.map(\.code)), ["USD", "GBP"], "a USD rate is derived for the new base")
         XCTAssertEqual(eurRates.first { $0.code == "GBP" }?.rateToBase, Decimal(string: "1.2"), "a rate the user entered for the new base is kept")
-        XCTAssertEqual(eurRates.first { $0.code == "USD" }?.rateToBase, 1 / Decimal(string: "1.08")!)
+        let derivedUSD = try XCTUnwrap(eurRates.first { $0.code == "USD" }?.rateToBase)
+        XCTAssertLessThan(abs(derivedUSD - 1 / Decimal(string: "1.08")!), Decimal(string: "0.000000000001")!, "1 USD is 1/1.08 EUR, to the fifteen digits the store keeps")
         XCTAssertEqual(try context.fetch(FetchDescriptor<ExchangeRate>()).filter { $0.applies(to: "USD") }.count, 2, "the old base's rows stay")
     }
 

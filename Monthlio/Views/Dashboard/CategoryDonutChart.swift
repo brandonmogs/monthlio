@@ -50,9 +50,7 @@ struct CategoryDonutChart: View {
             } else {
                 Text(slices.count, format: .number)
                     .font(.title2.weight(.semibold))
-                // "%lld categories" carries plural variants in the catalog
-                // that show only the word, so every language's rules apply.
-                Text("\(slices.count) categories")
+                (slices.count == 1 ? Text("category") : Text("categories"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

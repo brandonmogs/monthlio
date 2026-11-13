@@ -319,7 +319,7 @@ private struct CircularWidgetView: View {
                 VStack(spacing: -2) {
                     Text(days, format: .number)
                         .font(.title2.weight(.bold))
-                    Text("\(days) days")
+                    (days == 1 ? Text("day") : Text("days"))
                         .font(.caption2)
                 }
                 .accessibilityElement(children: .combine)

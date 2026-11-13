@@ -77,6 +77,16 @@ final class SnapshotServiceTests: XCTestCase {
         XCTAssertTrue(october.contains { $0.total == 3400 })
     }
 
+    func testTheHistoryWindowIsTheSameUnderABuddhistCalendar() {
+        // Month keys are Gregorian; a device that displays the Buddhist or
+        // Japanese calendar must get the same window and span.
+        var buddhist = Calendar(identifier: .buddhist)
+        buddhist.timeZone = calendar.timeZone
+        XCTAssertEqual(SnapshotService.history(from: snapshots(), months: 3, now: date(2026, 9), calendar: buddhist).map(\.key), ["2026-07", "2026-08", "2026-09"])
+        XCTAssertEqual(SnapshotService.monthSpan(of: snapshots(), calendar: buddhist), 7)
+        XCTAssertEqual(SnapshotService.delta(currentTotal: 3453, snapshots: snapshots(), now: date(2026, 9), calendar: buddhist)?.amount, 153)
+    }
+
     func testMonthSpanCountsTheWindowNotTheRows() {
         XCTAssertEqual(SnapshotService.monthSpan(of: snapshots(), calendar: calendar), 7, "March to September, with gaps")
         XCTAssertEqual(SnapshotService.monthSpan(of: [MonthSnapshot(year: 2026, month: 9, total: 1)], calendar: calendar), 1)

@@ -33,6 +33,9 @@ struct SettingsView: View {
     @AppStorage(DeviceSettings.reminderHourKey, store: SyncPreference.standard) private var reminderHour = DeviceSettings.defaultReminderHour
     @AppStorage(DeviceSettings.lockGraceKey, store: SyncPreference.standard) private var lockGraceSeconds = DeviceSettings.LockGrace.default.rawValue
     @State private var syncEnabled = SyncPreference.isEnabled()
+    /// What CloudKit has been doing; read in the body so the footer
+    /// updates as imports and exports finish.
+    private let syncStatus = SyncStatusMonitor.shared
     @State private var showingPaywall = false
     @State private var paywallPurpose: PaywallPurpose = .pro
     @State private var dataNotice: DataNotice?
@@ -282,7 +285,16 @@ struct SettingsView: View {
         if !signedIn {
             lines.append(String(localized: "Sign in to iCloud in the Settings app to sync across devices."))
         } else if syncEnabled, applied {
-            lines.append(String(localized: "Your expenses sync privately through your iCloud account to your other devices."))
+            // The last sync or the last failure comes first, so a sync
+            // that never works is never described as working.
+            if let status = syncStatus.summary() {
+                lines.append(status)
+            }
+            if syncStatus.lastError == nil {
+                lines.append(String(localized: "Your expenses sync privately through your iCloud account to your other devices."))
+            }
+        } else if syncEnabled, let failure = MonthlioApp.cloudOpenFailure {
+            lines.append(String(localized: "iCloud couldn't be opened when Monthlio launched (\(failure)), so this device is using its own copy of your data. Quit Monthlio from the app switcher and reopen it to try again."))
         } else if syncEnabled {
             lines.append(String(localized: "Quit Monthlio from the app switcher and reopen it to start syncing."))
         } else if applied {

@@ -14,6 +14,10 @@ struct MonthlioApp: App {
 
     /// True when the store is CloudKit-backed. Settings shows sync status from this.
     private(set) static var isCloudSyncEnabled = false
+    /// Why the iCloud-backed store couldn't be opened on this launch, when
+    /// sync is on but the app had to fall back to the local store. Settings
+    /// shows it instead of telling the user to quit and reopen forever.
+    private(set) static var cloudOpenFailure: String?
     /// Set when the store on disk couldn't be opened and was set aside;
     /// RootTabView tells the user once.
     private(set) static var storeRecoveryNotice: StoreRecoveryNotice?
@@ -177,6 +181,7 @@ struct MonthlioApp: App {
                     : try ModelContainer(for: schema, configurations: [configuration])
             } catch {
                 log.error("Couldn't open the \(label, privacy: .public) store (plan \(plan)): \(error.localizedDescription, privacy: .public)")
+                if label == "iCloud" { cloudOpenFailure = error.localizedDescription }
                 return nil
             }
         }
@@ -184,6 +189,7 @@ struct MonthlioApp: App {
             let cloud = ModelConfiguration(schema: schema, url: storeURL, cloudKitDatabase: .automatic)
             if let container = attempt(cloud, label: "iCloud", plan: true) ?? attempt(cloud, label: "iCloud", plan: false) {
                 isCloudSyncEnabled = true
+                cloudOpenFailure = nil
                 return container
             }
         }
@@ -244,7 +250,10 @@ struct MonthlioApp: App {
             RootTabView()
                 .environment(lock)
                 .environment(pro)
-                .task { await pro.start() }
+                .task {
+                    SyncStatusMonitor.shared.start()
+                    await pro.start()
+                }
         }
         .modelContainer(container)
     }

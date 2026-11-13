@@ -87,13 +87,13 @@ struct MonthlioApp: App {
     /// which 1.3 added for widgets; without this explicit URL, every user
     /// updating from 1.2 would have opened a new, empty store while their
     /// data sat untouched in the old file.
-    static var storeURL: URL {
+    nonisolated static var storeURL: URL {
         URL.applicationSupportDirectory.appending(path: "default.store")
     }
 
     /// Where SwiftData's default configuration put the store on builds that
     /// carried the App Group entitlement (the 1.3 builds before this fix).
-    static var groupStoreURL: URL? {
+    nonisolated static var groupStoreURL: URL? {
         FileManager.default
             .containerURL(forSecurityApplicationGroupIdentifier: WidgetSnapshot.appGroup)?
             .appending(path: "Library/Application Support/default.store")
@@ -159,7 +159,6 @@ struct MonthlioApp: App {
         if let container = openStore(cloud: wantsCloud) {
             return container
         }
-        let local = ModelConfiguration(schema: schema, url: storeURL, cloudKitDatabase: .none)
         let memory = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
         do {
             return try ModelContainer(for: schema, configurations: memory)

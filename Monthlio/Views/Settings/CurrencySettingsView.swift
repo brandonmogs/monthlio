@@ -81,7 +81,6 @@ struct CurrencySettingsView: View {
         let oldBase = currencyStore.baseCode
         guard newBase != oldBase else { return }
         let pivot = currencyStore.converter.rate(for: newBase)
-        let hadPivot = pivot != nil
         let rebased = currencyStore.converter.rebased(to: newBase)
 
         for (code, value) in rebased.rates where !rates.contains(where: { $0.code == code && $0.applies(to: newBase) }) {

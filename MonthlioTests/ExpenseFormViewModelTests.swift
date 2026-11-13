@@ -101,6 +101,25 @@ final class ExpenseFormViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testEditingAfterARecurringNotificationFiredShowsTheNextDelivery() throws {
+        let container = try TestContainer.make()
+        let calendar = Calendar.gregorianLocal
+        let firedAt = calendar.date(byAdding: .month, value: -2, to: calendar.date(bySettingHour: 9, minute: 30, second: 0, of: .now)!)!
+        let rent = Expense(name: "Rent", amount: 1850, category: .housing, cadence: .monthly, dueDay: min(calendar.component(.day, from: firedAt), 28), reminderDate: firedAt)
+        container.mainContext.insert(rent)
+
+        let vm = ExpenseFormViewModel(expense: rent)
+        XCTAssertTrue(vm.reminderEnabled)
+        XCTAssertGreaterThan(vm.reminderDate, .now, "the picker shows the next delivery, not a date it can't select")
+        XCTAssertEqual(calendar.component(.hour, from: vm.reminderDate), 9)
+        XCTAssertEqual(calendar.component(.minute, from: vm.reminderDate), 30)
+        XCTAssertEqual(vm.reminderDate, NotificationScheduler.reminderOccurrences(for: rent, limit: 1).first)
+
+        let delivered = Expense(name: "Concert", amount: 180, category: .entertainment, cadence: .oneTime, chargeDate: firedAt, reminderDate: firedAt)
+        XCTAssertEqual(ExpenseFormViewModel(expense: delivered).reminderDate, firedAt, "a one-off that already fired keeps its date")
+    }
+
+    @MainActor
     func testEditingALegacyOneTimeExpenseKeepsItsDay() throws {
         // Rows from before charge dates existed hit on their creation day.
         let container = try TestContainer.make()

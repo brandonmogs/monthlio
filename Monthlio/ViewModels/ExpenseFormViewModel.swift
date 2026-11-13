@@ -66,7 +66,12 @@ final class ExpenseFormViewModel {
         isActive = expense?.isActive ?? true
         colorHex = expense?.colorHex
         reminderEnabled = expense?.reminderDate != nil
-        reminderDate = expense?.reminderDate ?? .now
+        // A recurring notification that has already fired is shown at its
+        // next delivery, not at the stored anchor (a date the picker can't
+        // even select); a one-off that fired keeps its date.
+        reminderDate = expense.flatMap { row in
+            NotificationScheduler.reminderOccurrences(for: row, limit: 1).first ?? row.reminderDate
+        } ?? .now
         reminderDateChosen = expense?.reminderDate != nil
     }
 

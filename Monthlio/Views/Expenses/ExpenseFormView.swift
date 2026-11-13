@@ -173,7 +173,9 @@ struct ExpenseFormView: View {
                 DatePicker(
                     "On",
                     selection: Binding(get: { viewModel.reminderDate }, set: { viewModel.chooseReminderDate($0) }),
-                    in: Date.now...,
+                    // A one-off whose notification was delivered shows that
+                    // past moment rather than a clamped, wrong one.
+                    in: min(viewModel.reminderDate, .now)...,
                     displayedComponents: [.date, .hourAndMinute]
                 )
                 .accessibilityIdentifier("expense-reminder-date")

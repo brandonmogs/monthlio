@@ -44,6 +44,18 @@ final class CSVImporterTests: XCTestCase {
         XCTAssertTrue(Calendar.current.isDate(chargeDate, inSameDayAs: expenses[3].chargeDate!), "a one-time expense keeps its charge month")
     }
 
+    func testARowRepeatedInsideTheFileImportsOnce() throws {
+        let csv = """
+        Name,Amount,Cadence
+        Netflix,15.49,monthly
+        Netflix,15.49,monthly
+        Spotify,10.99,monthly
+        """
+        let preview = try CSVImporter.preview(csv, baseCurrency: "USD")
+        XCTAssertEqual(preview.expenses.map(\.name), ["Netflix", "Spotify"])
+        XCTAssertEqual(preview.duplicates, 1, "the second Netflix line is a duplicate of the first")
+    }
+
     func testMapsLooseHeadersAndValuesFromOtherApps() throws {
         let csv = """
         Service,Price,Billing Cycle,Type,Next Payment,Status

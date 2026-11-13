@@ -82,7 +82,9 @@ enum CSVImporter {
             throw CSVImportError.noUsableColumns
         }
 
-        let existingKeys = Set(existing.map { duplicateKey(name: $0.name, amount: $0.amount, cadence: $0.cadence) })
+        // Grows with every accepted row, so a file that repeats a row (or a
+        // file concatenated with itself) imports it once.
+        var existingKeys = Set(existing.map { duplicateKey(name: $0.name, amount: $0.amount, cadence: $0.cadence) })
         var expenses: [ImportedExpense] = []
         var skipped: [CSVImportPreview.SkippedRow] = []
         var duplicates = 0
@@ -125,7 +127,7 @@ enum CSVImporter {
             }
 
             let resolvedCadence = cadence ?? .monthly
-            if existingKeys.contains(duplicateKey(name: name, amount: amount, cadence: resolvedCadence)) {
+            if !existingKeys.insert(duplicateKey(name: name, amount: amount, cadence: resolvedCadence)).inserted {
                 duplicates += 1
                 continue
             }

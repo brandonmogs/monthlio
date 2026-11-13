@@ -46,8 +46,17 @@ final class CSVExporterTests: XCTestCase {
 
         XCTAssertEqual(lines.count, 4)
         XCTAssertEqual(lines[0], CSVExporter.header)
-        XCTAssertTrue(lines[1].hasPrefix("\"Rent, downtown\",1500.00,USD,monthly,1500.00,USD,housing,1,true,,"))
-        XCTAssertTrue(lines[2].hasPrefix("Groceries,140.00,USD,weekly,606.67,USD,food,,false,weekly run,"))
-        XCTAssertTrue(lines[3].hasPrefix("VPN,12.00,EUR,monthly,18.00,USD,subscriptions,,true,,"))
+        XCTAssertTrue(lines[1].hasPrefix("\"Rent, downtown\",1500,USD,monthly,1500,USD,housing,1,true,,"), lines[1])
+        XCTAssertTrue(lines[2].hasPrefix("Groceries,140,USD,weekly,606.67,USD,food,,false,weekly run,"), lines[2])
+        XCTAssertTrue(lines[3].hasPrefix("VPN,12,EUR,monthly,18,USD,subscriptions,,true,,"), lines[3])
+    }
+
+    func testThreeDecimalAmountsSurviveAnExportAndImport() throws {
+        let dinar = Expense(name: "Water", amount: Decimal(string: "4.005")!, currencyCode: "KWD", category: .utilities, cadence: .monthly, dueDay: 1)
+        let csv = CSVExporter.csv(from: [dinar], converter: CurrencyConverter(baseCode: "KWD"))
+        let line = csv.split(separator: "\n").map(String.init)[1]
+        XCTAssertTrue(line.hasPrefix("Water,4.005,KWD,monthly,4.005,KWD,"), "both columns keep the three places and agree: \(line)")
+        let preview = try CSVImporter.preview(csv, baseCurrency: "KWD")
+        XCTAssertEqual(preview.expenses.first?.amount, Decimal(string: "4.005"))
     }
 }

@@ -16,13 +16,16 @@ enum CSVExporter {
     private static func row(for expense: Expense, converter: CurrencyConverter, now: Date) -> String {
         var fields: [String] = []
         fields.append(expense.name)
+        // Amounts travel as Decimal's own text (lossless, locale-free), as
+        // the backup and the widget snapshot do; a two-place format lost the
+        // third decimal of KWD and rounded half-to-even against the app.
         fields.append(plain(expense.amount))
         fields.append(expense.currencyCode)
         fields.append(expense.cadence.rawValue)
         // A one-time charge counts in its own month only; outside it the
         // column is blank so a spreadsheet sum of it is this month's cost.
         let countsThisMonth = expense.cadence != .oneTime || expense.counts(inMonthOf: now)
-        fields.append(countsThisMonth ? plain(converter.monthlyCostInBase(of: expense).rounded()) : "")
+        fields.append(countsThisMonth ? plain(converter.monthlyCostInBase(of: expense).rounded(for: converter.baseCode)) : "")
         fields.append(converter.baseCode)
         fields.append(expense.category.rawValue)
         fields.append(expense.dueDay.map { String($0) } ?? "")
@@ -56,9 +59,10 @@ enum CSVExporter {
         date.formatted(Date.ISO8601FormatStyle(timeZone: .current).year().month().day().dateSeparator(.dash))
     }
 
-    /// Locale-independent number, e.g. "1234.50".
+    /// Locale-independent number with every digit the amount has, e.g.
+    /// "1234.5" or "4.005".
     private static func plain(_ value: Decimal) -> String {
-        value.formatted(.number.precision(.fractionLength(2)).grouping(.never).locale(Locale(identifier: "en_US_POSIX")))
+        "\(value)"
     }
 }
 

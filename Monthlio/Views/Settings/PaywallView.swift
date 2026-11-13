@@ -174,7 +174,7 @@ struct PaywallBody: View {
                         }
                     }
 
-                    Link("Privacy Policy", destination: URL(string: "https://github.com/brandonmogs/monthlio/blob/main/PRIVACY.md")!)
+                    Link("Privacy Policy", destination: URL(string: "https://brandonmogs.github.io/monthlio-privacy/")!)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }

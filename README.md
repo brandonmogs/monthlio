@@ -94,6 +94,11 @@ catalog rather than in code.
 
 Things App Store Connect needs that the code can't do for you:
 
+- **Privacy policy**: published at https://brandonmogs.github.io/monthlio-privacy/
+  from the public `monthlio-privacy` repository; keep its `index.html` in
+  step with `PRIVACY.md` here (the paywall link and the App Store Connect
+  privacy URL both point there).
+
 - **Monthlio Pro**: create a non-consumable in-app purchase with product ID
   `com.monthlio.app.pro`, and get the Paid Apps Agreement to **Active**
   under Business > Agreements: confirm the legal entity, have the Account

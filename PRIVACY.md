@@ -45,8 +45,8 @@ notification content is sent to any server.
 personal information from anyone.
 
 **Changes.** If this policy changes, the updated version will be published
-at this address with a new date.
+at https://brandonmogs.github.io/monthlio-privacy/ with a new date.
 
 **Contact.** Questions can be sent through the support link on the App
 Store listing or by opening an issue at
-https://github.com/brandonmogs/monthlio.
+https://github.com/brandonmogs/monthlio-privacy.

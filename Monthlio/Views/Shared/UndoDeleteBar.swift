@@ -1,19 +1,19 @@
 import SwiftUI
 
 /// Floating "Deleted X · Undo" strip shown above the tab bar for a few
-/// seconds after a delete.
+/// seconds after a delete; several quick deletes share one strip.
 struct UndoDeleteBar: View {
     @Environment(DeletedExpenseBuffer.self) private var deleted
     @Environment(\.modelContext) private var modelContext
 
     var body: some View {
-        if let pending = deleted.pending {
+        if !deleted.pending.isEmpty {
             HStack(spacing: 12) {
-                Text("Deleted \(pending.name)")
+                label
                     .lineLimit(1)
                 Spacer(minLength: 8)
                 Button("Undo") {
-                    if deleted.undo(in: modelContext) != nil {
+                    if !deleted.undo(in: modelContext).isEmpty {
                         Haptics.success()
                     } else {
                         Haptics.warning()
@@ -29,5 +29,11 @@ struct UndoDeleteBar: View {
             .padding(.horizontal, 16)
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
+    }
+
+    private var label: Text {
+        let pending = deleted.pending
+        if pending.count == 1 { return Text("Deleted \(pending[0].name)") }
+        return Text("Deleted ^[\(pending.count) expense](inflect: true)")
     }
 }

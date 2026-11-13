@@ -6,9 +6,10 @@ import os
 
 private let log = Logger(subsystem: "com.monthlio.app", category: "undo")
 
-/// Holds the last deleted expense for a few seconds so an accidental swipe
-/// can be undone. Deletion is immediate and, with sync on, reaches every
-/// device, so this copy is the only way back.
+/// Holds what was deleted in the last few seconds so an accidental swipe
+/// can be undone; a second delete joins the offer instead of replacing
+/// it. Deletion is immediate and, with sync on, reaches every device, so
+/// these copies are the only way back.
 @MainActor
 @Observable
 final class DeletedExpenseBuffer {
@@ -60,7 +61,8 @@ final class DeletedExpenseBuffer {
         }
     }
 
-    private(set) var pending: Snapshot?
+    /// Everything deleted since the offer appeared, oldest first.
+    private(set) var pending: [Snapshot] = []
     /// How long the undo offer stays up.
     var timeout: Duration = .seconds(6)
     private var expiry: Task<Void, Never>?
@@ -68,7 +70,7 @@ final class DeletedExpenseBuffer {
     /// Call before `context.delete(expense)`.
     func remember(_ expense: Expense) {
         log.notice("Remembering \(expense.name, privacy: .public) for undo")
-        pending = Snapshot(expense)
+        pending.append(Snapshot(expense))
         expiry?.cancel()
         // The bar is an overlay a screen reader never lands on; say it, and
         // leave it up long enough to find.
@@ -80,24 +82,25 @@ final class DeletedExpenseBuffer {
         expiry = Task { [weak self] in
             try? await Task.sleep(for: timeout)
             guard !Task.isCancelled else { return }
-            self?.pending = nil
+            self?.pending = []
         }
     }
 
     func dismiss() {
         expiry?.cancel()
-        pending = nil
+        pending = []
     }
 
-    /// Puts the expense back with its original identity and fields. When
-    /// the store refuses, the offer stays up so the user can try again.
+    /// Puts every remembered expense back with its original identity and
+    /// fields. When the store refuses, the offer stays up so the user can
+    /// try again.
     @discardableResult
-    func undo(in context: ModelContext) -> Expense? {
-        guard let pending else { return nil }
-        let expense = pending.restored()
-        context.insert(expense)
-        if context.saveReporting("the undo") != nil { return nil }
+    func undo(in context: ModelContext) -> [Expense] {
+        guard !pending.isEmpty else { return [] }
+        let restored = pending.map { $0.restored() }
+        for expense in restored { context.insert(expense) }
+        if context.saveReporting("the undo") != nil { return [] }
         dismiss()
-        return expense
+        return restored
     }
 }

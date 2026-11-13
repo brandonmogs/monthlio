@@ -13,9 +13,22 @@ struct MonthDelta: Equatable {
 /// Keeps one `MonthSnapshot` per month and answers history questions.
 /// The array-based helpers are pure so they can be unit tested.
 enum SnapshotService {
+    /// Snapshots are Gregorian months whatever calendar the device shows,
+    /// so a Buddhist or Japanese calendar never keys a month by its own
+    /// year: a caller's calendar supplies only the time zone (and locale)
+    /// that decide which month an instant falls in.
+    static func gregorian(_ calendar: Calendar) -> Calendar {
+        guard calendar.identifier != .gregorian else { return calendar }
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.timeZone = calendar.timeZone
+        gregorian.locale = calendar.locale
+        return gregorian
+    }
+
     /// Upserts the current month's total, in the base currency it was
     /// computed in. Called whenever expenses change.
     static func record(total: Decimal, currencyCode: String = CurrencyFormat.baseCode, in context: ModelContext, now: Date = .now, calendar: Calendar = .gregorianLocal) {
+        let calendar = gregorian(calendar)
         let components = calendar.dateComponents([.year, .month], from: now)
         guard let year = components.year, let month = components.month else { return }
         let key = MonthSnapshot.key(year: year, month: month)
@@ -40,6 +53,7 @@ enum SnapshotService {
     /// a device with another base): a chart never mixes currencies.
     static func history(from snapshots: [MonthSnapshot], months: Int, now: Date = .now, calendar: Calendar = .gregorianLocal, base: String? = nil) -> [MonthSnapshot] {
         guard months > 0 else { return [] }
+        let calendar = gregorian(calendar)
         let currentStart = calendar.date(from: calendar.dateComponents([.year, .month], from: now)) ?? now
         guard let windowStart = calendar.date(byAdding: .month, value: -(months - 1), to: currentStart) else { return [] }
 
@@ -52,6 +66,7 @@ enum SnapshotService {
     /// Months from the oldest to the newest snapshot, inclusive: a window
     /// with gaps is described by its span, not by how many rows it has.
     static func monthSpan(of snapshots: [MonthSnapshot], calendar: Calendar = .gregorianLocal) -> Int {
+        let calendar = gregorian(calendar)
         guard let first = snapshots.map(\.monthStart).min(), let last = snapshots.map(\.monthStart).max() else { return 0 }
         return (calendar.dateComponents([.month], from: first, to: last).month ?? 0) + 1
     }
@@ -68,6 +83,7 @@ enum SnapshotService {
     /// Change between `currentTotal` and the previous month's snapshot, if
     /// any; a previous month recorded in another currency is no comparison.
     static func delta(currentTotal: Decimal, snapshots: [MonthSnapshot], now: Date = .now, calendar: Calendar = .gregorianLocal, base: String? = nil) -> MonthDelta? {
+        let calendar = gregorian(calendar)
         guard let previousDate = calendar.date(byAdding: .month, value: -1, to: now) else { return nil }
         let components = calendar.dateComponents([.year, .month], from: previousDate)
         guard let year = components.year, let month = components.month else { return nil }

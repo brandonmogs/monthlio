@@ -87,6 +87,15 @@ final class SnapshotServiceTests: XCTestCase {
         XCTAssertEqual(SnapshotService.delta(currentTotal: 3453, snapshots: snapshots(), now: date(2026, 9), calendar: buddhist)?.amount, 153)
     }
 
+    @MainActor
+    func testRecordKeysTheMonthByItsGregorianYearUnderABuddhistCalendar() throws {
+        let container = try TestContainer.make()
+        var buddhist = Calendar(identifier: .buddhist)
+        buddhist.timeZone = calendar.timeZone
+        SnapshotService.record(total: 3000, currencyCode: "USD", in: container.mainContext, now: date(2026, 9, 20), calendar: buddhist)
+        XCTAssertEqual(try container.mainContext.fetch(FetchDescriptor<MonthSnapshot>()).map(\.key), ["2026-09"], "never 2569-09")
+    }
+
     func testMonthSpanCountsTheWindowNotTheRows() {
         XCTAssertEqual(SnapshotService.monthSpan(of: snapshots(), calendar: calendar), 7, "March to September, with gaps")
         XCTAssertEqual(SnapshotService.monthSpan(of: [MonthSnapshot(year: 2026, month: 9, total: 1)], calendar: calendar), 1)

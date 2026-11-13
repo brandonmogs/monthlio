@@ -155,6 +155,47 @@ final class MonthlioUITests: XCTestCase {
         XCTAssertTrue(color.waitForExistence(timeout: 5), "back on the form")
     }
 
+    func testUnlockingProFromTheColorRowTurnsSyncOn() {
+        // Every way into the Pro page must leave the same state behind;
+        // buying from the expense form used to leave iCloud sync off.
+        let app = launch(["-MonthlioSkipSeed", "-MonthlioFreshInstall"])
+        let addButton = app.buttons["Add an expense"]
+        XCTAssertTrue(addButton.waitForExistence(timeout: 15))
+        addButton.tap()
+        XCTAssertTrue(app.textFields["expense-name"].waitForExistence(timeout: 5))
+        let done = app.toolbars.buttons["Done"]
+        if done.waitForExistence(timeout: 2) { done.tap() }
+        let color = app.buttons["expense-color"]
+        let form = app.collectionViews.firstMatch
+        for _ in 0..<5 where !color.isHittable {
+            form.swipeUp()
+        }
+        XCTAssertTrue(color.waitForExistence(timeout: 5))
+        color.tap()
+
+        let title = app.staticTexts["paywall-title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 10))
+        title.press(forDuration: 2)
+        let field = app.textFields["paywall-code"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("mogz")
+        app.buttons["paywall-redeem"].tap()
+        XCTAssertTrue(app.buttons["Auto"].waitForExistence(timeout: 10), "the page closes and the color swatches appear")
+        app.buttons["Cancel"].tap()
+
+        app.buttons["Settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 10))
+        let settings = app.collectionViews.firstMatch
+        let toggle = app.switches["iCloud sync"]
+        for _ in 0..<5 where !toggle.exists {
+            settings.swipeUp()
+        }
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5), "a Pro owner gets the sync toggle")
+        let control = toggle.switches.firstMatch.exists ? toggle.switches.firstMatch : toggle
+        XCTAssertEqual(control.value as? String, "1", "sync was turned on by the unlock, as it is from Settings")
+    }
+
     func testACodeUnlocksMonthlioPro() {
         let app = launch(["-MonthlioSettings", "-MonthlioFreshInstall"])
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 15))

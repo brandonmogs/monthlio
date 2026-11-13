@@ -143,8 +143,7 @@ struct CloudRestoreCard: View {
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
         .sheet(isPresented: $showingPaywall) {
             PaywallView(purpose: .sync) {
-                SyncPreference.setEnabled(true)
-                syncTurnedOn = true
+                syncTurnedOn = SyncPreference.isEnabled()
             }
         }
     }

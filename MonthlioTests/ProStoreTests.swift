@@ -426,6 +426,25 @@ final class ProStoreTests: XCTestCase {
         XCTAssertTrue(fresh.isEntitled)
     }
 
+    func testUnlockTurnsSyncOnExceptForAnEarlySupporterOnTheProPage() {
+        let store = ProStore(client: FakeProClient(), defaults: defaults)
+        XCTAssertFalse(SyncPreference.isEnabled(defaults))
+
+        XCTAssertTrue(store.enableSyncAfterUnlock(purpose: .pro), "a new buyer wants sync, from whichever screen")
+        XCTAssertTrue(SyncPreference.isEnabled(defaults))
+
+        let early = UserDefaults(suiteName: suite + "-early")!
+        defer { early.removePersistentDomain(forName: suite + "-early") }
+        SyncPreference.migrateIfNeeded(storeExists: true, early)
+        SyncPreference.setEnabled(false, early)
+        let supporter = ProStore(client: FakeProClient(), defaults: early)
+        XCTAssertTrue(supporter.isGrandfathered)
+        XCTAssertFalse(supporter.enableSyncAfterUnlock(purpose: .pro), "an early supporter who switched sync off keeps it off")
+        XCTAssertFalse(SyncPreference.isEnabled(early))
+        XCTAssertTrue(supporter.enableSyncAfterUnlock(purpose: .sync), "opened for sync, sync is what they asked for")
+        XCTAssertTrue(SyncPreference.isEnabled(early))
+    }
+
     func testGrandfatheredDeviceKeepsSyncAfterRefund() async {
         SyncPreference.migrateIfNeeded(storeExists: true, UserDefaults(suiteName: suite + "-legacy")!)
         let legacy = UserDefaults(suiteName: suite + "-legacy")!

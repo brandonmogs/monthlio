@@ -14,7 +14,8 @@ struct PaywallView: View {
     @Environment(ProStore.self) private var pro
     @Environment(\.dismiss) private var dismiss
     var purpose: PaywallPurpose = .pro
-    /// Runs after a successful purchase or restore, before dismissing.
+    /// Runs after a successful purchase, restore or code, once sync has
+    /// been turned on where it should be, before dismissing.
     var onUnlocked: () -> Void = {}
 
     var body: some View {
@@ -34,6 +35,7 @@ struct PaywallView: View {
                     async let price: Void = pro.loadProduct()
                     await pro.recordOriginalBuildIfNeeded()
                     if purpose == .sync, pro.isGrandfathered {
+                        pro.enableSyncAfterUnlock(purpose: purpose)
                         onUnlocked()
                         dismiss()
                     }
@@ -214,6 +216,7 @@ struct PaywallBody: View {
             return
         }
         Haptics.success()
+        pro.enableSyncAfterUnlock(purpose: purpose)
         onUnlocked()
         dismiss()
     }
@@ -241,6 +244,7 @@ struct PaywallBody: View {
         }
         if await pro.purchase() {
             Haptics.success()
+            pro.enableSyncAfterUnlock(purpose: purpose)
             onUnlocked()
             dismiss()
         }
@@ -252,6 +256,7 @@ struct PaywallBody: View {
         // page, only a found purchase closes it.
         if purpose == .sync ? pro.canSync : pro.isEntitled {
             Haptics.success()
+            pro.enableSyncAfterUnlock(purpose: purpose)
             onUnlocked()
             dismiss()
         }

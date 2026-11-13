@@ -181,6 +181,18 @@ final class ProStore {
     /// Sync is allowed with Pro or for accounts that predate it.
     var canSync: Bool { isEntitled || isGrandfathered }
 
+    /// Runs after a purchase, a found purchase or a redeemed code, from
+    /// whichever screen offered Pro. Buying Pro means wanting sync, unless
+    /// an early supporter who already had it free turned it off on
+    /// purpose; opened for sync, the answer is always yes. Returns whether
+    /// sync was turned on.
+    @discardableResult
+    func enableSyncAfterUnlock(purpose: PaywallPurpose) -> Bool {
+        guard purpose == .sync || !isGrandfathered else { return false }
+        SyncPreference.setEnabled(true, defaults)
+        return true
+    }
+
     /// Verifies the entitlement, loads the product and starts listening for
     /// transactions made elsewhere.
     func start() async {

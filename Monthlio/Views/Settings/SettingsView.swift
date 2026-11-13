@@ -84,12 +84,8 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showingPaywall) {
                 PaywallView(purpose: paywallPurpose) {
-                    // Buying Pro means wanting sync, unless an early supporter
-                    // who already had it free turned it off on purpose.
-                    if paywallPurpose == .sync || !pro.isGrandfathered {
-                        syncEnabled = true
-                        SyncPreference.setEnabled(true)
-                    }
+                    // The paywall turned sync on where it should; mirror it.
+                    syncEnabled = SyncPreference.isEnabled()
                 }
             }
             .onChange(of: pro.isGrandfathered) { _, grandfathered in

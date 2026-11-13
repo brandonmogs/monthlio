@@ -225,6 +225,36 @@ final class MonthlioUITests: XCTestCase {
         XCTAssertTrue(notifies.firstMatch.waitForExistence(timeout: 5), "the row says when it notifies")
     }
 
+    func testTappingTheMiddleOfAnExpensesRowOpensTheEditor() {
+        // Plain-style row buttons used to hit-test only their text, so a tap
+        // in the gap between a short name and its amount did nothing. XCUITest
+        // taps the element centre, which is exactly that gap.
+        let app = launch(["-MonthlioTab", "expenses"])
+        XCTAssertTrue(app.navigationBars["Expenses"].waitForExistence(timeout: 15))
+        // Transport sits well below the fold; rows off screen don't exist yet.
+        let gas = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Gas'")).firstMatch
+        let rows = app.collectionViews.firstMatch
+        for _ in 0..<8 where !gas.exists {
+            rows.swipeUp()
+        }
+        XCTAssertTrue(gas.waitForExistence(timeout: 5))
+        gas.tap()
+        XCTAssertTrue(app.navigationBars["Edit Expense"].waitForExistence(timeout: 5), "the editor opens from the middle of the row")
+        app.buttons["Cancel"].tap()
+
+        // Gas has no charge date, so Upcoming lists it under "Needs a date".
+        app.tabBars.buttons["Upcoming"].tap()
+        let needsDate = app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Gas'")).firstMatch
+        let list = app.collectionViews.firstMatch
+        for _ in 0..<6 where !needsDate.isHittable {
+            list.swipeUp()
+        }
+        XCTAssertTrue(needsDate.waitForExistence(timeout: 10))
+        needsDate.tap()
+        XCTAssertTrue(app.navigationBars["Edit Expense"].waitForExistence(timeout: 5))
+        app.buttons["Cancel"].tap()
+    }
+
     func testSwipeToDeleteCanBeUndone() {
         let app = launch(["-MonthlioTab", "expenses"])
         // Rows are single accessibility elements labelled "Rent, Due on the

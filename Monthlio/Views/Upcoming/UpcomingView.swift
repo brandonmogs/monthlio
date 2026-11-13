@@ -96,6 +96,7 @@ struct UpcomingView: View {
                     editingExpense = expense
                 } label: {
                     ExpenseRow(expense: expense)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }

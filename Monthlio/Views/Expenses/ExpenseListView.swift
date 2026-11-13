@@ -66,6 +66,9 @@ struct ExpenseListView: View {
                             editingExpense = expense
                         } label: {
                             ExpenseRow(expense: expense, showsCategory: section.category == nil)
+                                // The whole row, gaps included: a plain button
+                                // only hit-tests its opaque children.
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {

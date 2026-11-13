@@ -71,14 +71,15 @@ enum CSVImporter {
     // MARK: Preview
 
     static func preview(_ text: String, baseCurrency: String, existing: [Expense] = []) throws -> CSVImportPreview {
-        let rows = CSVParser.parse(text).filter { row in row.contains { !$0.trimmingCharacters(in: .whitespaces).isEmpty } }
+        let rows = CSVParser.parse(text, delimiter: CSVParser.sniffDelimiter(text)).filter { row in row.contains { !$0.trimmingCharacters(in: .whitespaces).isEmpty } }
         guard !rows.isEmpty else { throw CSVImportError.empty }
 
         let columns = detectColumns(in: rows[0])
         let hadHeader = columns != nil
         let mapping = columns ?? [.name: 0, .amount: 1]
-        guard mapping[.name] != nil, mapping[.amount] != nil else { throw CSVImportError.noUsableColumns }
-        if !hadHeader, rows[0].count < 2 || parseAmount(rows[0][1]).amount == nil {
+        guard mapping[.name] != nil, let amountIndex = mapping[.amount] else { throw CSVImportError.noUsableColumns }
+        let style = amountStyle(of: rows, amountIndex: amountIndex, skippingHeader: hadHeader)
+        if !hadHeader, rows[0].count < 2 || parseAmount(rows[0][1], style: style).amount == nil {
             throw CSVImportError.noUsableColumns
         }
 
@@ -102,7 +103,7 @@ enum CSVImporter {
                 skipped.append(.init(line: line, reason: String(localized: "No name")))
                 continue
             }
-            let parsedAmount = parseAmount(cell(.amount) ?? "")
+            let parsedAmount = parseAmount(cell(.amount) ?? "", style: style)
             guard let amount = parsedAmount.amount, MoneyLimits.isValidAmount(amount) else {
                 skipped.append(.init(line: line, reason: String(localized: "No usable amount")))
                 continue
@@ -219,29 +220,62 @@ enum CSVImporter {
         ("₪", "ILS"), ("₱", "PHP"), ("₫", "VND"), ("₦", "NGN"), ("₽", "RUB"), ("₴", "UAH"),
     ]
 
-    /// Reads "1,850.00", "$15.49", "1.234,56", "12,5", "'-12.50" (our own
-    /// CSV escape). Negative and non-numeric values come back nil.
-    static func parseAmount(_ raw: String) -> (amount: Decimal?, currency: String?) {
+    /// How a file writes its decimals. A single dot followed by three digits
+    /// ("1.850") is a decimal in a dot-decimal file and a thousands
+    /// separator in a comma-decimal one.
+    enum AmountStyle {
+        case dotDecimal
+        case commaDecimal
+    }
+
+    /// Comma-decimal when some amount looks like "49,90" and none like
+    /// "49.90"; dot-decimal otherwise, which keeps today's reading for files
+    /// that give no evidence either way.
+    static func amountStyle(of rows: [[String]], amountIndex: Int, skippingHeader: Bool) -> AmountStyle {
+        var commaDecimals = false
+        var dotDecimals = false
+        for (offset, row) in rows.enumerated() where (!skippingHeader || offset > 0) && amountIndex < row.count {
+            let cell = row[amountIndex]
+            if cell.range(of: #",\d{1,2}$"#, options: .regularExpression) != nil { commaDecimals = true }
+            if cell.range(of: #"\.\d{1,2}$"#, options: .regularExpression) != nil { dotDecimals = true }
+        }
+        return commaDecimals && !dotDecimals ? .commaDecimal : .dotDecimal
+    }
+
+    /// Reads "1,850.00", "$15.49", "1.234,56", "12,5", "1.234.567", "'-12.50"
+    /// (our own CSV escape). Negative, scientific and non-numeric values
+    /// come back nil.
+    static func parseAmount(_ raw: String, style: AmountStyle = .dotDecimal) -> (amount: Decimal?, currency: String?) {
         var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if text.hasPrefix("'") { text.removeFirst() }
         let currency = symbolCurrencies.first { text.contains($0.0) }?.1
+        // "1.5e3" is not a price; stripping the letter would read it as 1.53.
+        if text.range(of: #"[0-9][eE][+-]?[0-9]"#, options: .regularExpression) != nil { return (nil, currency) }
         var digits = String(text.filter { "0123456789.,-".contains($0) })
         guard !digits.isEmpty, !digits.contains("-") else { return (nil, currency) }
 
-        if let dot = digits.lastIndex(of: "."), let comma = digits.lastIndex(of: ",") {
-            if dot > comma {
+        let dots = digits.filter { $0 == "." }.count
+        let commas = digits.filter { $0 == "," }.count
+        if dots > 0, commas > 0 {
+            if digits.lastIndex(of: ".")! > digits.lastIndex(of: ",")! {
                 digits.removeAll { $0 == "," }
             } else {
                 digits.removeAll { $0 == "." }
                 digits = digits.replacingOccurrences(of: ",", with: ".")
             }
-        } else if digits.contains(",") {
+        } else if commas > 0 {
             let parts = digits.split(separator: ",", omittingEmptySubsequences: false)
             if parts.count == 2, (1...2).contains(parts[1].count) {
                 digits = digits.replacingOccurrences(of: ",", with: ".")
             } else {
                 digits.removeAll { $0 == "," }
             }
+        } else if dots > 1 {
+            // "1.234.567": dots can only be thousands separators.
+            digits.removeAll { $0 == "." }
+        } else if dots == 1, style == .commaDecimal, let dot = digits.firstIndex(of: "."), digits.distance(from: digits.index(after: dot), to: digits.endIndex) == 3 {
+            // A comma-decimal file uses the dot for thousands: "1.850" is 1850.
+            digits.removeAll { $0 == "." }
         }
         guard let value = Decimal(string: digits, locale: Locale(identifier: "en_US_POSIX")), value.isFinite else { return (nil, currency) }
         return (value, currency)

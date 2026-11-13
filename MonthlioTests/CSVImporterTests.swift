@@ -44,6 +44,30 @@ final class CSVImporterTests: XCTestCase {
         XCTAssertTrue(Calendar.current.isDate(chargeDate, inSameDayAs: expenses[3].chargeDate!), "a one-time expense keeps its charge month")
     }
 
+    func testEuropeanExportsWithSemicolonsAndDotThousandsImportCorrectly() throws {
+        let csv = """
+        Name;Amount;Cadence
+        Miete;1.850;monthly
+        Strom;49,90;monthly
+        Auto;1.234.567;yearly
+        """
+        let preview = try CSVImporter.preview(csv, baseCurrency: "EUR")
+        XCTAssertTrue(preview.hadHeader)
+        XCTAssertEqual(preview.expenses.map(\.amount), [1850, Decimal(string: "49.90")!, 1234567])
+        XCTAssertEqual(preview.expenses.map(\.cadence), [.monthly, .monthly, .yearly])
+    }
+
+    func testADotWithThreeDigitsStaysADecimalWithoutCommaEvidence() throws {
+        let preview = try CSVImporter.preview("Name,Amount\nRent,1.850\n", baseCurrency: "USD")
+        XCTAssertEqual(preview.expenses.first?.amount, Decimal(string: "1.85"), "no comma-decimal amount in the file, so the dot stays a decimal")
+    }
+
+    func testScientificNotationIsNotAnAmount() throws {
+        let preview = try CSVImporter.preview("Name,Amount\nRent,1.5e3\n", baseCurrency: "USD")
+        XCTAssertTrue(preview.expenses.isEmpty)
+        XCTAssertEqual(preview.skipped.first?.reason, "No usable amount")
+    }
+
     func testARowRepeatedInsideTheFileImportsOnce() throws {
         let csv = """
         Name,Amount,Cadence

@@ -107,6 +107,19 @@ final class StoreMaintenanceTests: XCTestCase {
         XCTAssertEqual(try context.fetchCount(FetchDescriptor<Expense>()), 2)
     }
 
+    func testTwoDevicesMonthsKeepTheFullerTotal() throws {
+        // An iPad with three expenses opened on the 30th must not overwrite
+        // the iPhone's complete month just by being the later writer.
+        let context = try makeContext()
+        context.insert(MonthSnapshot(year: 2026, month: 9, total: 3400, updatedAt: Date(timeIntervalSince1970: 1_000)))
+        context.insert(MonthSnapshot(year: 2026, month: 9, total: 400, updatedAt: Date(timeIntervalSince1970: 2_000)))
+        try context.save()
+
+        XCTAssertEqual(StoreMaintenance.deduplicate(in: context).snapshotsRemoved, 1)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<MonthSnapshot>()).map(\.total), [3400])
+        XCTAssertEqual(SnapshotService.deduplicated([MonthSnapshot(year: 2026, month: 9, total: 400, updatedAt: Date(timeIntervalSince1970: 2_000)), MonthSnapshot(year: 2026, month: 9, total: 3400, updatedAt: Date(timeIntervalSince1970: 1_000))]).map(\.total), [3400], "reads agree with what maintenance keeps")
+    }
+
     func testACleanStoreIsLeftAlone() throws {
         let context = try makeContext()
         context.insert(Expense(name: "Gym", amount: 45, category: .health))

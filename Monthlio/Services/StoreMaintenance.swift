@@ -60,11 +60,15 @@ enum StoreMaintenance {
             }
         }
 
-        // Snapshots: one row per month; clearly older updates go.
+        // Snapshots: one row per month. Two devices that ran alone before
+        // their first sync hold different partial totals for the same past
+        // month; the larger one came from the device that knew more
+        // expenses, so it stays. Equal totals keep the newest update, with
+        // near-identical timestamps a tie.
         if let snapshots = try? context.fetch(FetchDescriptor<MonthSnapshot>()) {
             for rows in Dictionary(grouping: snapshots, by: \.key).values where rows.count > 1 {
-                let newest = rows.map(\.updatedAt).max()!
-                for row in rows where newest.timeIntervalSince(row.updatedAt) > timestampTolerance {
+                let best = rows.max { ($0.total, $0.updatedAt) < ($1.total, $1.updatedAt) }!
+                for row in rows where row.total < best.total || (row.total == best.total && best.updatedAt.timeIntervalSince(row.updatedAt) > timestampTolerance) {
                     context.delete(row)
                     report.snapshotsRemoved += 1
                 }

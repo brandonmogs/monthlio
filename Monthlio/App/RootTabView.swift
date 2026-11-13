@@ -16,6 +16,7 @@ struct RootTabView: View {
     @State private var deleted = DeletedExpenseBuffer()
     @State private var selectedTab = Tab.initial
     @State private var showingRecoveryNotice = MonthlioApp.storeRecoveryNotice != nil
+    private let syncStatus = SyncStatusMonitor.shared
     @AppStorage(DeviceSettings.remindersEnabledKey, store: SyncPreference.standard) private var remindersEnabled = false
     @AppStorage(DeviceSettings.reminderHourKey, store: SyncPreference.standard) private var reminderHour = DeviceSettings.defaultReminderHour
 
@@ -60,6 +61,9 @@ struct RootTabView: View {
                 StoreMaintenance.deduplicate(in: modelContext)
             }
             .task(id: syncFingerprint) { await sync() }
+            // An import that just finished may have changed this month's
+            // total while recording was held off; record it now.
+            .onChange(of: syncStatus.lastSynced) { Task { await sync() } }
             .onChange(of: currencyFingerprint, initial: true) {
                 currencyStore.update(settings: settingsRows.first, rates: rates)
             }
@@ -142,7 +146,7 @@ struct RootTabView: View {
         // Past months freeze, so never record a total that is known to be
         // wrong: an empty store (a new device before its first iCloud
         // import) or a currency still counting 1:1 for want of a rate.
-        if !expenses.isEmpty, ExpenseCalculator.missingRateCodes(expenses, converter: converter).isEmpty {
+        if !expenses.isEmpty, ExpenseCalculator.missingRateCodes(expenses, converter: converter).isEmpty, !syncStatus.isImporting {
             SnapshotService.record(total: total, in: modelContext)
         }
         // With the lock on, widgets and reminders hide names and amounts.

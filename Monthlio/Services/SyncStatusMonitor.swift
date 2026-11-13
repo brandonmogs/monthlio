@@ -41,6 +41,10 @@ final class SyncStatusMonitor {
     private(set) var lastError: String?
     private(set) var lastErrorAt: Date?
 
+    /// True while CloudKit is bringing rows in. A month total recorded
+    /// mid-import would freeze a partial figure into history.
+    var isImporting: Bool { phase == .running(.importing) }
+
     private let defaults: UserDefaults
     private var observer: NSObjectProtocol?
 

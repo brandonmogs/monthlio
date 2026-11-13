@@ -39,6 +39,15 @@ final class SyncStatusMonitorTests: XCTestCase {
         XCTAssertEqual(relaunched.lastSynced, finished, "the last sync survives a relaunch")
     }
 
+    func testImportingIsVisibleWhileItRuns() {
+        let monitor = SyncStatusMonitor(defaults: defaults)
+        XCTAssertFalse(monitor.isImporting)
+        monitor.record(kind: .importing, succeeded: false, error: nil, endDate: nil)
+        XCTAssertTrue(monitor.isImporting)
+        monitor.record(kind: .importing, succeeded: true, error: nil, endDate: .now)
+        XCTAssertFalse(monitor.isImporting)
+    }
+
     func testSetupSuccessIsNotASync() {
         let monitor = SyncStatusMonitor(defaults: defaults)
         monitor.record(kind: .setup, succeeded: false, error: nil, endDate: nil)

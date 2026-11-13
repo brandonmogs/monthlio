@@ -51,11 +51,13 @@ enum SnapshotService {
         return (calendar.dateComponents([.month], from: first, to: last).month ?? 0) + 1
     }
 
-    /// One row per month key, keeping the most recently updated. Sync can
-    /// briefly produce duplicates when two devices write the same month.
+    /// One row per month key, keeping the fuller month (the larger total,
+    /// then the most recent update), the rule `StoreMaintenance` applies
+    /// when it collapses the rows. Sync can briefly produce duplicates
+    /// when two devices write the same month.
     static func deduplicated(_ snapshots: [MonthSnapshot]) -> [MonthSnapshot] {
         Dictionary(grouping: snapshots, by: \.key)
-            .compactMap { $0.value.max { $0.updatedAt < $1.updatedAt } }
+            .compactMap { $0.value.max { ($0.total, $0.updatedAt) < ($1.total, $1.updatedAt) } }
     }
 
     /// Change between `currentTotal` and the previous month's snapshot, if any.

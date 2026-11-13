@@ -28,6 +28,7 @@ struct SettingsView: View {
     @Query(sort: \AppSettings.createdAt) private var settingsRows: [AppSettings]
 
     @State private var income: Decimal?
+    @FocusState private var incomeFocused: Bool
     @State private var notificationsDenied = false
     @AppStorage(DeviceSettings.remindersEnabledKey, store: SyncPreference.standard) private var remindersEnabled = false
     @AppStorage(DeviceSettings.reminderHourKey, store: SyncPreference.standard) private var reminderHour = DeviceSettings.defaultReminderHour
@@ -158,21 +159,30 @@ struct SettingsView: View {
                 prompt: Text("Monthly take-home")
             )
             .keyboardType(.decimalPad)
-            .onChange(of: income) { _, newValue in
-                guard MoneyLimits.isValidOrZero(newValue) else {
-                    income = settings?.monthlyIncome
-                    return
-                }
-                // The appear-time assignment and retyping the same number are not edits.
-                let value = newValue ?? 0
-                guard value != (settings?.monthlyIncome ?? 0) else { return }
-                AppSettings.current(in: modelContext).monthlyIncome = value
-                try? modelContext.save()
+            .focused($incomeFocused)
+            .onSubmit(commitIncome)
+            // Written when the field is left, not on every keystroke (5200
+            // used to be four saves and four CloudKit pushes).
+            .onChange(of: incomeFocused) { _, focused in
+                if !focused { commitIncome() }
             }
+            .onDisappear(perform: commitIncome)
         } header: {
             Text("Income")
         } footer: {
             Text("After-tax income per month in \(currencyStore.baseCode). Used to show what's left after expenses.")
+        }
+    }
+
+    private func commitIncome() {
+        do {
+            if try RowCommit.income(income, in: modelContext) == .invalid {
+                income = settings?.monthlyIncome
+                Haptics.warning()
+            }
+        } catch {
+            income = settings?.monthlyIncome
+            Haptics.warning()
         }
     }
 

@@ -32,10 +32,10 @@ struct BudgetEditorView: View {
     }
 }
 
-/// Starts from the stored cap and writes only on a real edit (see
-/// `RateRow` in CurrencySettingsView for why not `onAppear`). With
-/// duplicate rows from a sync merge it edits the one the dashboard uses,
-/// the largest cap, and removes the others on save.
+/// Starts from the stored cap and writes when the field is left, not on
+/// every keystroke (see `RowCommit`). With duplicate rows from a sync merge
+/// it edits the one the dashboard uses, the largest cap, and removes the
+/// others on save.
 private struct BudgetRow: View {
     @Environment(\.modelContext) private var modelContext
     let category: ExpenseCategory
@@ -43,6 +43,7 @@ private struct BudgetRow: View {
     let spent: Decimal
 
     @State private var cap: Decimal?
+    @FocusState private var isFocused: Bool
 
     init(category: ExpenseCategory, rows: [CategoryBudget], spent: Decimal) {
         self.category = category
@@ -74,8 +75,13 @@ private struct BudgetRow: View {
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
                 .frame(maxWidth: 120)
+                .focused($isFocused)
+                .onSubmit(commit)
         }
-        .onChange(of: cap) { _, newValue in commit(newValue) }
+        .onChange(of: isFocused) { _, focused in
+            if !focused { commit() }
+        }
+        .onDisappear(perform: commit)
     }
 
     /// Words as well as color: "over budget" and "near the cap" read the
@@ -95,25 +101,16 @@ private struct BudgetRow: View {
         return progress.status == .under ? .secondary : progress.status.color
     }
 
-    private func commit(_ value: Decimal?) {
-        guard MoneyLimits.isValidOrZero(value) else {
-            cap = budget?.cap
-            return
-        }
-        let target: Decimal? = (value ?? 0) > 0 ? value : nil
-        guard target != budget?.cap else { return }
-        if let target {
-            if let budget {
-                budget.cap = target
-            } else {
-                modelContext.insert(CategoryBudget(category: category, cap: target))
+    private func commit() {
+        do {
+            if try RowCommit.budget(cap: cap, category: category, rows: rows, in: modelContext) == .invalid {
+                cap = budget?.cap
+                Haptics.warning()
             }
+        } catch {
+            cap = budget?.cap
+            Haptics.warning()
         }
-        // Clearing removes every row for the category; editing removes the duplicates.
-        for row in rows where target == nil || row !== budget {
-            modelContext.delete(row)
-        }
-        try? modelContext.save()
     }
 }
 

@@ -102,11 +102,12 @@ struct CurrencySettingsView: View {
     }
 }
 
-/// The field starts from the stored rate and writes only when the user
-/// changes it: an `onAppear` assignment would trigger `onChange`, re-stamp
-/// `updatedAt` (the tiebreaker between duplicate rows) and save on every
-/// visit. Duplicates appear after a sync merge; the newest is the one in
-/// use, so that's the one edited, and the others go on save.
+/// The field starts from the stored rate and writes when it is left, not
+/// on every keystroke: a per-keystroke write would re-stamp `updatedAt`
+/// (the tiebreaker between duplicate rows) on every digit, and the "0" of
+/// 0.92 would be rejected as an invalid rate before the user finished
+/// (see `RowCommit`). Duplicates appear after a sync merge; the newest is
+/// the one in use, so that's the one edited, and the others go on save.
 private struct RateRow: View {
     @Environment(\.modelContext) private var modelContext
     let code: String
@@ -114,6 +115,7 @@ private struct RateRow: View {
     let rows: [ExchangeRate]
 
     @State private var value: Decimal?
+    @FocusState private var isFocused: Bool
 
     init(code: String, base: String, rows: [ExchangeRate]) {
         self.code = code
@@ -139,32 +141,27 @@ private struct RateRow: View {
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
                 .frame(maxWidth: 120)
+                .focused($isFocused)
+                .onSubmit(commit)
             Text(base)
                 .foregroundStyle(.secondary)
         }
-        .onChange(of: value) { _, newValue in commit(newValue) }
+        .onChange(of: isFocused) { _, focused in
+            if !focused { commit() }
+        }
+        .onDisappear(perform: commit)
     }
 
-    private func commit(_ newValue: Decimal?) {
-        if let newValue, !MoneyLimits.isValidRate(newValue) {
-            value = rate?.rateToBase
-            return
-        }
-        let target: Decimal? = (newValue ?? 0) > 0 ? newValue : nil
-        guard target != rate?.rateToBase else { return }
-        if let target {
-            if let rate {
-                rate.rateToBase = target
-                rate.updatedAt = .now
-            } else {
-                modelContext.insert(ExchangeRate(code: code, rateToBase: target, baseCode: base))
+    private func commit() {
+        do {
+            if try RowCommit.rate(value, code: code, base: base, rows: rows, in: modelContext) == .invalid {
+                value = rate?.rateToBase
+                Haptics.warning()
             }
+        } catch {
+            value = rate?.rateToBase
+            Haptics.warning()
         }
-        // Clearing removes every row for this currency; editing removes the duplicates.
-        for row in rows where target == nil || row !== rate {
-            modelContext.delete(row)
-        }
-        try? modelContext.save()
     }
 }
 

@@ -68,6 +68,9 @@ struct RootTabView: View {
             }
             .onChange(of: scenePhase) { _, phase in
                 lock.handleScenePhase(phase)
+                // A shield whose window lookup failed gets another go on
+                // every activation, not only when the mode changes.
+                shield.update(to: shieldMode, lock: lock)
                 // Month rollover and permission changes happen while the app
                 // is away; the scheduler serializes this with the task above.
                 if phase == .active { Task { await sync() } }

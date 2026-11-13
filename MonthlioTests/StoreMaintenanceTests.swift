@@ -77,6 +77,36 @@ final class StoreMaintenanceTests: XCTestCase {
         XCTAssertEqual(try context.fetchCount(FetchDescriptor<MonthSnapshot>()), 2)
     }
 
+    func testARestoredCopyNeverOustsTheLiveRow() throws {
+        // A backup writes dates to the millisecond; Date.now has more. The
+        // restored copy of a row therefore reads as older than the original
+        // that is still live on another device, and "oldest wins" would
+        // delete the live row everywhere once sync carried both.
+        let context = try makeContext()
+        let live = Date(timeIntervalSinceReferenceDate: 800_000_000.1239996)
+        let data = try BackupDocument.makeEncoder().encode(["createdAt": live])
+        let restored = try XCTUnwrap(try BackupDocument.makeDecoder().decode([String: Date].self, from: data)["createdAt"])
+        XCTAssertLessThan(restored, live, "the round trip loses sub-millisecond precision")
+        XCTAssertLessThan(live.timeIntervalSince(restored), StoreMaintenance.timestampTolerance)
+
+        let id = UUID()
+        context.insert(Expense(id: id, name: "Rent", amount: 1850, category: .housing, createdAt: live))
+        context.insert(Expense(id: id, name: "Rent", amount: 1850, category: .housing, createdAt: restored))
+        context.insert(MonthSnapshot(year: 2026, month: 9, total: 3000, updatedAt: live))
+        context.insert(MonthSnapshot(year: 2026, month: 9, total: 3000, updatedAt: restored))
+        try context.save()
+
+        XCTAssertTrue(StoreMaintenance.deduplicate(in: context).isEmpty, "a serialization artifact must never pick the survivor")
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Expense>()), 2)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<MonthSnapshot>()), 2)
+
+        // A copy that is clearly newer is still a duplicate.
+        context.insert(Expense(id: id, name: "Rent", amount: 1850, category: .housing, createdAt: live.addingTimeInterval(0.01)))
+        try context.save()
+        XCTAssertEqual(StoreMaintenance.deduplicate(in: context).expensesRemoved, 1)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Expense>()), 2)
+    }
+
     func testACleanStoreIsLeftAlone() throws {
         let context = try makeContext()
         context.insert(Expense(name: "Gym", amount: 45, category: .health))

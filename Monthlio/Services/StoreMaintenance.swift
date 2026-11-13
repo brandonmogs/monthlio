@@ -8,11 +8,19 @@ import SwiftData
 ///
 /// Every rule is device-independent: the survivor is chosen by a synced
 /// value (older creation, larger cap, newer update), never by local row
-/// order, and exact ties are left alone. A local tie-break would make each
+/// order, and ties are left alone. A local tie-break would make each
 /// device keep its own copy and delete the other's, and once both deletes
 /// sync the row is gone everywhere.
+///
+/// Timestamps within `timestampTolerance` of each other count as a tie:
+/// a backup writes dates with millisecond precision while `Date.now`
+/// carries more, so a restored copy of a row is a hair "older" than its
+/// original. Without the tolerance the live row would lose to its own
+/// backup copy the moment sync carried both, and that delete would sync.
 @MainActor
 enum StoreMaintenance {
+    nonisolated static let timestampTolerance: TimeInterval = 0.001
+
     struct Report: Equatable {
         var expensesRemoved = 0
         var budgetsRemoved = 0
@@ -29,11 +37,11 @@ enum StoreMaintenance {
         var report = Report()
 
         // Expenses: one row per UUID; the oldest creation (the original)
-        // stays and strictly newer copies go.
+        // stays and copies created clearly later go.
         if let expenses = try? context.fetch(FetchDescriptor<Expense>()) {
             for rows in Dictionary(grouping: expenses, by: \.id).values where rows.count > 1 {
                 let oldest = rows.map(\.createdAt).min()!
-                for row in rows where row.createdAt > oldest {
+                for row in rows where row.createdAt.timeIntervalSince(oldest) > timestampTolerance {
                     context.delete(row)
                     report.expensesRemoved += 1
                 }
@@ -52,11 +60,11 @@ enum StoreMaintenance {
             }
         }
 
-        // Snapshots: one row per month; strictly older updates go.
+        // Snapshots: one row per month; clearly older updates go.
         if let snapshots = try? context.fetch(FetchDescriptor<MonthSnapshot>()) {
             for rows in Dictionary(grouping: snapshots, by: \.key).values where rows.count > 1 {
                 let newest = rows.map(\.updatedAt).max()!
-                for row in rows where row.updatedAt < newest {
+                for row in rows where newest.timeIntervalSince(row.updatedAt) > timestampTolerance {
                     context.delete(row)
                     report.snapshotsRemoved += 1
                 }

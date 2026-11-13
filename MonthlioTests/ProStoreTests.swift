@@ -1,3 +1,4 @@
+import StoreKit
 import XCTest
 @testable import Monthlio
 
@@ -7,6 +8,7 @@ private final class FakeProClient: ProStoreClient {
     var purchaseResult: ProPurchaseResult = .purchased
     var purchaseError: Error?
     var restoreError: Error?
+    var restoreDelay: Duration = .zero
     var entitled = false
     var revoked = false
     var originalBuild: String?
@@ -36,6 +38,7 @@ private final class FakeProClient: ProStoreClient {
     func restore() async throws {
         restores += 1
         if let restoreError { throw restoreError }
+        if restoreDelay > .zero { try? await Task.sleep(for: restoreDelay) }
     }
 
     func hasEntitlement(for id: String) async -> Bool { entitled }
@@ -343,7 +346,29 @@ final class ProStoreTests: XCTestCase {
 
         XCTAssertTrue(store.isGrandfathered)
         XCTAssertTrue(store.canSync)
-        XCTAssertNil(store.lastError, "a free-sync account isn't told no purchase was found")
+        // The sync page closes for a free-sync account before this is read;
+        // on the Pro page it is the only feedback the tap gets.
+        XCTAssertEqual(store.lastError, "No Monthlio Pro purchase was found for this Apple Account.")
+    }
+
+    func testACancelledRestoreIsQuietAndRestoresDoNotOverlap() async {
+        let client = FakeProClient()
+        client.restoreError = StoreKitError.userCancelled
+        let store = ProStore(client: client, defaults: defaults)
+        await store.start()
+
+        await store.restore()
+        XCTAssertNil(store.lastError, "cancelling the sign-in sheet is not an error")
+        XCTAssertFalse(store.isRestoring)
+
+        client.restoreError = nil
+        client.restoreDelay = .milliseconds(50)
+        async let first: Void = store.restore()
+        try? await Task.sleep(for: .milliseconds(5))
+        XCTAssertTrue(store.isRestoring)
+        await store.restore()
+        await first
+        XCTAssertEqual(client.restores, 2, "the tap during the first restore did nothing")
     }
 
     func testOriginalBuildIsAskedAgainWhenTheAppStoreCantAnswer() async {

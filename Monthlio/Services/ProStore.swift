@@ -158,6 +158,7 @@ final class ProStore {
     /// Downloaded before Pro existed, so sync is free on this account.
     private(set) var isGrandfathered: Bool
     private(set) var isPurchasing = false
+    private(set) var isRestoring = false
     private(set) var isLoadingProduct = false
     private(set) var lastError: String?
     /// Pauses between product requests before the paywall offers "Try
@@ -302,16 +303,26 @@ final class ProStore {
         return true
     }
 
+    /// Asks the App Store for this account's purchases. One at a time: a
+    /// second tap while the first is still signing in would open a second
+    /// sign-in sheet. Cancelling that sheet is not an error. When nothing
+    /// is found the page says so, for early supporters too: their free
+    /// sync is explained by the note above the benefits, not by silence.
     func restore() async {
+        guard !isRestoring else { return }
+        isRestoring = true
+        defer { isRestoring = false }
         lastError = nil
         do {
             try await client.restore()
+        } catch StoreKitError.userCancelled {
+            return
         } catch {
             lastError = error.localizedDescription
         }
         await refreshEntitlement()
         await recordOriginalBuildIfNeeded()
-        if !isEntitled, !isGrandfathered, lastError == nil {
+        if !isEntitled, lastError == nil {
             lastError = String(localized: "No Monthlio Pro purchase was found for this Apple Account.")
         }
     }

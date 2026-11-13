@@ -158,7 +158,7 @@ struct PaywallBody: View {
                             Task { await restore() }
                         }
                         .font(.subheadline)
-                        .disabled(pro.isPurchasing)
+                        .disabled(pro.isPurchasing || pro.isRestoring)
 
                         if !pro.isEntitled {
                             codeSection

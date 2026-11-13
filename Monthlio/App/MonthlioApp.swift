@@ -143,10 +143,9 @@ struct MonthlioApp: App {
         }
     }
 
-    /// Opens the iCloud-backed store when sync is on, and a local store
-    /// otherwise or if CloudKit isn't available, so the app always launches.
-    /// A store that can't be opened at all is set aside rather than left
-    /// to crash every launch.
+    /// Opens the store through `StoreOpener` (the iCloud-backed container
+    /// when sync is on and CloudKit agrees, a local one otherwise, a set-aside
+    /// file when it can't be opened) and records what happened for Settings.
     private static func makeContainer(cloud wantsCloud: Bool) -> ModelContainer {
         #if DEBUG
         // UI tests pass -MonthlioInMemory so nothing on the device is touched.
@@ -157,52 +156,11 @@ struct MonthlioApp: App {
             }
         }
         #endif
-        try? FileManager.default.createDirectory(at: storeURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if let container = openStore(cloud: wantsCloud) {
-            return container
-        }
-        // Corrupt, or a migration this build can't perform. Keep the file
-        // for recovery and start fresh: a backup or iCloud sync brings the
-        // data back, a crash loop brings nothing back.
-        storeRecoveryNotice = setAsideStore(in: URL.applicationSupportDirectory)
-        if let container = openStore(cloud: wantsCloud) {
-            return container
-        }
-        let memory = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none)
-        do {
-            return try ModelContainer(for: schema, configurations: memory)
-        } catch {
-            fatalError("Failed to create even an in-memory ModelContainer: \(error)")
-        }
-    }
-
-    /// Opens the pinned store: CloudKit-backed when wanted, local otherwise
-    /// or when CloudKit refuses. A store whose version matches none in the
-    /// migration plan (a 1.0 build 1 file never opened since) is tried
-    /// once more without the plan, which is the automatic lightweight
-    /// migration every build before 1.4 relied on.
-    private static func openStore(cloud wantsCloud: Bool) -> ModelContainer? {
-        func attempt(_ configuration: ModelConfiguration, label: String, plan: Bool) -> ModelContainer? {
-            do {
-                return plan
-                    ? try ModelContainer(for: schema, migrationPlan: MonthlioMigrationPlan.self, configurations: [configuration])
-                    : try ModelContainer(for: schema, configurations: [configuration])
-            } catch {
-                log.error("Couldn't open the \(label, privacy: .public) store (plan \(plan)): \(error.localizedDescription, privacy: .public)")
-                if label == "iCloud" { cloudOpenFailure = error.localizedDescription }
-                return nil
-            }
-        }
-        if wantsCloud {
-            let cloud = ModelConfiguration(schema: schema, url: storeURL, cloudKitDatabase: .automatic)
-            if let container = attempt(cloud, label: "iCloud", plan: true) ?? attempt(cloud, label: "iCloud", plan: false) {
-                isCloudSyncEnabled = true
-                cloudOpenFailure = nil
-                return container
-            }
-        }
-        let local = ModelConfiguration(schema: schema, url: storeURL, cloudKitDatabase: .none)
-        return attempt(local, label: "local", plan: true) ?? attempt(local, label: "local", plan: false)
+        let result = StoreOpener.open(at: storeURL, cloud: wantsCloud, schema: schema)
+        isCloudSyncEnabled = result.isCloud
+        cloudOpenFailure = result.cloudFailure
+        storeRecoveryNotice = result.recoveryNotice
+        return result.container
     }
 
     /// Copies every row the group store has and the app store lacks (same

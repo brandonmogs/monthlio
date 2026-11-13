@@ -73,33 +73,22 @@ struct CurrencySettingsView: View {
         )
     }
 
-    /// Switches base. Existing rows are never deleted: they stay tagged with
-    /// the old base. If the old converter knows the new base's rate, derived
-    /// rates for the new base are added (without overwriting ones the user
-    /// already entered for it); otherwise the user is told to enter them.
+    /// Switches base through `BaseCurrencyChange` and shows what follows:
+    /// an offer to convert stored amounts, or which rates are still needed.
     private func changeBase(to newBase: String) {
-        let oldBase = currencyStore.baseCode
-        guard newBase != oldBase else { return }
-        let pivot = currencyStore.converter.rate(for: newBase)
-        let rebased = currencyStore.converter.rebased(to: newBase)
-
-        for (code, value) in rebased.rates where !rates.contains(where: { $0.code == code && $0.applies(to: newBase) }) {
-            modelContext.insert(ExchangeRate(code: code, rateToBase: value, baseCode: newBase))
-        }
-        AppSettings.current(in: modelContext).baseCurrencyCode = newBase
-        if modelContext.saveReporting("the base currency") != nil {
+        switch BaseCurrencyChange.apply(newBase: newBase, converter: currencyStore.converter, rates: rates, expenses: expenses, in: modelContext) {
+        case .unchanged:
+            break
+        case .failed:
             Haptics.warning()
-            return
-        }
-        Haptics.selection()
-
-        let stillMissing = Set(expenses.map(\.currencyCode)).subtracting([newBase])
-            .contains { code in !rates.contains { $0.code == code && $0.applies(to: newBase) } && rebased.rates[code] == nil }
-        if let pivot {
-            // Rates followed automatically; stored amounts only on request.
-            pendingConversion = PendingBaseConversion(from: oldBase, to: newBase, pivot: pivot)
-        } else if stillMissing {
-            pendingBaseWithoutPivot = newBase
+        case .convertible(let conversion):
+            Haptics.selection()
+            pendingConversion = conversion
+        case .ratesMissing(let base):
+            Haptics.selection()
+            pendingBaseWithoutPivot = base
+        case .done:
+            Haptics.selection()
         }
     }
 }

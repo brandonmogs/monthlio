@@ -54,6 +54,21 @@ final class DeviceSettingsTests: XCTestCase {
         XCTAssertFalse(DeviceSettings.remindersEnabled(defaults))
     }
 
+    func testALockWithoutAPasscodeIsTurnedOffAndReported() {
+        DeviceSettings.setLockEnabled(true, defaults)
+        let kept = DeviceSettings.resolveLock(canAuthenticate: true, defaults)
+        XCTAssertEqual(kept.enabled, true)
+        XCTAssertFalse(kept.turnedOffForMissingPasscode)
+
+        let dropped = DeviceSettings.resolveLock(canAuthenticate: false, defaults)
+        XCTAssertFalse(dropped.enabled)
+        XCTAssertTrue(dropped.turnedOffForMissingPasscode, "the user is told why")
+        XCTAssertFalse(DeviceSettings.isLockEnabled(defaults), "and the setting follows, so Settings shows it off")
+
+        let off = DeviceSettings.resolveLock(canAuthenticate: false, defaults)
+        XCTAssertFalse(off.turnedOffForMissingPasscode, "nothing to report when the lock was already off")
+    }
+
     func testHourLabelUsesTheCalendar() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.locale = Locale(identifier: "en_US")

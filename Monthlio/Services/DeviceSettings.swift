@@ -51,6 +51,20 @@ enum DeviceSettings {
         defaults.set(enabled, forKey: lockEnabledKey)
     }
 
+    /// Whether the lock engages at launch. A lock turned on while the device
+    /// had a passcode must not keep the app shut after the passcode is
+    /// removed: every unlock would fail with "set a passcode", and the switch
+    /// to turn the lock off sits behind it. Removing a passcode needed the
+    /// old one, so the lock is turned off and the user is told.
+    static func resolveLock(canAuthenticate: Bool, _ defaults: UserDefaults = standard) -> (enabled: Bool, turnedOffForMissingPasscode: Bool) {
+        guard isLockEnabled(defaults) else { return (false, false) }
+        guard canAuthenticate else {
+            setLockEnabled(false, defaults)
+            return (false, true)
+        }
+        return (true, false)
+    }
+
     static func lockGrace(_ defaults: UserDefaults = standard) -> LockGrace {
         guard defaults.object(forKey: lockGraceKey) != nil else { return .default }
         return LockGrace(rawValue: defaults.integer(forKey: lockGraceKey)) ?? .default

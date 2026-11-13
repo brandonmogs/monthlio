@@ -17,6 +17,7 @@ struct RootTabView: View {
     @State private var deleted = DeletedExpenseBuffer()
     @State private var selectedTab = Tab.initial
     @State private var showingRecoveryNotice = MonthlioApp.storeRecoveryNotice != nil
+    @State private var showingLockNotice = MonthlioApp.lockTurnedOffForMissingPasscode
     private let syncStatus = SyncStatusMonitor.shared
     @AppStorage(DeviceSettings.remindersEnabledKey, store: SyncPreference.standard) private var remindersEnabled = false
     @AppStorage(DeviceSettings.reminderHourKey, store: SyncPreference.standard) private var reminderHour = DeviceSettings.defaultReminderHour
@@ -91,6 +92,11 @@ struct RootTabView: View {
                 Button("OK") {}
             } message: {
                 Text(MonthlioApp.storeRecoveryNotice?.message ?? "")
+            }
+            .alert("The app lock is off", isPresented: $showingLockNotice) {
+                Button("OK") {}
+            } message: {
+                Text("This device has no passcode, so Monthlio can't lock. Set a passcode in the Settings app, then turn the lock back on in Monthlio's Settings.")
             }
     }
 

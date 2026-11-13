@@ -24,6 +24,9 @@ struct MonthlioApp: App {
     /// Lock and reminder flags found on a merged 1.3 group store, so a
     /// setting turned on during 1.3 survives the move to device settings.
     private(set) static var mergedLegacyFlags: (lock: Bool, reminders: Bool) = (false, false)
+    /// The lock was on but this device no longer has a passcode; RootTabView
+    /// tells the user once.
+    private(set) static var lockTurnedOffForMissingPasscode = false
 
     init() {
         var touchesDisk = true
@@ -73,12 +76,15 @@ struct MonthlioApp: App {
         // The lock and reminders are device settings; adopt what the synced
         // row carried (on either store, if a 1.3 group store was merged),
         // once, and only a lock this device can open.
+        let canAuthenticate = DeviceAuthenticator().canAuthenticate
         DeviceSettings.migrateIfNeeded(
             lockWasEnabled: (settings?.requireAuthentication ?? false) || MonthlioApp.mergedLegacyFlags.lock,
             remindersWereEnabled: (settings?.notificationsEnabled ?? false) || MonthlioApp.mergedLegacyFlags.reminders,
-            canAuthenticate: DeviceAuthenticator().canAuthenticate
+            canAuthenticate: canAuthenticate
         )
-        var lockEnabled = DeviceSettings.isLockEnabled()
+        let lockState = DeviceSettings.resolveLock(canAuthenticate: canAuthenticate)
+        MonthlioApp.lockTurnedOffForMissingPasscode = lockState.turnedOffForMissingPasscode
+        var lockEnabled = lockState.enabled
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-MonthlioLocked") { lockEnabled = true }
         #endif

@@ -16,7 +16,7 @@ struct HistoryBarChart: View {
                 Text("History")
                     .font(.headline)
                 Spacer()
-                Text("Last ^[\(snapshots.count) month](inflect: true)")
+                Text("Last ^[\(SnapshotService.monthSpan(of: snapshots)) month](inflect: true)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -47,6 +47,10 @@ struct HistoryBarChart: View {
                 }
             }
             .frame(height: 160)
+            // Snapshots are keyed on Gregorian months; the chart bins and
+            // labels by the environment calendar, which on a Buddhist,
+            // Japanese or Islamic device is not the one the keys were cut in.
+            .environment(\.calendar, Calendar.gregorianLocal)
         }
         .padding(16)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))

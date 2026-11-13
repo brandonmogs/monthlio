@@ -44,6 +44,13 @@ enum SnapshotService {
             .sorted { $0.monthStart < $1.monthStart }
     }
 
+    /// Months from the oldest to the newest snapshot, inclusive: a window
+    /// with gaps is described by its span, not by how many rows it has.
+    static func monthSpan(of snapshots: [MonthSnapshot], calendar: Calendar = .gregorianLocal) -> Int {
+        guard let first = snapshots.map(\.monthStart).min(), let last = snapshots.map(\.monthStart).max() else { return 0 }
+        return (calendar.dateComponents([.month], from: first, to: last).month ?? 0) + 1
+    }
+
     /// One row per month key, keeping the most recently updated. Sync can
     /// briefly produce duplicates when two devices write the same month.
     static func deduplicated(_ snapshots: [MonthSnapshot]) -> [MonthSnapshot] {

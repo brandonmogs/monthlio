@@ -27,6 +27,12 @@ final class SnapshotServiceTests: XCTestCase {
         XCTAssertEqual(history.map(\.key), ["2026-07", "2026-08", "2026-09"])
     }
 
+    func testMonthSpanCountsTheWindowNotTheRows() {
+        XCTAssertEqual(SnapshotService.monthSpan(of: snapshots(), calendar: calendar), 7, "March to September, with gaps")
+        XCTAssertEqual(SnapshotService.monthSpan(of: [MonthSnapshot(year: 2026, month: 9, total: 1)], calendar: calendar), 1)
+        XCTAssertEqual(SnapshotService.monthSpan(of: [], calendar: calendar), 0)
+    }
+
     func testDeltaAgainstPreviousMonth() {
         let delta = SnapshotService.delta(currentTotal: 3453, snapshots: snapshots(), now: date(2026, 9), calendar: calendar)
         XCTAssertEqual(delta?.amount, 153)

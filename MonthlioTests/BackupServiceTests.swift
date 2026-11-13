@@ -127,6 +127,42 @@ final class BackupServiceTests: XCTestCase {
         XCTAssertEqual(try target.fetch(FetchDescriptor<CategoryBudget>()).first?.cap, 550)
     }
 
+    func testReplaceRewritesRowsInPlaceInsteadOfReinsertingThem() throws {
+        // A delete-then-insert of the same identity would reach other
+        // devices as an original beside a restored copy; rewriting the row
+        // keeps one identity per id, category, rate and month.
+        let source = try makeContext()
+        try seed(source)
+        let document = try BackupService.document(from: source)
+        let rentRecord = try XCTUnwrap(document.expenses.first { $0.name == "Rent" })
+
+        let target = try makeContext()
+        let staleRent = Expense(id: rentRecord.id, name: "Rent (old)", amount: 1000, category: .housing)
+        let localOnly = Expense(name: "Local only", amount: 10, category: .other)
+        let staleBudget = CategoryBudget(category: .food, cap: 999)
+        let staleSnapshot = MonthSnapshot(year: 2026, month: 8, total: 1, updatedAt: Date(timeIntervalSince1970: 1))
+        let staleRate = ExchangeRate(code: "EUR", rateToBase: 2, baseCode: "USD", updatedAt: Date(timeIntervalSince1970: 1))
+        for row in [staleRent, localOnly] { target.insert(row) }
+        target.insert(staleBudget); target.insert(staleSnapshot); target.insert(staleRate)
+        try target.save()
+
+        let summary = try BackupService.restore(document, into: target, mode: .replace)
+
+        XCTAssertEqual(summary, RestoreSummary(expensesAdded: 3, expensesSkipped: 0, budgetsAdded: 1, ratesAdded: 1, snapshotsAdded: 1))
+        let rent = try XCTUnwrap(try target.fetch(FetchDescriptor<Expense>(predicate: #Predicate { $0.name == "Rent" })).first)
+        XCTAssertTrue(rent === staleRent, "the existing row was rewritten, not replaced by a copy")
+        XCTAssertEqual(rent.amount, 1900)
+        XCTAssertEqual(rent.createdAt, rentRecord.createdAt)
+        XCTAssertEqual(try target.fetchCount(FetchDescriptor<Expense>()), 3)
+        XCTAssertTrue(try target.fetch(FetchDescriptor<Expense>(predicate: #Predicate { $0.name == "Local only" })).isEmpty, "a row the backup doesn't know goes")
+        XCTAssertTrue(try XCTUnwrap(try target.fetch(FetchDescriptor<CategoryBudget>()).first) === staleBudget)
+        XCTAssertEqual(staleBudget.cap, 550)
+        XCTAssertTrue(try XCTUnwrap(try target.fetch(FetchDescriptor<MonthSnapshot>()).first) === staleSnapshot)
+        XCTAssertEqual(staleSnapshot.total, 3410)
+        XCTAssertTrue(try XCTUnwrap(try target.fetch(FetchDescriptor<ExchangeRate>()).first) === staleRate)
+        XCTAssertEqual(staleRate.rateToBase, Decimal(string: "1.08"))
+    }
+
     func testDecodeRejectsForeignFilesAndNewerVersions() throws {
         XCTAssertThrowsError(try BackupService.decode(Data("not json".utf8))) { XCTAssertEqual($0 as? BackupError, .unreadable) }
         XCTAssertThrowsError(try BackupService.decode(Data("{\"hello\": 1}".utf8))) { XCTAssertEqual($0 as? BackupError, .notABackup) }

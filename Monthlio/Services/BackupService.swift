@@ -103,74 +103,117 @@ enum BackupService {
         return expenses == 0 && budgets == 0 && rates == 0 && snapshots == 0 && income == 0 && !chosenBase
     }
 
+    /// Replace rewrites the rows the backup knows rather than deleting and
+    /// re-inserting them: on a synced store a delete-then-insert of the same
+    /// identity reaches other devices as an original beside a restored copy,
+    /// each device picks a survivor, and the deletes sync. Only rows the
+    /// backup doesn't know are removed. Merge adds what is missing and keeps
+    /// what is here.
     @discardableResult
     static func restore(_ document: BackupDocument, into context: ModelContext, mode: RestoreMode) throws -> RestoreSummary {
         var summary = RestoreSummary()
+        let replacing = mode == .replace
 
-        if mode == .replace {
-            // One object at a time: store-level batch deletes are not mirrored
-            // to CloudKit, so they would come back from other devices.
-            for expense in try context.fetch(FetchDescriptor<Expense>()) { context.delete(expense) }
-            for budget in try context.fetch(FetchDescriptor<CategoryBudget>()) { context.delete(budget) }
-            for rate in try context.fetch(FetchDescriptor<ExchangeRate>()) { context.delete(rate) }
-            for snapshot in try context.fetch(FetchDescriptor<MonthSnapshot>()) { context.delete(snapshot) }
-        }
-
-        // Ids already in the store, plus each id as it is restored, so a
-        // backup that itself carries a duplicated row restores it once.
-        var existingIDs = Set(try context.fetch(FetchDescriptor<Expense>()).map(\.id))
+        // Expenses, by id. A backup that itself carries a duplicated row
+        // restores it once; duplicates already in the store collapse too.
+        let expenses = try context.fetch(FetchDescriptor<Expense>())
+        var expenseByID: [UUID: Expense] = [:]
+        for expense in expenses where expenseByID[expense.id] == nil { expenseByID[expense.id] = expense }
+        var seenExpenses = Set<UUID>()
         for record in document.expenses {
-            guard existingIDs.insert(record.id).inserted,
+            guard seenExpenses.insert(record.id).inserted,
                   let amount = Decimal(backupString: record.amount), MoneyLimits.isValidAmount(amount) else {
                 summary.expensesSkipped += 1
                 continue
             }
             let name = MoneyLimits.clampedName(record.name)
             guard !name.isEmpty else { summary.expensesSkipped += 1; continue }
-            let expense = Expense(
-                id: record.id,
-                name: name,
-                amount: amount,
-                currencyCode: record.currencyCode,
-                category: ExpenseCategory(rawValue: record.category) ?? .other,
-                cadence: Cadence(rawValue: record.cadence) ?? .monthly,
-                dueDay: record.dueDay.flatMap { (1...31).contains($0) ? $0 : nil },
-                chargeDate: record.chargeDate,
-                isActive: record.isActive,
-                notes: record.notes.map(MoneyLimits.clampedNotes).flatMap { $0.isEmpty ? nil : $0 },
-                createdAt: record.createdAt
-            )
-            expense.previousAmount = record.previousAmount.flatMap(Decimal.init(backupString:))
-            expense.amountChangedAt = record.amountChangedAt
-            expense.colorHex = ExpenseColor.canonicalHex(record.colorHex)
-            expense.reminderDate = record.reminderDate
-            context.insert(expense)
+            if let existing = expenseByID[record.id] {
+                guard replacing else { summary.expensesSkipped += 1; continue }
+                apply(record, name: name, amount: amount, to: existing)
+            } else {
+                let expense = Expense(id: record.id, name: name, amount: amount, category: .other)
+                apply(record, name: name, amount: amount, to: expense)
+                context.insert(expense)
+            }
             summary.expensesAdded += 1
         }
+        if replacing {
+            for expense in expenses where !seenExpenses.contains(expense.id) || expenseByID[expense.id] !== expense {
+                context.delete(expense)
+            }
+        }
 
-        let existingBudgets = Set(try context.fetch(FetchDescriptor<CategoryBudget>()).map(\.categoryRaw))
+        // Budgets, by category.
+        let budgets = try context.fetch(FetchDescriptor<CategoryBudget>())
+        var budgetByCategory: [String: CategoryBudget] = [:]
+        for budget in budgets where budgetByCategory[budget.categoryRaw] == nil { budgetByCategory[budget.categoryRaw] = budget }
+        var seenBudgets = Set<String>()
         for record in document.budgets {
-            guard !existingBudgets.contains(record.category),
-                  let category = ExpenseCategory(rawValue: record.category),
-                  let cap = Decimal(backupString: record.cap), MoneyLimits.isValidAmount(cap) else { continue }
-            context.insert(CategoryBudget(category: category, cap: cap))
+            guard let category = ExpenseCategory(rawValue: record.category),
+                  let cap = Decimal(backupString: record.cap), MoneyLimits.isValidAmount(cap),
+                  seenBudgets.insert(record.category).inserted else { continue }
+            if let existing = budgetByCategory[record.category] {
+                guard replacing else { continue }
+                if existing.cap != cap { existing.cap = cap }
+            } else {
+                context.insert(CategoryBudget(category: category, cap: cap))
+            }
             summary.budgetsAdded += 1
         }
-
-        let existingRates = Set(try context.fetch(FetchDescriptor<ExchangeRate>()).map { "\($0.code)/\($0.baseCode)" })
-        for record in document.exchangeRates {
-            guard !existingRates.contains("\(record.code)/\(record.baseCode)"),
-                  let rate = Decimal(backupString: record.rateToBase), MoneyLimits.isValidRate(rate) else { continue }
-            context.insert(ExchangeRate(code: record.code, rateToBase: rate, baseCode: record.baseCode, updatedAt: record.updatedAt))
-            summary.ratesAdded += 1
+        if replacing {
+            for budget in budgets where !seenBudgets.contains(budget.categoryRaw) || budgetByCategory[budget.categoryRaw] !== budget {
+                context.delete(budget)
+            }
         }
 
-        let existingSnapshots = Set(try context.fetch(FetchDescriptor<MonthSnapshot>()).map(\.key))
+        // Exchange rates, by currency and base.
+        let rates = try context.fetch(FetchDescriptor<ExchangeRate>())
+        var rateByKey: [String: ExchangeRate] = [:]
+        for rate in rates where rateByKey["\(rate.code)/\(rate.baseCode)"] == nil { rateByKey["\(rate.code)/\(rate.baseCode)"] = rate }
+        var seenRates = Set<String>()
+        for record in document.exchangeRates {
+            let key = "\(record.code)/\(record.baseCode)"
+            guard let rate = Decimal(backupString: record.rateToBase), MoneyLimits.isValidRate(rate),
+                  seenRates.insert(key).inserted else { continue }
+            if let existing = rateByKey[key] {
+                guard replacing else { continue }
+                if existing.rateToBase != rate { existing.rateToBase = rate }
+                if existing.updatedAt != record.updatedAt { existing.updatedAt = record.updatedAt }
+            } else {
+                context.insert(ExchangeRate(code: record.code, rateToBase: rate, baseCode: record.baseCode, updatedAt: record.updatedAt))
+            }
+            summary.ratesAdded += 1
+        }
+        if replacing {
+            for rate in rates where !seenRates.contains("\(rate.code)/\(rate.baseCode)") || rateByKey["\(rate.code)/\(rate.baseCode)"] !== rate {
+                context.delete(rate)
+            }
+        }
+
+        // Month history, by month key.
+        let snapshots = try context.fetch(FetchDescriptor<MonthSnapshot>())
+        var snapshotByKey: [String: MonthSnapshot] = [:]
+        for snapshot in snapshots where snapshotByKey[snapshot.key] == nil { snapshotByKey[snapshot.key] = snapshot }
+        var seenSnapshots = Set<String>()
         for record in document.snapshots {
-            guard (1...12).contains(record.month), !existingSnapshots.contains(MonthSnapshot.key(year: record.year, month: record.month)),
+            guard (1...12).contains(record.month),
                   let total = Decimal(backupString: record.total), MoneyLimits.isValidOrZero(total) else { continue }
-            context.insert(MonthSnapshot(year: record.year, month: record.month, total: total, updatedAt: record.updatedAt))
+            let key = MonthSnapshot.key(year: record.year, month: record.month)
+            guard seenSnapshots.insert(key).inserted else { continue }
+            if let existing = snapshotByKey[key] {
+                guard replacing else { continue }
+                if existing.total != total { existing.total = total }
+                if existing.updatedAt != record.updatedAt { existing.updatedAt = record.updatedAt }
+            } else {
+                context.insert(MonthSnapshot(year: record.year, month: record.month, total: total, updatedAt: record.updatedAt))
+            }
             summary.snapshotsAdded += 1
+        }
+        if replacing {
+            for snapshot in snapshots where !seenSnapshots.contains(snapshot.key) || snapshotByKey[snapshot.key] !== snapshot {
+                context.delete(snapshot)
+            }
         }
 
         if let record = document.settings {
@@ -186,5 +229,27 @@ enum BackupService {
 
         try context.save()
         return summary
+    }
+
+    /// Writes a backup record into a row, touching only fields that differ
+    /// so an unchanged row isn't marked modified (and re-exported to iCloud).
+    private static func apply(_ record: BackupDocument.ExpenseRecord, name: String, amount: Decimal, to expense: Expense) {
+        func set<T: Equatable>(_ keyPath: ReferenceWritableKeyPath<Expense, T>, _ value: T) {
+            if expense[keyPath: keyPath] != value { expense[keyPath: keyPath] = value }
+        }
+        set(\.name, name)
+        set(\.amount, amount)
+        set(\.currencyCode, record.currencyCode)
+        set(\.categoryRaw, (ExpenseCategory(rawValue: record.category) ?? .other).rawValue)
+        set(\.cadenceRaw, (Cadence(rawValue: record.cadence) ?? .monthly).rawValue)
+        set(\.dueDay, record.dueDay.flatMap { (1...31).contains($0) ? $0 : nil })
+        set(\.chargeDate, record.chargeDate)
+        set(\.isActive, record.isActive)
+        set(\.notes, record.notes.map(MoneyLimits.clampedNotes).flatMap { $0.isEmpty ? nil : $0 })
+        set(\.createdAt, record.createdAt)
+        set(\.previousAmount, record.previousAmount.flatMap(Decimal.init(backupString:)))
+        set(\.amountChangedAt, record.amountChangedAt)
+        set(\.colorHex, ExpenseColor.canonicalHex(record.colorHex))
+        set(\.reminderDate, record.reminderDate)
     }
 }

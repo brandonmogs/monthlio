@@ -28,7 +28,7 @@ struct CategoryLegendRow: View {
                     }
                     Spacer(minLength: 8)
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text(slice.amount.rounded().currencyString)
+                        Text(slice.amount.roundedForBase.currencyString)
                             .font(.body.weight(.semibold))
                             .monospacedDigit()
                             .lineLimit(1)
@@ -62,11 +62,11 @@ struct CategoryLegendRow: View {
     }
 
     private func budgetCaption(_ progress: BudgetProgress) -> Text {
-        let cap = progress.cap.rounded().currencyString
+        let cap = progress.cap.roundedForBase.currencyString
         if progress.status == .over {
-            return Text("\(progress.remaining.magnitude.rounded().currencyString) over \(cap) budget")
+            return Text("\(progress.remaining.magnitude.roundedForBase.currencyString) over \(cap) budget")
         }
-        return Text("\(progress.remaining.rounded().currencyString) left of \(cap)")
+        return Text("\(progress.remaining.roundedForBase.currencyString) left of \(cap)")
     }
 }
 

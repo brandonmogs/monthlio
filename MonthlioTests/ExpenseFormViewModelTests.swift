@@ -246,6 +246,23 @@ final class ExpenseFormViewModelTests: XCTestCase {
         XCTAssertNil(vm.resolvedChargeDate)
     }
 
+    @MainActor
+    func testAmountsAreSavedInTheCurrencysMinorUnits() throws {
+        let container = try TestContainer.make()
+        let yen = viewModel(amount: Decimal(string: "1500.5")!)
+        yen.currencyCode = "JPY"
+        XCTAssertTrue(try yen.save(in: container.mainContext))
+        let saved = try XCTUnwrap(try container.mainContext.fetch(FetchDescriptor<Expense>()).first)
+        XCTAssertEqual(saved.amount, 1501, "a yen has no fraction")
+
+        let dinar = ExpenseFormViewModel(expense: saved)
+        dinar.currencyCode = "KWD"
+        dinar.amount = Decimal(string: "4.005")
+        XCTAssertTrue(try dinar.save(in: container.mainContext))
+        XCTAssertEqual(saved.amount, Decimal(string: "4.005"), "three places survive")
+        XCTAssertEqual(dinar.monthlyPreview, Decimal(string: "4.005"))
+    }
+
     func testRateBounds() {
         XCTAssertTrue(MoneyLimits.isValidRate(Decimal(string: "1.08")!))
         XCTAssertFalse(MoneyLimits.isValidRate(0))

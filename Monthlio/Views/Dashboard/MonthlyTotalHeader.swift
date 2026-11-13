@@ -40,13 +40,13 @@ struct MonthlyTotalHeader: View {
     }
 
     private var amount: Decimal {
-        selectedSlice?.amount.rounded() ?? total.rounded()
+        selectedSlice?.amount.roundedForBase ?? total.roundedForBase
     }
 
     private var subtitle: Text {
         if let selectedSlice {
             let share = selectedSlice.percentage.formatted(.percent.precision(.fractionLength(0)))
-            return Text("\(share) of \(total.rounded().currencyString) · ^[\(selectedSlice.count) expense](inflect: true)")
+            return Text("\(share) of \(total.roundedForBase.currencyString) · ^[\(selectedSlice.count) expense](inflect: true)")
         }
         return Text("^[\(activeCount) active expense](inflect: true)")
     }
@@ -56,7 +56,7 @@ struct MonthlyTotalHeader: View {
         let color: Color = delta.isFlat ? .secondary : (delta.isIncrease ? .red : .green)
         let text: Text = delta.isFlat
             ? Text("Same as \(delta.previousMonthLabel)")
-            : Text("\(delta.amount.magnitude.rounded().currencyString) vs \(delta.previousMonthLabel)")
+            : Text("\(delta.amount.magnitude.roundedForBase.currencyString) vs \(delta.previousMonthLabel)")
 
         return Label { text } icon: { Image(systemName: symbol) }
             .font(.caption.weight(.semibold))

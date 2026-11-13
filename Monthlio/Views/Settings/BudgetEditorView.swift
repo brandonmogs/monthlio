@@ -88,7 +88,7 @@ private struct BudgetRow: View {
     /// Words as well as color: "over budget" and "near the cap" read the
     /// same to everyone.
     private var spendingLine: String {
-        let spending = String(localized: "Spending \(spent.rounded().currencyString)/mo")
+        let spending = String(localized: "Spending \(spent.roundedForBase.currencyString)/mo")
         guard let progress = BudgetEvaluator.progress(spent: spent, cap: budget?.cap) else { return spending }
         switch progress.status {
         case .over: return spending + " · " + String(localized: "over budget")

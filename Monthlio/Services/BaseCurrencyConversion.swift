@@ -18,21 +18,21 @@ enum BaseCurrencyConversion {
     /// re-recorded from live expenses the moment the base changes, so
     /// converting it too would double-convert. Returns how many rows changed.
     @discardableResult
-    static func convertStoredAmounts(in context: ModelContext, pivot: Decimal, now: Date = .now, calendar: Calendar = .gregorianLocal) -> Int {
+    static func convertStoredAmounts(in context: ModelContext, pivot: Decimal, to code: String = CurrencyFormat.baseCode, now: Date = .now, calendar: Calendar = .gregorianLocal) -> Int {
         guard let factor = factor(pivot: pivot) else { return 0 }
         let current = calendar.dateComponents([.year, .month], from: now)
         let currentKey = MonthSnapshot.key(year: current.year ?? 0, month: current.month ?? 0)
         var changed = 0
         if let settings = AppSettings.existing(in: context), settings.monthlyIncome > 0 {
-            settings.monthlyIncome = (settings.monthlyIncome * factor).rounded()
+            settings.monthlyIncome = (settings.monthlyIncome * factor).rounded(for: code)
             changed += 1
         }
         for budget in (try? context.fetch(FetchDescriptor<CategoryBudget>())) ?? [] {
-            budget.cap = (budget.cap * factor).rounded()
+            budget.cap = (budget.cap * factor).rounded(for: code)
             changed += 1
         }
         for snapshot in (try? context.fetch(FetchDescriptor<MonthSnapshot>())) ?? [] where snapshot.key != currentKey {
-            snapshot.total = (snapshot.total * factor).rounded()
+            snapshot.total = (snapshot.total * factor).rounded(for: code)
             changed += 1
         }
         if changed > 0, context.saveReporting("the converted amounts") != nil { return 0 }

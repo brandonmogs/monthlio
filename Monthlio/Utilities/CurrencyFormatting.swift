@@ -26,6 +26,24 @@ enum CurrencyFormat {
     static func name(for code: String) -> String {
         Locale.current.localizedString(forCurrencyCode: code) ?? code
     }
+
+    private static let minorUnitsLock = NSLock()
+    nonisolated(unsafe) private static var minorUnitsCache: [String: Int] = [:]
+
+    /// The fraction digits the currency is kept in: 0 for JPY, 2 for USD,
+    /// 3 for KWD. Rounding to two places everywhere turned KWD 4.005 into
+    /// 4.010 and let a JPY amount carry half a yen.
+    static func minorUnits(for code: String) -> Int {
+        minorUnitsLock.lock()
+        defer { minorUnitsLock.unlock() }
+        if let cached = minorUnitsCache[code] { return cached }
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = code
+        let digits = formatter.maximumFractionDigits
+        minorUnitsCache[code] = digits
+        return digits
+    }
 }
 
 extension Decimal {

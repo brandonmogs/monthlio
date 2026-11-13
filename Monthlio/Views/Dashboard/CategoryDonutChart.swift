@@ -21,7 +21,7 @@ struct CategoryDonutChart: View {
             .foregroundStyle(slice.category.color)
             .opacity(opacity(for: slice))
             .accessibilityLabel(slice.category.title)
-            .accessibilityValue(slice.amount.rounded().currencyString)
+            .accessibilityValue(slice.amount.roundedForBase.currencyString)
         }
         .chartAngleSelection(value: $selectedAngle)
         .chartLegend(.hidden)

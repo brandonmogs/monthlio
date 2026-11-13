@@ -140,7 +140,7 @@ final class ExpenseFormViewModel {
 
     var monthlyPreview: Decimal? {
         guard let amount, amount > 0 else { return nil }
-        return cadence.monthlyEquivalent(of: amount).rounded()
+        return cadence.monthlyEquivalent(of: amount).rounded(for: currencyCode)
     }
 
     /// What the schedule fields mean for `cadence`: monthly keeps a due
@@ -179,7 +179,9 @@ final class ExpenseFormViewModel {
     /// throws when the store refuses the save (nothing is then pretended).
     @discardableResult
     func save(in context: ModelContext) throws -> Bool {
-        guard canSave, let amount else { return false }
+        guard canSave, let typed = amount else { return false }
+        // Kept in the currency's minor units: a yen has no fraction.
+        let amount = typed.rounded(for: currencyCode)
         let trimmedNotes = MoneyLimits.clampedNotes(notes)
 
         if let existing {

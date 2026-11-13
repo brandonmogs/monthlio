@@ -12,4 +12,14 @@ extension Decimal {
         NSDecimalRound(&result, &source, scale, .plain)
         return result
     }
+
+    /// Rounded to the currency's minor units (0 for JPY, 3 for KWD).
+    func rounded(for code: String) -> Decimal {
+        rounded(scale: CurrencyFormat.minorUnits(for: code))
+    }
+
+    /// Rounded to the base currency's minor units, for totals and charts.
+    var roundedForBase: Decimal {
+        rounded(for: CurrencyFormat.baseCode)
+    }
 }

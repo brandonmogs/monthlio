@@ -55,7 +55,7 @@ struct ExpenseRow: View {
                         .font(.caption)
                         .foregroundStyle(.orange)
                 } else if expense.cadence != .monthly || expense.currencyCode != currencyStore.baseCode {
-                    Text("≈ \(currencyStore.converter.monthlyCostInBase(of: expense).rounded().currencyString)/mo")
+                    Text("≈ \(currencyStore.converter.monthlyCostInBase(of: expense).roundedForBase.currencyString)/mo")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .monospacedDigit()

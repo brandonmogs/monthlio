@@ -91,7 +91,7 @@ struct ExpenseListView: View {
             if !viewModel.isSearching {
                 Section {
                     LabeledContent("Monthly total") {
-                        Text(ExpenseCalculator.monthlyTotal(expenses, converter: currencyStore.converter).rounded().currencyString)
+                        Text(ExpenseCalculator.monthlyTotal(expenses, converter: currencyStore.converter).roundedForBase.currencyString)
                             .font(.body.weight(.semibold))
                             .monospacedDigit()
                     }
@@ -128,7 +128,7 @@ private struct CategorySectionHeader: View {
                 .foregroundStyle(category.color)
             Text(category.title)
             Spacer()
-            Text("\(monthlyTotal.rounded().currencyString)/mo")
+            Text("\(monthlyTotal.roundedForBase.currencyString)/mo")
                 .monospacedDigit()
         }
     }

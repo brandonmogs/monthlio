@@ -82,12 +82,12 @@ struct SubscriptionRow: View {
             return raw + Text(verbatim: " · ") + Text("Rate needed").foregroundStyle(.orange)
         }
         guard expense.cadence != .monthly || expense.currencyCode != currencyStore.baseCode else { return raw }
-        return raw + Text(verbatim: " · ") + Text("≈ \(currencyStore.converter.monthlyCostInBase(of: expense).rounded().currencyString)/mo")
+        return raw + Text(verbatim: " · ") + Text("≈ \(currencyStore.converter.monthlyCostInBase(of: expense).roundedForBase.currencyString)/mo")
     }
 
     private func increaseLine(from previous: Decimal) -> Text {
         let code = expense.currencyCode
-        let diff = (expense.amount - previous).rounded().currencyString(in: code)
+        let diff = (expense.amount - previous).rounded(for: code).currencyString(in: code)
         let was = previous.currencyString(in: code)
         guard let date = expense.amountChangedAt else { return Text("Up \(diff) from \(was)") }
         return Text("Up \(diff) from \(was) · \(date.formatted(.relative(presentation: .named)))")

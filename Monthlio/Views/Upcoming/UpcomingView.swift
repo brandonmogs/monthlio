@@ -73,7 +73,7 @@ struct UpcomingView: View {
                     Text("Next 30 days")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(UpcomingChargeCalculator.total(of: charges, converter: currencyStore.converter).rounded().currencyString)
+                    Text(UpcomingChargeCalculator.total(of: charges, converter: currencyStore.converter).roundedForBase.currencyString)
                         .font(.title2.weight(.bold))
                         .monospacedDigit()
                         .lineLimit(1)

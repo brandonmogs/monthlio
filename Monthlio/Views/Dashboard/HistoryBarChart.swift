@@ -29,7 +29,7 @@ struct HistoryBarChart: View {
                 .cornerRadius(4)
                 .foregroundStyle(snapshot.key == currentKey ? Color.accentColor : Color.accentColor.opacity(0.35))
                 .accessibilityLabel(snapshot.monthStart.formatted(.dateTime.month(.wide).year()))
-                .accessibilityValue(snapshot.total.rounded().currencyString)
+                .accessibilityValue(snapshot.total.roundedForBase.currencyString)
             }
             .chartXAxis {
                 AxisMarks(values: .stride(by: .month, count: snapshots.count > 6 ? 2 : 1)) { _ in

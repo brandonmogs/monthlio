@@ -58,7 +58,7 @@ struct SubscriptionsView: View {
                     Text("Recurring per month")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text(ExpenseCalculator.monthlyTotal(active, converter: currencyStore.converter).rounded().currencyString)
+                    Text(ExpenseCalculator.monthlyTotal(active, converter: currencyStore.converter).roundedForBase.currencyString)
                         .font(.title2.weight(.bold))
                         .monospacedDigit()
                         .lineLimit(1)

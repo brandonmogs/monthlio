@@ -57,7 +57,7 @@ struct CurrencySettingsView: View {
             set: { if !$0 { pendingConversion = nil } }
         ), presenting: pendingConversion) { conversion in
             Button("Convert") {
-                BaseCurrencyConversion.convertStoredAmounts(in: modelContext, pivot: conversion.pivot, to: conversion.to)
+                BaseCurrencyConversion.convertStoredAmounts(in: modelContext, pivot: conversion.pivot, from: conversion.from, to: conversion.to)
                 Haptics.success()
             }
             Button("Keep the numbers", role: .cancel) {}

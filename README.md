@@ -126,8 +126,10 @@ Things App Store Connect needs that the code can't do for you:
   type and field before a build ships, or every sync export fails. Core
   Data creates the Development schema automatically when a Debug build
   runs on a device or simulator signed in to iCloud; after a model change
-  run such a build once, confirm the new field (1.4: `CD_colorHex` on
-  `CD_Expense`) in CloudKit Console, and deploy Development to Production.
+  run such a build once, confirm the new fields (1.4: `CD_colorHex` on
+  `CD_Expense`; 1.5: `CD_reminderDate` on `CD_Expense` and
+  `CD_currencyCode` on `CD_MonthSnapshot`) in CloudKit Console, and
+  deploy Development to Production.
   As of 2026-10-05 the container had never had a schema in either
   environment, so this step is overdue, not routine.
 - **iPad**: the app now targets iPad, so the listing needs iPad screenshots.

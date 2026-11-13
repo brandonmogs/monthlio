@@ -27,6 +27,18 @@ final class SnapshotServiceTests: XCTestCase {
         XCTAssertEqual(history.map(\.key), ["2026-07", "2026-08", "2026-09"])
     }
 
+    func testMonthsInAnotherCurrencyStayOutOfTheChartAndTheDelta() {
+        let mixed = snapshots() + [MonthSnapshot(year: 2026, month: 6, total: 2800, currencyCode: "EUR")]
+        let usd = SnapshotService.history(from: mixed, months: 6, now: date(2026, 9), calendar: calendar, base: "USD")
+        XCTAssertEqual(usd.map(\.key), ["2026-07", "2026-08", "2026-09"], "a EUR month is not charted under USD")
+        let eur = SnapshotService.history(from: mixed, months: 6, now: date(2026, 9), calendar: calendar, base: "EUR")
+        XCTAssertEqual(eur.map(\.key), ["2026-06", "2026-07", "2026-08", "2026-09"], "months without a currency of their own read as the base")
+
+        let foreignPrevious = [MonthSnapshot(year: 2026, month: 8, total: 3300, currencyCode: "EUR")]
+        XCTAssertNil(SnapshotService.delta(currentTotal: 3453, snapshots: foreignPrevious, now: date(2026, 9), calendar: calendar, base: "USD"))
+        XCTAssertNotNil(SnapshotService.delta(currentTotal: 3453, snapshots: foreignPrevious, now: date(2026, 9), calendar: calendar, base: "EUR"))
+    }
+
     func testMonthSpanCountsTheWindowNotTheRows() {
         XCTAssertEqual(SnapshotService.monthSpan(of: snapshots(), calendar: calendar), 7, "March to September, with gaps")
         XCTAssertEqual(SnapshotService.monthSpan(of: [MonthSnapshot(year: 2026, month: 9, total: 1)], calendar: calendar), 1)

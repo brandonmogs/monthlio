@@ -61,6 +61,9 @@ struct BackupDocument: Codable, Equatable {
         var month: Int
         var total: String
         var updatedAt: Date
+        /// The base currency the total is in; absent in backups from before
+        /// 1.5, where it is the backup's base currency.
+        var currencyCode: String?
     }
 
     /// ISO 8601 with fractional seconds, so rows created in the same second

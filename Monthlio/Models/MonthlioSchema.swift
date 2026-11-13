@@ -27,7 +27,7 @@ enum MonthlioSchemaV2: VersionedSchema {
     }
 }
 
-/// V3 (1.5) adds `Expense.reminderDate`, the per-expense notification.
+/// V3 (1.5 build 10) adds `Expense.reminderDate`, the per-expense notification.
 enum MonthlioSchemaV3: VersionedSchema {
     static let versionIdentifier = Schema.Version(3, 0, 0)
 
@@ -36,15 +36,27 @@ enum MonthlioSchemaV3: VersionedSchema {
     }
 }
 
+/// V4 adds `MonthSnapshot.currencyCode`, so a month total remembers the
+/// base it was recorded in. CloudKit needs `CD_currencyCode` on
+/// `CD_MonthSnapshot` deployed to the Production schema before this ships.
+enum MonthlioSchemaV4: VersionedSchema {
+    static let versionIdentifier = Schema.Version(4, 0, 0)
+
+    static var models: [any PersistentModel.Type] {
+        [MonthlioSchemaV3.Expense.self, MonthlioSchemaV1.AppSettings.self, MonthlioSchemaV1.CategoryBudget.self, MonthSnapshot.self, MonthlioSchemaV1.ExchangeRate.self]
+    }
+}
+
 enum MonthlioMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [MonthlioSchemaV1.self, MonthlioSchemaV2.self, MonthlioSchemaV3.self]
+        [MonthlioSchemaV1.self, MonthlioSchemaV2.self, MonthlioSchemaV3.self, MonthlioSchemaV4.self]
     }
 
     static var stages: [MigrationStage] {
         [
             .lightweight(fromVersion: MonthlioSchemaV1.self, toVersion: MonthlioSchemaV2.self),
             .lightweight(fromVersion: MonthlioSchemaV2.self, toVersion: MonthlioSchemaV3.self),
+            .lightweight(fromVersion: MonthlioSchemaV3.self, toVersion: MonthlioSchemaV4.self),
         ]
     }
 }

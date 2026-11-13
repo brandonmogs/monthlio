@@ -181,7 +181,7 @@ struct RootTabView: View {
         // wrong: an empty store (a new device before its first iCloud
         // import) or a currency still counting 1:1 for want of a rate.
         if !expenses.isEmpty, ExpenseCalculator.missingRateCodes(expenses, converter: converter).isEmpty, !syncStatus.isImporting {
-            SnapshotService.record(total: total, in: modelContext)
+            SnapshotService.record(total: total, currencyCode: converter.baseCode, in: modelContext)
         }
         // With the lock on, widgets and reminders hide names and amounts.
         let discreet = lock.isEnabled

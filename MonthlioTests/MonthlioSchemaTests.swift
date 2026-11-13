@@ -4,16 +4,18 @@ import XCTest
 
 @MainActor
 final class MonthlioSchemaTests: XCTestCase {
-    func testTheCurrentModelsAreVersionThree() {
+    func testTheCurrentModelsAreVersionFour() {
         XCTAssertEqual(MonthlioSchemaV1.versionIdentifier, Schema.Version(1, 0, 0))
         XCTAssertEqual(MonthlioSchemaV2.versionIdentifier, Schema.Version(2, 0, 0))
         XCTAssertEqual(MonthlioSchemaV3.versionIdentifier, Schema.Version(3, 0, 0))
-        XCTAssertEqual(MonthlioSchemaV1.models.count, 5)
-        XCTAssertEqual(MonthlioSchemaV2.models.count, 5)
-        XCTAssertEqual(MonthlioSchemaV3.models.count, 5)
+        XCTAssertEqual(MonthlioSchemaV4.versionIdentifier, Schema.Version(4, 0, 0))
+        for version in [MonthlioSchemaV1.self, MonthlioSchemaV2.self, MonthlioSchemaV3.self, MonthlioSchemaV4.self] as [any VersionedSchema.Type] {
+            XCTAssertEqual(version.models.count, 5)
+        }
         XCTAssertTrue(MonthlioMigrationPlan.schemas.first == MonthlioSchemaV1.self)
-        XCTAssertTrue(MonthlioMigrationPlan.schemas.last == MonthlioSchemaV3.self)
-        XCTAssertEqual(MonthlioMigrationPlan.stages.count, 2)
+        XCTAssertTrue(MonthlioMigrationPlan.schemas.last == MonthlioSchemaV4.self)
+        XCTAssertEqual(MonthlioMigrationPlan.stages.count, 3)
+        XCTAssertTrue(MonthlioApp.schema.entities.contains { $0.name == "MonthSnapshot" && $0.attributes.contains { $0.name == "currencyCode" } })
     }
 
     /// V1's classes are the live models for everything but Expense, so an
@@ -31,6 +33,26 @@ final class MonthlioSchemaTests: XCTestCase {
             with: "chargeDate:Optional<Date>?,colorHex:Optional<String>?,createdAt"
         )
         XCTAssertEqual(MonthlioSchemaTests.shape(of: MonthlioSchemaV2.self), expected)
+    }
+
+    /// V3 shipped in 1.5 (10): V2 plus `Expense.reminderDate`.
+    func testVersionThreeShapeIsFrozen() {
+        XCTAssertEqual(MonthlioSchemaTests.shape(of: MonthlioSchemaV3.self), MonthlioSchemaTests.frozenV3Shape)
+    }
+
+    /// V4: V3 plus `MonthSnapshot.currencyCode`.
+    func testVersionFourShapeIsFrozen() {
+        let expected = MonthlioSchemaTests.frozenV3Shape.replacingOccurrences(
+            of: "MonthSnapshot{key:String",
+            with: "MonthSnapshot{currencyCode:String,key:String"
+        )
+        XCTAssertEqual(MonthlioSchemaTests.shape(of: MonthlioSchemaV4.self), expected)
+    }
+
+    static var frozenV3Shape: String {
+        frozenV1Shape
+            .replacingOccurrences(of: "chargeDate:Optional<Date>?,createdAt", with: "chargeDate:Optional<Date>?,colorHex:Optional<String>?,createdAt")
+            .replacingOccurrences(of: "previousAmount:Optional<NSDecimal>?}", with: "previousAmount:Optional<NSDecimal>?,reminderDate:Optional<Date>?}")
     }
 
     static func shape(of version: any VersionedSchema.Type) -> String {
@@ -66,6 +88,24 @@ final class MonthlioSchemaTests: XCTestCase {
         rows.first?.reminderDate = reminder
         try current.mainContext.save()
         XCTAssertEqual(try current.mainContext.fetch(FetchDescriptor<Expense>()).first?.reminderDate, reminder)
+    }
+
+    func testAVersionThreeStoreMigratesToVersionFour() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "migrate-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appending(path: "default.store")
+
+        // A store written by 1.5 (10).
+        let old = try ModelContainer(for: Schema(versionedSchema: MonthlioSchemaV3.self), configurations: [ModelConfiguration(url: url, cloudKitDatabase: .none)])
+        old.mainContext.insert(MonthlioSchemaV1.MonthSnapshot(year: 2026, month: 9, total: 3410))
+        try old.mainContext.save()
+
+        let current = try ModelContainer(for: MonthlioApp.schema, migrationPlan: MonthlioMigrationPlan.self, configurations: [ModelConfiguration(url: url, cloudKitDatabase: .none)])
+        let rows = try current.mainContext.fetch(FetchDescriptor<MonthSnapshot>())
+        XCTAssertEqual(rows.map(\.total), [3410])
+        XCTAssertEqual(rows.first?.currencyCode, "", "an old month has no currency of its own and reads as the base")
+        XCTAssertTrue(rows.first?.isIn(base: "USD") ?? false)
     }
 
     func testAVersionOneStoreMigratesToTheCurrentVersion() throws {

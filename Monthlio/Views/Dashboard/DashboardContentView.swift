@@ -17,8 +17,8 @@ struct DashboardContentView: View {
 
     var body: some View {
         let summary = viewModel.summary(for: expenses, converter: currencyStore.converter)
-        let delta = SnapshotService.delta(currentTotal: summary.total, snapshots: snapshots)
-        let history = SnapshotService.history(from: snapshots, months: 12)
+        let delta = SnapshotService.delta(currentTotal: summary.total, snapshots: snapshots, base: currencyStore.baseCode)
+        let history = SnapshotService.history(from: snapshots, months: 12, base: currencyStore.baseCode)
         let missingRates = ExpenseCalculator.missingRateCodes(expenses, converter: currencyStore.converter)
 
         ScrollView {

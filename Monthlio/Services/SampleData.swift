@@ -59,7 +59,7 @@ enum SampleData {
                 let monthsAgo = totals.count - offset
                 guard let date = calendar.date(byAdding: .month, value: -monthsAgo, to: now) else { continue }
                 let parts = calendar.dateComponents([.year, .month], from: date)
-                context.insert(MonthSnapshot(year: parts.year ?? 0, month: parts.month ?? 0, total: total, updatedAt: date))
+                context.insert(MonthSnapshot(year: parts.year ?? 0, month: parts.month ?? 0, total: total, updatedAt: date, currencyCode: CurrencyFormat.baseCode))
             }
         }
     }

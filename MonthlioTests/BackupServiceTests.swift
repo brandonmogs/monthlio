@@ -127,6 +127,26 @@ final class BackupServiceTests: XCTestCase {
         XCTAssertEqual(try target.fetch(FetchDescriptor<CategoryBudget>()).first?.cap, 550)
     }
 
+    func testMonthsCarryTheirCurrencyThroughABackup() throws {
+        let source = try makeContext()
+        try seed(source)
+        source.insert(MonthSnapshot(year: 2026, month: 7, total: 2800, updatedAt: Date(timeIntervalSince1970: 1_700_000_500), currencyCode: "EUR"))
+        try source.save()
+
+        var document = try BackupService.document(from: source)
+        XCTAssertEqual(document.snapshots.map(\.currencyCode), ["EUR", "USD"], "a month without a currency of its own is written in the backup's base")
+
+        // A backup from before months knew their currency.
+        document.snapshots[1].currencyCode = nil
+        let target = try makeContext()
+        try BackupService.restore(document, into: target, mode: .replace)
+        let restored = try target.fetch(FetchDescriptor<MonthSnapshot>(sortBy: [SortDescriptor(\.key)]))
+        XCTAssertEqual(restored.map(\.currencyCode), ["EUR", "USD"], "an old record takes the backup's base, so a USD backup never charts as EUR months on a EUR device")
+        let november = Calendar.gregorianLocal.date(from: DateComponents(year: 2026, month: 11, day: 12))!
+        XCTAssertEqual(SnapshotService.history(from: restored, months: 12, now: november, base: "EUR").map(\.key), ["2026-07"], "only the EUR month charts under a EUR base")
+        XCTAssertEqual(SnapshotService.history(from: restored, months: 12, now: november, base: "USD").map(\.key), ["2026-08"])
+    }
+
     func testReplaceRewritesRowsInPlaceInsteadOfReinsertingThem() throws {
         // A delete-then-insert of the same identity would reach other
         // devices as an original beside a restored copy; rewriting the row

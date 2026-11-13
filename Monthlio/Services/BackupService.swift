@@ -57,8 +57,11 @@ enum BackupService {
         let rates = try context.fetch(FetchDescriptor<ExchangeRate>(sortBy: [SortDescriptor(\.code)])).map {
             BackupDocument.ExchangeRateRecord(code: $0.code, rateToBase: $0.rateToBase.backupString, baseCode: $0.baseCode, updatedAt: $0.updatedAt)
         }
+        // A month from before months knew their currency was recorded in the
+        // base of its day; the base at export is the best account of that.
+        let baseAtExport = AppSettings.existing(in: context)?.resolvedBaseCurrencyCode ?? CurrencyFormat.baseCode
         let snapshots = try context.fetch(FetchDescriptor<MonthSnapshot>(sortBy: [SortDescriptor(\.key)])).map {
-            BackupDocument.SnapshotRecord(year: $0.year, month: $0.month, total: $0.total.backupString, updatedAt: $0.updatedAt)
+            BackupDocument.SnapshotRecord(year: $0.year, month: $0.month, total: $0.total.backupString, updatedAt: $0.updatedAt, currencyCode: $0.currencyCode.isEmpty ? baseAtExport : $0.currencyCode)
         }
         return BackupDocument(
             exportedAt: now,
@@ -191,7 +194,9 @@ enum BackupService {
             }
         }
 
-        // Month history, by month key.
+        // Month history, by month key. A record without a currency comes
+        // from a backup made before months knew theirs: the backup's base.
+        let backupBase = document.settings?.baseCurrencyCode ?? ""
         let snapshots = try context.fetch(FetchDescriptor<MonthSnapshot>())
         var snapshotByKey: [String: MonthSnapshot] = [:]
         for snapshot in snapshots where snapshotByKey[snapshot.key] == nil { snapshotByKey[snapshot.key] = snapshot }
@@ -201,12 +206,14 @@ enum BackupService {
                   let total = Decimal(backupString: record.total), MoneyLimits.isValidOrZero(total) else { continue }
             let key = MonthSnapshot.key(year: record.year, month: record.month)
             guard seenSnapshots.insert(key).inserted else { continue }
+            let currency = record.currencyCode ?? backupBase
             if let existing = snapshotByKey[key] {
                 guard replacing else { continue }
                 if existing.total != total { existing.total = total }
                 if existing.updatedAt != record.updatedAt { existing.updatedAt = record.updatedAt }
+                if existing.currencyCode != currency { existing.currencyCode = currency }
             } else {
-                context.insert(MonthSnapshot(year: record.year, month: record.month, total: total, updatedAt: record.updatedAt))
+                context.insert(MonthSnapshot(year: record.year, month: record.month, total: total, updatedAt: record.updatedAt, currencyCode: currency))
             }
             summary.snapshotsAdded += 1
         }

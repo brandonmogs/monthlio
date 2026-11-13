@@ -56,7 +56,7 @@ final class ExpenseFormViewModelTests: XCTestCase {
         vm.hasDueDay = true
         vm.hasChargeDate = true
         vm.chargeDate = Date(timeIntervalSince1970: 1_800_000_000)
-        XCTAssertTrue(vm.save(in: container.mainContext))
+        XCTAssertTrue(try vm.save(in: container.mainContext))
 
         let saved = try XCTUnwrap(try container.mainContext.fetch(FetchDescriptor<Expense>()).first)
         let picked = Date(timeIntervalSince1970: 1_800_000_000)
@@ -83,7 +83,7 @@ final class ExpenseFormViewModelTests: XCTestCase {
         XCTAssertEqual(calendar.component(.day, from: vm.reminderDate), 20, "offered on the next charge")
         XCTAssertEqual(calendar.component(.hour, from: vm.reminderDate), DeviceSettings.reminderHour(), "at the reminder hour")
         XCTAssertGreaterThan(vm.reminderDate, .now)
-        XCTAssertTrue(vm.save(in: container.mainContext))
+        XCTAssertTrue(try vm.save(in: container.mainContext))
         let saved = try XCTUnwrap(try container.mainContext.fetch(FetchDescriptor<Expense>()).first)
         XCTAssertEqual(saved.reminderDate, vm.reminderDate)
 
@@ -96,7 +96,7 @@ final class ExpenseFormViewModelTests: XCTestCase {
         editing.reminderEnabled = true
         XCTAssertEqual(editing.reminderDate, picked, "toggling doesn't discard a chosen date")
         editing.reminderEnabled = false
-        XCTAssertTrue(editing.save(in: container.mainContext))
+        XCTAssertTrue(try editing.save(in: container.mainContext))
         XCTAssertNil(saved.reminderDate, "off clears it")
     }
 
@@ -183,7 +183,7 @@ final class ExpenseFormViewModelTests: XCTestCase {
 
         let vm = ExpenseFormViewModel(expense: tickets)
         vm.name = "Concert tickets"
-        XCTAssertTrue(vm.save(in: container.mainContext))
+        XCTAssertTrue(try vm.save(in: container.mainContext))
 
         let day = try XCTUnwrap(tickets.chargeDate)
         XCTAssertTrue(Calendar.gregorianLocal.isDate(day, inSameDayAs: created), "a name edit must not move the charge to today")
@@ -200,12 +200,12 @@ final class ExpenseFormViewModelTests: XCTestCase {
         XCTAssertFalse(vm.hasChargeDate, "no date is invented")
         XCTAssertEqual(Calendar.gregorianLocal.component(.day, from: vm.chargeDate), 20, "the picker offers the next 20th")
         vm.name = "Car insurance (Geico)"
-        XCTAssertTrue(vm.save(in: container.mainContext))
+        XCTAssertTrue(try vm.save(in: container.mainContext))
         XCTAssertEqual(insurance.dueDay, 20, "the only scheduling hint survives an unrelated edit")
         XCTAssertNil(insurance.chargeDate)
 
         vm.hasChargeDate = true
-        XCTAssertTrue(vm.save(in: container.mainContext))
+        XCTAssertTrue(try vm.save(in: container.mainContext))
         XCTAssertNil(insurance.dueDay, "a real date replaces the day")
         XCTAssertNotNil(insurance.chargeDate)
     }
@@ -220,19 +220,19 @@ final class ExpenseFormViewModelTests: XCTestCase {
         let annual = ExpenseFormViewModel(expense: netflix)
         annual.cadence = .yearly
         annual.amount = Decimal(string: "155.88")!
-        XCTAssertTrue(annual.save(in: context))
+        XCTAssertTrue(try annual.save(in: context))
         XCTAssertFalse(netflix.hadPriceIncrease, "switching to annual billing is not a price rise")
         XCTAssertNil(netflix.previousAmount)
 
         let yen = ExpenseFormViewModel(expense: netflix)
         yen.currencyCode = "JPY"
         yen.amount = 1500
-        XCTAssertTrue(yen.save(in: context))
+        XCTAssertTrue(try yen.save(in: context))
         XCTAssertFalse(netflix.hadPriceIncrease)
 
         let raised = ExpenseFormViewModel(expense: netflix)
         raised.amount = 1700
-        XCTAssertTrue(raised.save(in: context))
+        XCTAssertTrue(try raised.save(in: context))
         XCTAssertTrue(netflix.hadPriceIncrease)
         XCTAssertEqual(netflix.previousAmount, 1500)
     }

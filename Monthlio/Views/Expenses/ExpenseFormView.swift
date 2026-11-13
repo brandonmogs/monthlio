@@ -17,6 +17,8 @@ struct ExpenseFormView: View {
     @State private var didSave = false
     /// The system refused notifications when the toggle went on.
     @State private var notificationsDenied = false
+    /// The store refused a save or a delete.
+    @State private var storeNotice: DataNotice?
     @FocusState private var focusedField: Field?
 
     private enum Field { case name, amount, notes }
@@ -60,6 +62,7 @@ struct ExpenseFormView: View {
             .sheet(isPresented: $showingPaywall) {
                 PaywallView()
             }
+            .dataNoticeAlert($storeNotice)
             .confirmationDialog(
                 "Delete this expense?",
                 isPresented: $showingDeleteConfirmation,
@@ -67,8 +70,14 @@ struct ExpenseFormView: View {
             ) {
                 Button("Delete", role: .destructive) {
                     if let existing = viewModel.existing { deleted.remember(existing) }
-                    viewModel.delete(in: modelContext)
-                    dismiss()
+                    do {
+                        try viewModel.delete(in: modelContext)
+                        dismiss()
+                    } catch {
+                        deleted.dismiss()
+                        Haptics.warning()
+                        storeNotice = DataNotice(title: String(localized: "Couldn't delete"), message: Text(error.localizedDescription))
+                    }
                 }
             }
         }
@@ -268,11 +277,16 @@ struct ExpenseFormView: View {
 
     private func save() {
         guard !didSave else { return }
-        if viewModel.save(in: modelContext) {
-            didSave = true
-            dismiss()
-        } else {
+        do {
+            if try viewModel.save(in: modelContext) {
+                didSave = true
+                dismiss()
+            } else {
+                Haptics.warning()
+            }
+        } catch {
             Haptics.warning()
+            storeNotice = DataNotice(title: String(localized: "Couldn't save"), message: Text(error.localizedDescription))
         }
     }
 }

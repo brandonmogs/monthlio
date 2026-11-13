@@ -93,7 +93,11 @@ struct EmptyStateView: View {
         withAnimation {
             modelContext.insert(expense)
         }
-        try? modelContext.save()
+        if modelContext.saveReporting("the starter expense") != nil {
+            addedStarters.remove(sample.id)
+            Haptics.warning()
+            return
+        }
         Haptics.success()
     }
 }

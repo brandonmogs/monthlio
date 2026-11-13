@@ -35,7 +35,7 @@ enum BaseCurrencyConversion {
             snapshot.total = (snapshot.total * factor).rounded()
             changed += 1
         }
-        if changed > 0 { try? context.save() }
+        if changed > 0, context.saveReporting("the converted amounts") != nil { return 0 }
         return changed
     }
 }

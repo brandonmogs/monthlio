@@ -29,7 +29,7 @@ enum SnapshotService {
         } else {
             context.insert(MonthSnapshot(year: year, month: month, total: total, updatedAt: now))
         }
-        try? context.save()
+        context.saveReporting("the month snapshot")
     }
 
     /// The most recent `months` snapshots ending at `now`, oldest first.

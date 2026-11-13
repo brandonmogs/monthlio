@@ -137,7 +137,7 @@ extension Expense {
         let descriptor = FetchDescriptor<Expense>(predicate: #Predicate { $0.currencyCode == "" })
         guard let rows = try? context.fetch(descriptor), !rows.isEmpty else { return }
         for row in rows { row.currencyCode = base }
-        try? context.save()
+        context.saveReporting("the currency backfill")
     }
 }
 

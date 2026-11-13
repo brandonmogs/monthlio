@@ -31,7 +31,7 @@ extension MonthlioSchemaV1 {
             let descriptor = FetchDescriptor<ExchangeRate>(predicate: #Predicate { $0.baseCode == "" })
             guard let rows = try? context.fetch(descriptor), !rows.isEmpty else { return }
             for row in rows { row.baseCode = base }
-            try? context.save()
+            context.saveReporting("the rate backfill")
         }
     }
 }

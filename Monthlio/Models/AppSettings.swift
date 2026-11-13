@@ -72,7 +72,7 @@ extension MonthlioSchemaV1 {
                 primary.requireAuthentication = primary.requireAuthentication || other.requireAuthentication
                 context.delete(other)
             }
-            try? context.save()
+            context.saveReporting("the settings clean-up")
             return primary
         }
     }

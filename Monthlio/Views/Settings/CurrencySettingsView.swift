@@ -88,7 +88,10 @@ struct CurrencySettingsView: View {
             modelContext.insert(ExchangeRate(code: code, rateToBase: value, baseCode: newBase))
         }
         AppSettings.current(in: modelContext).baseCurrencyCode = newBase
-        try? modelContext.save()
+        if modelContext.saveReporting("the base currency") != nil {
+            Haptics.warning()
+            return
+        }
         Haptics.selection()
 
         let stillMissing = Set(expenses.map(\.currencyCode)).subtracting([newBase])

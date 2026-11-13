@@ -30,7 +30,7 @@ enum SampleData {
             context.insert(expense)
         }
         seedSupportingData(in: context)
-        try? context.save()
+        context.saveReporting("the sample data")
     }
 
     /// Income, a couple of budgets (one deliberately over), and eight months

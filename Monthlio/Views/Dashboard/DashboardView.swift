@@ -16,6 +16,7 @@ struct DashboardView: View {
     @State private var showingSettings = DashboardView.opensSettingsAtLaunch
     @State private var settingsDestination: SettingsDestination?
     @State private var editingExpense: Expense?
+    @State private var storeNotice: DataNotice?
 
     /// DEBUG builds honour `-MonthlioSettings` so screenshots can open Settings.
     private static var opensSettingsAtLaunch: Bool {
@@ -49,6 +50,7 @@ struct DashboardView: View {
                 }
             }
             .navigationTitle("Monthlio")
+            .dataNoticeAlert($storeNotice)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -84,7 +86,12 @@ struct DashboardView: View {
         withAnimation {
             modelContext.delete(expense)
         }
-        try? modelContext.save()
+        if let error = modelContext.saveReporting("the expense deletion") {
+            deleted.dismiss()
+            Haptics.warning()
+            storeNotice = DataNotice(title: String(localized: "Couldn't delete"), message: Text(error.localizedDescription))
+            return
+        }
         Haptics.impact()
     }
 }

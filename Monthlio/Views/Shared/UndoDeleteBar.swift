@@ -13,8 +13,11 @@ struct UndoDeleteBar: View {
                     .lineLimit(1)
                 Spacer(minLength: 8)
                 Button("Undo") {
-                    deleted.undo(in: modelContext)
-                    Haptics.success()
+                    if deleted.undo(in: modelContext) != nil {
+                        Haptics.success()
+                    } else {
+                        Haptics.warning()
+                    }
                 }
                 .font(.body.weight(.semibold))
                 .accessibilityIdentifier("undo-delete")

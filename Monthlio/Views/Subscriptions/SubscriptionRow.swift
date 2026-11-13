@@ -59,7 +59,7 @@ struct SubscriptionRow: View {
             if expense.hadPriceIncrease {
                 Button("Not a price increase", systemImage: "arrow.uturn.backward") {
                     expense.clearPriceChange()
-                    try? modelContext.save()
+                    if modelContext.saveReporting("the price-change note") != nil { Haptics.warning() }
                 }
             }
         }
@@ -97,8 +97,12 @@ struct SubscriptionRow: View {
             get: { !expense.isActive },
             set: { cancelled in
                 withAnimation { expense.isActive = !cancelled }
-                try? modelContext.save()
-                Haptics.selection()
+                // A refused save rolls the flag back, so the switch follows.
+                if modelContext.saveReporting("the cancel toggle") != nil {
+                    Haptics.warning()
+                } else {
+                    Haptics.selection()
+                }
             }
         )
     }

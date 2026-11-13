@@ -81,7 +81,7 @@ enum StoreMaintenance {
             report.settingsRemoved = settingsRows - 1
         }
 
-        if !report.isEmpty { try? context.save() }
+        if !report.isEmpty { context.saveReporting("the duplicate clean-up") }
         return report
     }
 }

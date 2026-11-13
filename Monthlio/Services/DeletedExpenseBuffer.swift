@@ -89,14 +89,15 @@ final class DeletedExpenseBuffer {
         pending = nil
     }
 
-    /// Puts the expense back with its original identity and fields.
+    /// Puts the expense back with its original identity and fields. When
+    /// the store refuses, the offer stays up so the user can try again.
     @discardableResult
     func undo(in context: ModelContext) -> Expense? {
         guard let pending else { return nil }
-        dismiss()
         let expense = pending.restored()
         context.insert(expense)
-        try? context.save()
+        if context.saveReporting("the undo") != nil { return nil }
+        dismiss()
         return expense
     }
 }

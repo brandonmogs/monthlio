@@ -11,6 +11,7 @@ struct ExpenseListView: View {
     @State private var viewModel = ExpenseListViewModel()
     @State private var showingAddSheet = false
     @State private var editingExpense: Expense?
+    @State private var storeNotice: DataNotice?
 
     var body: some View {
         NavigationStack {
@@ -21,6 +22,7 @@ struct ExpenseListView: View {
                     expenseList
                 }
             }
+            .dataNoticeAlert($storeNotice)
             .navigationTitle("Expenses")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { sortMenu }
@@ -106,7 +108,12 @@ struct ExpenseListView: View {
         withAnimation {
             modelContext.delete(expense)
         }
-        try? modelContext.save()
+        if let error = modelContext.saveReporting("the expense deletion") {
+            deleted.dismiss()
+            Haptics.warning()
+            storeNotice = DataNotice(title: String(localized: "Couldn't delete"), message: Text(error.localizedDescription))
+            return
+        }
         Haptics.impact()
     }
 }

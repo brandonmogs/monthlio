@@ -175,9 +175,10 @@ final class ExpenseFormViewModel {
         return UpcomingChargeCalculator.nextCharge(cadence: cadence, dueDay: resolvedDueDay, anchor: resolvedChargeDate)
     }
 
-    /// Writes the form into the model context. Returns false if invalid.
+    /// Writes the form into the model context. Returns false if invalid;
+    /// throws when the store refuses the save (nothing is then pretended).
     @discardableResult
-    func save(in context: ModelContext) -> Bool {
+    func save(in context: ModelContext) throws -> Bool {
         guard canSave, let amount else { return false }
         let trimmedNotes = MoneyLimits.clampedNotes(notes)
 
@@ -231,15 +232,15 @@ final class ExpenseFormViewModel {
             context.insert(expense)
         }
 
-        try? context.save()
+        if let error = context.saveReporting("the expense") { throw error }
         Haptics.success()
         return true
     }
 
-    func delete(in context: ModelContext) {
+    func delete(in context: ModelContext) throws {
         guard let existing else { return }
         context.delete(existing)
-        try? context.save()
+        if let error = context.saveReporting("the expense deletion") { throw error }
         Haptics.impact()
     }
 }

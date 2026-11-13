@@ -34,6 +34,10 @@ struct SettingsView: View {
     @AppStorage(DeviceSettings.reminderHourKey, store: SyncPreference.standard) private var reminderHour = DeviceSettings.defaultReminderHour
     @AppStorage(DeviceSettings.lockGraceKey, store: SyncPreference.standard) private var lockGraceSeconds = DeviceSettings.LockGrace.default.rawValue
     @State private var syncEnabled = SyncPreference.isEnabled()
+    /// What the lock and reminder toggles show while their system prompt
+    /// is up; without this the knob flips on, snaps off, prompts, flips on.
+    @State private var pendingLock: Bool?
+    @State private var pendingReminders: Bool?
     /// What CloudKit has been doing; read in the body so the footer
     /// updates as imports and exports finish.
     private let syncStatus = SyncStatusMonitor.shared
@@ -322,8 +326,14 @@ struct SettingsView: View {
 
     private var lockBinding: Binding<Bool> {
         Binding(
-            get: { lock.isEnabled },
-            set: { enabled in Task { await setLock(enabled) } }
+            get: { pendingLock ?? lock.isEnabled },
+            set: { enabled in
+                pendingLock = enabled
+                Task {
+                    await setLock(enabled)
+                    pendingLock = nil
+                }
+            }
         )
     }
 
@@ -355,8 +365,14 @@ struct SettingsView: View {
 
     private var notificationsBinding: Binding<Bool> {
         Binding(
-            get: { remindersEnabled },
-            set: { enabled in Task { await setNotifications(enabled) } }
+            get: { pendingReminders ?? remindersEnabled },
+            set: { enabled in
+                pendingReminders = enabled
+                Task {
+                    await setNotifications(enabled)
+                    pendingReminders = nil
+                }
+            }
         )
     }
 

@@ -25,6 +25,16 @@ final class CSVExporterTests: XCTestCase {
         XCTAssertEqual(CSVExporter.escape("-12.50"), "\"'-12.50\"")
     }
 
+    func testAOneTimeChargeOutsideThisMonthHasNoMonthlyEquivalent() {
+        let calendar = Calendar.gregorianLocal
+        let now = calendar.date(from: DateComponents(year: 2026, month: 11, day: 12))!
+        let lastMonth = Expense(name: "Concert", amount: 180, currencyCode: "USD", category: .entertainment, cadence: .oneTime, chargeDate: calendar.date(from: DateComponents(year: 2026, month: 10, day: 3)))
+        let thisMonth = Expense(name: "Repair", amount: 240, currencyCode: "USD", category: .other, cadence: .oneTime, chargeDate: calendar.date(from: DateComponents(year: 2026, month: 11, day: 20)))
+        let lines = CSVExporter.csv(from: [lastMonth, thisMonth], converter: CurrencyConverter(baseCode: "USD"), now: now).split(separator: "\n").map(String.init)
+        XCTAssertTrue(lines[1].hasPrefix("Concert,180,USD,oneTime,,USD,"), lines[1])
+        XCTAssertTrue(lines[2].hasPrefix("Repair,240,USD,oneTime,240,USD,"), lines[2])
+    }
+
     func testRendersHeaderAndRows() {
         let expenses = [
             Expense(name: "Rent, downtown", amount: 1500, currencyCode: "USD", category: .housing, cadence: .monthly, dueDay: 1),

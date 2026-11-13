@@ -6,20 +6,23 @@ import UniformTypeIdentifiers
 enum CSVExporter {
     static let header = "Name,Amount,Currency,Cadence,Monthly Equivalent,Base Currency,Category,Due Day,Active,Notes,Created,Charge Date,Color"
 
-    static func csv(from expenses: [Expense], converter: CurrencyConverter) -> String {
-        let rows = expenses.map { row(for: $0, converter: converter) }
+    static func csv(from expenses: [Expense], converter: CurrencyConverter, now: Date = .now) -> String {
+        let rows = expenses.map { row(for: $0, converter: converter, now: now) }
         return ([header] + rows).joined(separator: "\n") + "\n"
     }
 
     /// One line, in `header` order. Built step by step: a single array
     /// literal of this size makes the type checker give up.
-    private static func row(for expense: Expense, converter: CurrencyConverter) -> String {
+    private static func row(for expense: Expense, converter: CurrencyConverter, now: Date) -> String {
         var fields: [String] = []
         fields.append(expense.name)
         fields.append(plain(expense.amount))
         fields.append(expense.currencyCode)
         fields.append(expense.cadence.rawValue)
-        fields.append(plain(converter.monthlyCostInBase(of: expense).rounded()))
+        // A one-time charge counts in its own month only; outside it the
+        // column is blank so a spreadsheet sum of it is this month's cost.
+        let countsThisMonth = expense.cadence != .oneTime || expense.counts(inMonthOf: now)
+        fields.append(countsThisMonth ? plain(converter.monthlyCostInBase(of: expense).rounded()) : "")
         fields.append(converter.baseCode)
         fields.append(expense.category.rawValue)
         fields.append(expense.dueDay.map { String($0) } ?? "")

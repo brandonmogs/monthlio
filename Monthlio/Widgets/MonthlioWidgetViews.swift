@@ -85,6 +85,7 @@ private struct CategoryTile: View {
             .foregroundStyle(.white)
             .frame(width: size, height: size)
             .background(color ?? category.color, in: RoundedRectangle(cornerRadius: size * 0.28))
+            .accessibilityHidden(true)
     }
 }
 

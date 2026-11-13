@@ -27,6 +27,7 @@ struct ProLockedRow: View {
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
         }
         .tint(.primary)

@@ -12,6 +12,7 @@ struct CategoryLegendRow: View {
                 .foregroundStyle(.white)
                 .frame(width: 32, height: 32)
                 .background(slice.category.color, in: RoundedRectangle(cornerRadius: 8))
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {

@@ -24,6 +24,7 @@ struct IncomeCard: View {
             HStack {
                 Image(systemName: "banknote")
                     .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
                 Text("Add your monthly income to see what's left")
                     .font(.subheadline)
                     .foregroundStyle(.primary)
@@ -31,6 +32,7 @@ struct IncomeCard: View {
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
         }
     }

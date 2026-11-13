@@ -131,6 +131,7 @@ private struct UpcomingChargeRow: View {
                 .foregroundStyle(.white)
                 .frame(width: 32, height: 32)
                 .background(charge.expense.displayColor, in: RoundedRectangle(cornerRadius: 8))
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(charge.expense.name)

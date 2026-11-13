@@ -61,6 +61,7 @@ private struct BudgetRow: View {
                 .foregroundStyle(.white)
                 .frame(width: 32, height: 32)
                 .background(category.color, in: RoundedRectangle(cornerRadius: 8))
+                .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(category.title)

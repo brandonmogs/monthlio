@@ -122,6 +122,7 @@ struct SettingsView: View {
                             .foregroundStyle(.white)
                             .frame(width: 32, height: 32)
                             .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 8))
+                            .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Get Monthlio Pro")
                                 .font(.headline)
@@ -133,6 +134,7 @@ struct SettingsView: View {
                         Image(systemName: "chevron.right")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.tertiary)
+                            .accessibilityHidden(true)
                     }
                     .contentShape(Rectangle())
                 }
@@ -273,6 +275,7 @@ struct SettingsView: View {
                         Image(systemName: "chevron.right")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.tertiary)
+                            .accessibilityHidden(true)
                     }
                 }
                 .tint(.primary)

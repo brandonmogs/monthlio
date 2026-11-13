@@ -80,6 +80,7 @@ struct PaywallBody: View {
                             .font(.system(size: 52))
                             .foregroundStyle(.tint)
                             .padding(.top, 24)
+                            .accessibilityHidden(true)
                         Text("Monthlio Pro")
                             .font(.title.bold())
                             // Code entry is deliberately not advertised: App
@@ -227,6 +228,7 @@ struct PaywallBody: View {
                 .font(.title3)
                 .foregroundStyle(.tint)
                 .frame(width: 28)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.headline)
@@ -235,6 +237,8 @@ struct PaywallBody: View {
                     .foregroundStyle(.secondary)
             }
         }
+        // One VoiceOver stop per benefit, not three.
+        .accessibilityElement(children: .combine)
     }
 
     private func buy() async {

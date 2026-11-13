@@ -13,6 +13,7 @@ struct MissingRatesBanner: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.title3)
                     .foregroundStyle(.orange)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Rates needed for \(codes.formatted(.list(type: .and)))")
                         .font(.subheadline.weight(.semibold))
@@ -24,6 +25,7 @@ struct MissingRatesBanner: View {
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
             }
             .padding(14)
             .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))

@@ -15,6 +15,7 @@ struct ExpenseRow: View {
                     .foregroundStyle(.white)
                     .frame(width: 32, height: 32)
                     .background(expense.displayColor, in: RoundedRectangle(cornerRadius: 8))
+                    .accessibilityHidden(true)
             }
 
             VStack(alignment: .leading, spacing: 2) {

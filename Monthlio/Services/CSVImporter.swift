@@ -187,11 +187,11 @@ enum CSVImporter {
             }
         }
         // Monthlio's export has a "Base Currency" column after "Currency";
-        // exact alias matching keeps them apart, and other exports rarely
-        // name a column with a bare number, so an amount-looking first row
-        // means "no header".
+        // exact alias matching keeps them apart.
         guard mapping[.name] != nil || mapping[.amount] != nil else { return nil }
-        if row.count > 1, parseAmount(row[1]).amount != nil, mapping[.name] == nil { return nil }
+        // One matching cell beside a number is a data row whose name happens
+        // to be an alias ("Service,12.99,monthly"), not a header.
+        if mapping.count == 1, row.dropFirst().contains(where: { parseAmount($0).amount != nil }) { return nil }
         return mapping
     }
 

@@ -68,6 +68,16 @@ final class CSVImporterTests: XCTestCase {
         XCTAssertEqual(preview.skipped.first?.reason, "No usable amount")
     }
 
+    func testAHeaderlessRowWhoseNameIsAnAliasIsStillData() throws {
+        XCTAssertNil(CSVImporter.detectColumns(in: ["Service", "12.99", "monthly"]))
+        XCTAssertNil(CSVImporter.detectColumns(in: ["Netflix", "15.49"]))
+        XCTAssertNotNil(CSVImporter.detectColumns(in: ["Amount", "Currency"]))
+        XCTAssertNotNil(CSVImporter.detectColumns(in: ["Name", "Amount"]))
+        let preview = try CSVImporter.preview("Service,12.99,monthly\n", baseCurrency: "USD")
+        XCTAssertFalse(preview.hadHeader)
+        XCTAssertEqual(preview.expenses.map(\.name), ["Service"])
+    }
+
     func testARowRepeatedInsideTheFileImportsOnce() throws {
         let csv = """
         Name,Amount,Cadence

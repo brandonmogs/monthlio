@@ -85,13 +85,20 @@ final class NotificationScheduler {
         }
     }
 
+    /// A request and when it fires, so the cap can keep the soonest.
+    struct DatedRequest {
+        let request: UNNotificationRequest
+        let fireDate: Date
+    }
+
     /// Everything that should be pending: the expenses' own notifications
-    /// first (they were asked for one by one), then the day-before
-    /// reminders when that setting is on, within the pending budget.
+    /// and, when that setting is on, the day-before reminders, soonest
+    /// first. The cap then drops the far future rather than whichever
+    /// expense the store happened to list last.
     nonisolated static func allRequests(for expenses: [Expense], enabled: Bool, now: Date = .now, discreet: Bool, hour: Int = reminderHour, calendar: Calendar = .gregorianLocal) -> [UNNotificationRequest] {
-        let own = expenseRequests(for: expenses, now: now, discreet: discreet, calendar: calendar)
-        let dayBefore = enabled ? requests(for: expenses, now: now, discreet: discreet, hour: hour, calendar: calendar) : []
-        return Array((own + dayBefore).prefix(maxPending))
+        let own = datedExpenseRequests(for: expenses, now: now, discreet: discreet, calendar: calendar)
+        let dayBefore = enabled ? datedRequests(for: expenses, now: now, discreet: discreet, hour: hour, calendar: calendar) : []
+        return Array((own + dayBefore).sorted { $0.fireDate < $1.fireDate }.prefix(maxPending).map(\.request))
     }
 
     /// When an expense's own notification fires next: the chosen moment for
@@ -149,7 +156,11 @@ final class NotificationScheduler {
 
     /// Pure: the notifications expenses asked for themselves.
     nonisolated static func expenseRequests(for expenses: [Expense], now: Date = .now, discreet: Bool, calendar: Calendar = .gregorianLocal) -> [UNNotificationRequest] {
-        var requests: [UNNotificationRequest] = []
+        datedExpenseRequests(for: expenses, now: now, discreet: discreet, calendar: calendar).map(\.request)
+    }
+
+    nonisolated static func datedExpenseRequests(for expenses: [Expense], now: Date = .now, discreet: Bool, calendar: Calendar = .gregorianLocal) -> [DatedRequest] {
+        var requests: [DatedRequest] = []
         for expense in expenses where expense.reminderDate != nil {
             for fireDate in reminderOccurrences(for: expense, from: now, calendar: calendar) {
                 var components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
@@ -174,11 +185,11 @@ final class NotificationScheduler {
                 }
                 content.sound = .default
 
-                requests.append(UNNotificationRequest(
+                requests.append(DatedRequest(request: UNNotificationRequest(
                     identifier: expensePrefix + "\(expense.id.uuidString)-\(fireDate.timeIntervalSince1970)",
                     content: content,
                     trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-                ))
+                ), fireDate: fireDate))
             }
         }
         return requests
@@ -188,8 +199,12 @@ final class NotificationScheduler {
     /// fires at `hour` o'clock the day before the charge; it's skipped only
     /// once that moment has passed, not at midnight of that day.
     nonisolated static func requests(for expenses: [Expense], now: Date = .now, discreet: Bool, hour: Int = reminderHour, calendar: Calendar = .gregorianLocal) -> [UNNotificationRequest] {
+        datedRequests(for: expenses, now: now, discreet: discreet, hour: hour, calendar: calendar).map(\.request)
+    }
+
+    nonisolated static func datedRequests(for expenses: [Expense], now: Date = .now, discreet: Bool, hour: Int = reminderHour, calendar: Calendar = .gregorianLocal) -> [DatedRequest] {
         let charges = UpcomingChargeCalculator.charges(for: expenses, from: now, days: lookaheadDays, calendar: calendar)
-        var requests: [UNNotificationRequest] = []
+        var requests: [DatedRequest] = []
 
         for charge in charges {
             guard let dayBefore = calendar.date(byAdding: .day, value: -1, to: charge.date) else { continue }
@@ -214,11 +229,11 @@ final class NotificationScheduler {
             }
             content.sound = .default
 
-            requests.append(UNNotificationRequest(
+            requests.append(DatedRequest(request: UNNotificationRequest(
                 identifier: identifierPrefix + charge.id,
                 content: content,
                 trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-            ))
+            ), fireDate: fireDate))
             if requests.count == maxPending { break }
         }
         return requests

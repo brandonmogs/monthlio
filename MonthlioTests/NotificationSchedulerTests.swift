@@ -124,8 +124,28 @@ final class NotificationSchedulerTests: XCTestCase {
 
         let on = NotificationScheduler.allRequests(for: [gym, rent], enabled: true, now: date(2026, 10, 7), discreet: false, calendar: calendar)
         XCTAssertGreaterThan(on.count, 2, "plus the day-before reminders")
-        XCTAssertTrue(on.prefix(2).allSatisfy { $0.identifier.hasPrefix(NotificationScheduler.expensePrefix) }, "the expense's own come first")
+        XCTAssertTrue(on.contains { $0.identifier.hasPrefix(NotificationScheduler.expensePrefix) })
+        XCTAssertTrue(on.contains { $0.identifier.hasPrefix(NotificationScheduler.identifierPrefix) })
+        let fireDates = on.compactMap { ($0.trigger as? UNCalendarNotificationTrigger)?.nextTriggerDate() }
+        XCTAssertEqual(fireDates, fireDates.sorted(), "soonest first")
         XCTAssertLessThanOrEqual(on.count, NotificationScheduler.maxPending)
+    }
+
+    func testTheCapKeepsTheSoonestNotifications() {
+        // Thirty expenses with their own notifications next summer overflow
+        // the cap on their own; the one listed last fires tomorrow and must
+        // survive, and so must this month's day-before reminders.
+        var expenses: [Expense] = (1...30).map { index in
+            Expense(name: "Far \(index)", amount: 1, currencyCode: "USD", category: .other, cadence: .monthly, dueDay: 15, reminderDate: date(2027, 6, 14, 9))
+        }
+        expenses.append(Expense(name: "Soon", amount: 1, currencyCode: "USD", category: .other, cadence: .monthly, dueDay: 9, reminderDate: date(2026, 10, 8, 9)))
+
+        let requests = NotificationScheduler.allRequests(for: expenses, enabled: true, now: date(2026, 10, 7), discreet: false, calendar: calendar)
+
+        XCTAssertEqual(requests.count, NotificationScheduler.maxPending)
+        XCTAssertTrue(requests.contains { $0.content.title == "Soon" }, "the soonest notification survives the cap")
+        XCTAssertTrue(requests.contains { $0.identifier.hasPrefix(NotificationScheduler.identifierPrefix) }, "day-before reminders this month beat notifications next summer")
+        XCTAssertFalse(requests.contains { $0.content.title.hasPrefix("Far") }, "next summer's notifications are the ones dropped")
     }
 
     func testDiscreetExpenseNotificationsHideTheDetails() {

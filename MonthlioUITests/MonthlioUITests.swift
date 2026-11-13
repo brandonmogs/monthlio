@@ -328,6 +328,15 @@ final class MonthlioUITests: XCTestCase {
         saveScreenshot(app, name: "locked-launch")
     }
 
+    func testADeepLinkClosesAnOpenSheetFirst() {
+        // A widget tap used to switch tabs underneath whatever sheet was up.
+        let app = launch(["-MonthlioSettings"])
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 15))
+        app.open(URL(string: "monthlio://upcoming")!)
+        XCTAssertTrue(app.staticTexts["Next 30 days"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["Settings"].waitForNonExistence(timeout: 5), "the Settings sheet is gone")
+    }
+
     func testDeepLinkOpensTheUpcomingTab() {
         let app = launch()
         XCTAssertTrue(app.staticTexts["$3,459.29"].waitForExistence(timeout: 15))

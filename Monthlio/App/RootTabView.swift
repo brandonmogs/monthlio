@@ -110,7 +110,20 @@ struct RootTabView: View {
     /// Widgets open `monthlio://upcoming` or `monthlio://dashboard`.
     private func openDeepLink(_ url: URL) {
         guard url.scheme == "monthlio", let host = url.host(), let tab = Tab(rawValue: host) else { return }
+        // A sheet (Settings, an expense) would otherwise stay on top of the
+        // tab the link asked for.
+        Self.dismissPresentedSheets()
         selectedTab = tab
+    }
+
+    /// SwiftUI sheets are UIKit presentations; dismissing the top one from
+    /// the window resets their bindings the way a swipe down does.
+    private static func dismissPresentedSheets() {
+        for scene in UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }) {
+            for window in scene.windows where !window.isHidden {
+                window.rootViewController?.presentedViewController?.dismiss(animated: true)
+            }
+        }
     }
 
     private var tabs: some View {

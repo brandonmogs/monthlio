@@ -18,7 +18,7 @@ final class StoreOpenerTests: XCTestCase {
     }
 
     func testAFreshFolderGetsANewLocalStoreThatReopens() throws {
-        let first = StoreOpener.open(at: storeURL, cloud: false)
+        let first = StoreOpener.open(at: storeURL, cloud: false, schema: MonthlioApp.schema)
         XCTAssertFalse(first.isCloud)
         XCTAssertNil(first.cloudFailure)
         XCTAssertNil(first.recoveryNotice, "nothing was set aside")
@@ -26,7 +26,7 @@ final class StoreOpenerTests: XCTestCase {
         try first.container.mainContext.save()
         XCTAssertTrue(FileManager.default.fileExists(atPath: storeURL.path))
 
-        let second = StoreOpener.open(at: storeURL, cloud: false)
+        let second = StoreOpener.open(at: storeURL, cloud: false, schema: MonthlioApp.schema)
         XCTAssertEqual(try second.container.mainContext.fetch(FetchDescriptor<Expense>()).map(\.name), ["Rent"])
         XCTAssertNil(second.recoveryNotice)
     }
@@ -43,7 +43,7 @@ final class StoreOpenerTests: XCTestCase {
             try old.mainContext.save()
         }
 
-        let result = StoreOpener.open(at: storeURL, cloud: false)
+        let result = StoreOpener.open(at: storeURL, cloud: false, schema: MonthlioApp.schema)
 
         XCTAssertNil(result.recoveryNotice, "the file was opened, not set aside")
         XCTAssertEqual(try result.container.mainContext.fetch(FetchDescriptor<Expense>()).map(\.name), ["Rent"])
@@ -56,7 +56,7 @@ final class StoreOpenerTests: XCTestCase {
             try Data("not a database".utf8).write(to: directory.appending(path: "default.store" + suffix))
         }
 
-        let result = StoreOpener.open(at: storeURL, cloud: false)
+        let result = StoreOpener.open(at: storeURL, cloud: false, schema: MonthlioApp.schema)
 
         let notice = try XCTUnwrap(result.recoveryNotice)
         XCTAssertNotNil(notice.keptFileName)
@@ -68,7 +68,7 @@ final class StoreOpenerTests: XCTestCase {
         try result.container.mainContext.save()
         XCTAssertEqual(try result.container.mainContext.fetchCount(FetchDescriptor<Expense>()), 1)
 
-        let again = StoreOpener.open(at: storeURL, cloud: false)
+        let again = StoreOpener.open(at: storeURL, cloud: false, schema: MonthlioApp.schema)
         XCTAssertNil(again.recoveryNotice, "the fresh store opens normally next time")
         XCTAssertEqual(try again.container.mainContext.fetchCount(FetchDescriptor<Expense>()), 1)
     }

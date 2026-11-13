@@ -25,8 +25,10 @@ enum StoreOpener {
         let recoveryNotice: StoreRecoveryNotice?
     }
 
-    /// Opens (or creates) the store at `storeURL`.
-    static func open(at storeURL: URL, cloud wantsCloud: Bool, schema: Schema = MonthlioApp.schema) -> Result {
+    /// Opens (or creates) the store at `storeURL`. The app passes
+    /// `MonthlioApp.schema`, which is main-actor bound and so can't be a
+    /// default argument here.
+    static func open(at storeURL: URL, cloud wantsCloud: Bool, schema: Schema) -> Result {
         let directory = storeURL.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         var attempt = openStore(at: storeURL, cloud: wantsCloud, schema: schema)
@@ -51,7 +53,7 @@ enum StoreOpener {
 
     /// One pass through the ladder: CloudKit with the plan, CloudKit without,
     /// local with, local without.
-    static func openStore(at storeURL: URL, cloud wantsCloud: Bool, schema: Schema = MonthlioApp.schema) -> (container: ModelContainer?, isCloud: Bool, cloudFailure: String?) {
+    static func openStore(at storeURL: URL, cloud wantsCloud: Bool, schema: Schema) -> (container: ModelContainer?, isCloud: Bool, cloudFailure: String?) {
         var cloudFailure: String?
         func attempt(_ configuration: ModelConfiguration, label: String, plan: Bool) -> ModelContainer? {
             do {

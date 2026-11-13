@@ -68,6 +68,9 @@ struct RootTabView: View {
                 // Month rollover and permission changes happen while the app
                 // is away; the scheduler serializes this with the task above.
                 if phase == .active { Task { await sync() } }
+                // A snapshot still waiting on its quiet time goes out now,
+                // before the app is suspended.
+                if phase == .background { WidgetSnapshotWriter.flush() }
             }
             .onOpenURL { url in
                 openDeepLink(url)

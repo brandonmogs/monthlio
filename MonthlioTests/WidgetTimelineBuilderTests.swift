@@ -99,13 +99,14 @@ final class WidgetTimelineBuilderTests: XCTestCase {
             Expense(name: "Old", amount: 99, currencyCode: "USD", category: .other, cadence: .monthly, dueDay: 5, isActive: false),
         ]
 
-        let snapshot = WidgetSnapshotWriter.snapshot(expenses: expenses, discreet: true, converter: CurrencyConverter(baseCode: "USD"), now: now, calendar: calendar)
+        // Names and amounts are asserted with the lock off; under the lock the file holds none (WidgetSnapshotWriterTests).
+        let snapshot = WidgetSnapshotWriter.snapshot(expenses: expenses, discreet: false, converter: CurrencyConverter(baseCode: "USD"), now: now, calendar: calendar)
 
         XCTAssertEqual(snapshot.monthKey, "2026-09")
         XCTAssertEqual(snapshot.monthlyTotal, "2636.67", "1850 + 606.67 + 180")
         XCTAssertEqual(snapshot.recurringMonthlyTotal, "2456.67")
         XCTAssertEqual(snapshot.activeCount, 3)
-        XCTAssertTrue(snapshot.discreet)
+        XCTAssertFalse(snapshot.discreet)
         XCTAssertEqual(snapshot.charges.map(\.name), ["Ticket", "Rent", "Rent"], "today's ticket, then rent on Oct 1 and Nov 1 within 60 days")
         XCTAssertEqual(snapshot.charges.map(\.date), [date(2026, 9, 24), date(2026, 10, 1), date(2026, 11, 1)])
         XCTAssertEqual(snapshot.charges[1].amount, "1850")

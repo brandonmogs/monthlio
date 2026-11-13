@@ -20,7 +20,7 @@ struct DashboardExpenseList: View {
                     .frame(maxWidth: .infinity)
                     .padding()
             } else {
-                VStack(spacing: 0) {
+                LazyVStack(spacing: 0) {
                     ForEach(expenses) { expense in
                         Button {
                             onEdit(expense)

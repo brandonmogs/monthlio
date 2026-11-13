@@ -158,7 +158,9 @@ final class ExpenseFormViewModel {
     var resolvedChargeDate: Date? {
         switch cadence {
         case .oneTime: chargeDate
-        case .monthly: nil
+        // An imported "next payment" date months away stays until the
+        // schedule itself is edited; the form has no field for it.
+        case .monthly: existing?.cadence == .monthly && existing?.dueDay == resolvedDueDay ? existing?.chargeDate : nil
         case .weekly, .biweekly, .quarterly, .yearly: hasChargeDate ? chargeDate : nil
         }
     }

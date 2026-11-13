@@ -12,6 +12,14 @@ final class UpcomingChargeCalculatorTests: XCTestCase {
         calendar.date(from: DateComponents(year: year, month: month, day: day))!
     }
 
+    func testAMonthlyChargeWithAFutureStartDateWaitsForIt() {
+        let start = date(2027, 3, 15)
+        XCTAssertTrue(UpcomingChargeCalculator.occurrences(cadence: .monthly, dueDay: 15, anchor: start, from: date(2026, 11, 1), calendar: calendar).isEmpty, "nothing before the first payment")
+        XCTAssertEqual(UpcomingChargeCalculator.nextCharge(cadence: .monthly, dueDay: 15, anchor: start, after: date(2026, 11, 1), calendar: calendar), start)
+        XCTAssertEqual(UpcomingChargeCalculator.occurrences(cadence: .monthly, dueDay: 15, anchor: start, from: date(2027, 4, 1), calendar: calendar), [date(2027, 4, 15)], "after the start it is an ordinary monthly charge")
+        XCTAssertEqual(UpcomingChargeCalculator.occurrences(cadence: .monthly, dueDay: 15, anchor: date(2026, 1, 15), from: date(2026, 11, 1), calendar: calendar), [date(2026, 11, 15)], "a start date in the past changes nothing")
+    }
+
     func testMonthlyChargeLaterThisMonthAppearsOnce() {
         let dates = UpcomingChargeCalculator.occurrences(dueDay: 20, cadence: .monthly, from: date(2026, 9, 7), calendar: calendar)
         XCTAssertEqual(dates, [date(2026, 9, 20)])

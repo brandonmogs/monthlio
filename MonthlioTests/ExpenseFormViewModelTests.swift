@@ -237,6 +237,16 @@ final class ExpenseFormViewModelTests: XCTestCase {
         XCTAssertEqual(netflix.previousAmount, 1500)
     }
 
+    func testAMonthlyRowKeepsItsFutureStartDateUntilTheScheduleChanges() {
+        let start = Calendar.gregorianLocal.date(byAdding: .month, value: 4, to: .now)!
+        let imported = Expense(name: "Gym", amount: 40, category: .health, cadence: .monthly, dueDay: Calendar.gregorianLocal.component(.day, from: start), chargeDate: start)
+        let vm = ExpenseFormViewModel(expense: imported)
+        XCTAssertEqual(vm.resolvedChargeDate, start, "an unrelated edit keeps the first payment")
+        XCTAssertEqual(vm.nextChargeDate.map { Calendar.gregorianLocal.startOfDay(for: $0) }, Calendar.gregorianLocal.startOfDay(for: start))
+        vm.dueDay = vm.dueDay == 28 ? 27 : 28
+        XCTAssertNil(vm.resolvedChargeDate, "a new due day replaces the imported date")
+    }
+
     func testMonthlyEditAdoptsAnImportedChargeDateAsItsDueDay() {
         let imported = Expense(name: "Netflix", amount: 15, category: .subscriptions, cadence: .monthly, chargeDate: Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 12)))
         let vm = ExpenseFormViewModel(expense: imported)

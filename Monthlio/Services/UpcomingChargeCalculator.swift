@@ -49,7 +49,10 @@ enum UpcomingChargeCalculator {
             return oneTimeOccurrence(chargeDate: anchor, from: start, days: days, calendar: calendar)
         case .monthly:
             guard let day = dueDay ?? anchor.map({ calendar.component(.day, from: $0) }) else { return [] }
-            return monthlyOccurrences(day: day, everyMonths: 1, fromMonthOf: startDay, start: startDay, end: end, calendar: calendar)
+            // A known charge date in the future (a subscription that starts
+            // next March, from a "next payment" column) means nothing is
+            // charged before it.
+            return monthlyOccurrences(day: day, everyMonths: 1, fromMonthOf: anchor ?? startDay, start: startDay, end: end, calendar: calendar)
         case .weekly, .biweekly:
             guard let anchor else { return [] }
             return dayStepOccurrences(anchor: anchor, everyDays: cadence == .weekly ? 7 : 14, start: startDay, end: end, calendar: calendar)
@@ -91,7 +94,7 @@ enum UpcomingChargeCalculator {
     /// ahead for a yearly charge. A schedule whose charge date is further
     /// out than that starts there.
     static func nextCharge(cadence: Cadence, dueDay: Int?, anchor: Date?, after start: Date = .now, lookaheadDays: Int = 400, calendar: Calendar = .gregorianLocal) -> Date? {
-        if let anchor, cadence != .monthly {
+        if let anchor {
             let anchorDay = calendar.startOfDay(for: anchor)
             if anchorDay >= calendar.startOfDay(for: start) { return anchorDay }
         }
